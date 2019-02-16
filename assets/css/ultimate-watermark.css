@@ -1,0 +1,122 @@
+/* Ultimate Watermark settings */
+.df-sidebar { 
+    float: right; 
+    width: 280px; 
+    margin: 20px -300px 20px 20px; 
+    position: relative; 
+}
+.df-sidebar .df-credits {
+    background: #fff; 
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+}
+.df-sidebar .inner { 
+    padding-left: 10px; 
+    padding-right: 10px; 
+}
+.df-sidebar h3 { 
+    font-size: 14px; 
+    line-height: 1.4; 
+    margin: 0;  
+    padding: 8px 12px; 
+    border-bottom: 1px solid #eee; 
+}
+.df-sidebar .df-link { 
+    font-family: Georgia, "Times New Roman", "Bitstream Charter", Times, serif; 
+    font-style:italic; 
+    padding-bottom: 10px; 
+    margin: 0; 
+}
+.df-sidebar .df-link a { 
+    vertical-align: middle; 
+    padding: 5px 0 0 4px; 
+}
+.ultimate-watermark-settings .df-credits form {
+    min-width: 260px; 
+    margin-bottom: 1em; 
+}
+.ultimate-watermark-settings .df-credits form input {
+    margin: 0; 
+    padding: 0; 
+}
+.ultimate-watermark-settings hr, .df-credits hr {
+    border: solid #eee; 
+    border-width: 1px 0 0; 
+    clear: both; 
+    height: 0; 
+}
+.ultimate-watermark-settings form {
+    float: left; 
+    min-width: 100%; 
+    width: auto; 
+}
+.ultimate-watermark-settings fieldset span.description {
+    margin-bottom: 8px; 
+    margin-top: 4px; 
+    display: block; 
+}
+.ultimate-watermark-settings.ui-button {
+    margin-bottom: 5px; 
+}
+.ultimate-watermark-settings .description {
+    font-size: 13px; 
+    margin-bottom: 8px; 
+}
+.ultimate-watermark-settings #watermark_position td {
+    padding: 15px 20px;
+}
+.ultimate-watermark-settings #watermark_position td input {
+    margin: 0;
+}
+
+/* All Mobile Sizes (devices and browser) */
+@media only screen and (max-width: 959px) {
+    .df-sidebar { width: 100%; float: none; margin: 20px 0; }
+    .ultimate-watermark-settings { margin-right: 0; }
+}
+
+/* Larger sizes */
+@media only screen and (min-width: 959px) {
+    .df-sidebar { position: fixed; right: 0; margin: 0 20px; }
+}
+
+#cpt-select { margin-top: 5px; }
+.wplike-slider span.middle { width: 150px; }
+.wplike-slider span.left { margin-right: 10px; }
+.wplike-slider span.right { margin-left: 10px; }
+
+#ultimate_watermark_buttons {
+    margin: 10px 0;
+}
+
+.ulwm-overlay .spinner {
+    margin: 0;
+    height: 20px;
+    width: 40px;
+    padding: 0;
+}
+
+div.ulwm-notice {
+    margin: 12px 0;
+}
+
+.ulwm-watermark-action {
+    text-decoration: none;
+}
+.delete-watermark, .media-frame a.delete-watermark {
+    color: #bc0b0b;
+}
+
+.delete-watermark:hover, .delete-watermark:focus, .media-frame a.delete-watermark:hover, .media-frame a.delete-watermark:focus {
+    color: #f00;
+}
+
+.ulwm-current-value {
+	position: relative;
+	bottom: 25px;
+	display: inline-block;
+	width: 17px;
+	text-align: center;
+	margin-left: -.6em;
+	font-size: 0.9em;
+}
