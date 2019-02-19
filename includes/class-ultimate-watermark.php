@@ -50,7 +50,7 @@ final class Ultimate_Watermark {
                 'backup_quality' => 90
             )
         ),
-        'version'	 => '1.0.0'
+        'version'	 => '1.0.1'
     );
     public $options = array();
 
