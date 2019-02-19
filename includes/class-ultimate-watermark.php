@@ -22,7 +22,7 @@ final class Ultimate_Watermark {
             'watermark_cpt_on'	 => array( 'everywhere' ),
             'watermark_image'	 => array(
                 'extension'				 => '',
-                'url'					 => 0,
+                'attachment_id'					 => 0,
                 'width'					 => 80,
                 'plugin_off'			 => 0,
                 'frontend_active'		 => false,
@@ -404,12 +404,12 @@ final class Ultimate_Watermark {
 
             // admin
             if ( $this->is_admin === true ) {
-                if ( $this->options['watermark_image']['plugin_off'] == 1 && $this->options['watermark_image']['url'] != 0 && in_array( $file['type'], $this->allowed_mime_types ) ) {
+                if ( $this->options['watermark_image']['plugin_off'] == 1 && $this->options['watermark_image']['attachment_id'] != 0 && in_array( $file['type'], $this->allowed_mime_types ) ) {
                     add_filter( 'wp_generate_attachment_metadata', array( $this, 'apply_watermark' ), 10, 2 );
                 }
                 // frontend
             } else {
-                if ( $this->options['watermark_image']['frontend_active'] == 1 && $this->options['watermark_image']['url'] != 0 && in_array( $file['type'], $this->allowed_mime_types ) ) {
+                if ( $this->options['watermark_image']['frontend_active'] == 1 && $this->options['watermark_image']['attachment_id'] != 0 && in_array( $file['type'], $this->allowed_mime_types ) ) {
                     add_filter( 'wp_generate_attachment_metadata', array( $this, 'apply_watermark' ), 10, 2 );
                 }
             }
@@ -473,7 +473,7 @@ final class Ultimate_Watermark {
 
         // only if manual watermarking is turned and we have a valid action
         // if the action is NOT "removewatermark" we also require a watermark image to be set
-        if ( $post_id > 0 && $action && $this->options['watermark_image']['manual_watermarking'] == 1 && ( $this->options['watermark_image']['url'] != 0 || $action == 'removewatermark' ) ) {
+        if ( $post_id > 0 && $action && $this->options['watermark_image']['manual_watermarking'] == 1 && ( $this->options['watermark_image']['attachment_id'] != 0 || $action == 'removewatermark' ) ) {
             $data = wp_get_attachment_metadata( $post_id, false );
 
             // is this really an image?
@@ -523,7 +523,7 @@ final class Ultimate_Watermark {
 
             // only if manual watermarking is turned and we have a valid action
             // if the action is NOT "removewatermark" we also require a watermark image to be set
-            if ( $action && $this->options['watermark_image']['manual_watermarking'] == 1 && ( $this->options['watermark_image']['url'] != 0 || $action == 'removewatermark' ) ) {
+            if ( $action && $this->options['watermark_image']['manual_watermarking'] == 1 && ( $this->options['watermark_image']['attachment_id'] != 0 || $action == 'removewatermark' ) ) {
                 // security check
                 check_admin_referer( 'bulk-media' );
 
@@ -688,7 +688,7 @@ final class Ultimate_Watermark {
         $post = get_post( (int) $attachment_id );
         $post_id = ( ! empty( $post ) ? (int) $post->post_parent : 0 );
 
-        if ( $attachment_id == $this->options['watermark_image']['url'] ) {
+        if ( $attachment_id == $this->options['watermark_image']['attachment_id'] ) {
             // this is the current watermark, do not apply
             return array( 'error' => __( 'Watermark prevented, this is your selected watermark image', 'ultimate-watermark' ) );
         }
@@ -938,7 +938,7 @@ final class Ultimate_Watermark {
         $mime = wp_check_filetype( $image_path );
 
         // get watermark path
-        $watermark_file = wp_get_attachment_metadata( $options['watermark_image']['url'], true );
+        $watermark_file = wp_get_attachment_metadata( $options['watermark_image']['attachment_id'], true );
         $watermark_path = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . $watermark_file['file'];
 
         // imagick extension
@@ -1037,9 +1037,8 @@ final class Ultimate_Watermark {
             $filepath = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . $data['file'];
             $mime = wp_check_filetype( $filepath );
 
-            // get image resource
-            $image = $this->get_image_resource( $filepath, $mime['type'] );
 
+            $image = $this->get_image_resource( $filepath, $mime['type'] );
             if ( false !== $image ) {
                 // create backup directory if needed
                 wp_mkdir_p( $this->get_image_backup_folder_location( $data['file'] ) );
@@ -1103,8 +1102,18 @@ final class Ultimate_Watermark {
      * @return string $image_backup_folder
      */
     private function get_image_backup_folder_location( $filepath ) {
-        $path = explode( DIRECTORY_SEPARATOR, $filepath );
+
+
+        $path = explode( '/', $filepath );
+
+        if(count($path)<2) {
+
+            $path = explode(DIRECTORY_SEPARATOR, $filepath);
+        }
+
         array_pop( $path );
+
+
         $path = implode( DIRECTORY_SEPARATOR, $path );
 
         // Multisite?
@@ -1273,7 +1282,7 @@ final class Ultimate_Watermark {
      * @return resource	Watermarked image
      */
     private function add_watermark_image( $image, $options, $upload_dir ) {
-        $watermark_file = wp_get_attachment_metadata( $options['watermark_image']['url'], true );
+        $watermark_file = wp_get_attachment_metadata( $options['watermark_image']['attachment_id'], true );
         $url = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . $watermark_file['file'];
         $watermark_file_info = getimagesize( $url );
 
@@ -1374,11 +1383,13 @@ final class Ultimate_Watermark {
      * @return void
      */
     private function save_image_file( $image, $mime_type, $filepath, $quality ) {
+
         switch ( $mime_type ) {
             case 'image/jpeg':
             case 'image/pjpeg':
                 imagejpeg( $image, $filepath, $quality );
-                break;
+
+            break;
 
             case 'image/png':
                 imagepng( $image, $filepath, (int) round( 9 - ( 9 * $quality / 100 ), 0 ) );
