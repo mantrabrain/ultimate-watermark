@@ -4,7 +4,7 @@ Plugin Name: Ultimate Watermark
 Description: Watermark plugin for WordPress media.
 Version: 1.0.1
 Author: mantrabrain
-Author URI: https:mantrabrain.com/
+Author URI: https://mantrabrain.com/
 License: MIT License
 License URI: http://opensource.org/licenses/MIT
 Text Domain: ultimate-watermark
