@@ -51,7 +51,7 @@ final class Ultimate_Watermark
                 'backup_quality' => 90
             )
         ),
-        'version' => '1.0.1'
+        'version' => '1.0.2'
     );
     public $options = array();
 
@@ -92,7 +92,6 @@ final class Ultimate_Watermark
         add_action('wp_enqueue_media', array($this, 'wp_enqueue_media'));
         add_action('wp_enqueue_scripts', array($this, 'wp_enqueue_scripts'));
         add_action('load-upload.php', array($this, 'watermark_bulk_action'));
-        add_action('admin_init', array($this, 'update_plugin'));
         add_action('admin_init', array($this, 'check_extensions'));
         add_action('admin_notices', array($this, 'bulk_admin_notices'));
         add_action('delete_attachment', array($this, 'delete_attachment'));
@@ -138,6 +137,7 @@ final class Ultimate_Watermark
 
             add_action('admin_notices', array($this, 'folder_writable_admin_notice'));
         }
+
     }
 
     /**
@@ -158,7 +158,7 @@ final class Ultimate_Watermark
      */
     public function activate_watermark()
     {
-        add_option('ultimate_watermark_options', $this->defaults['options'], '', 'no');
+        update_option('ultimate_watermark_options', $this->defaults['options'], 'no');
         add_option('ultimate_watermark_version', $this->defaults['version'], '', 'no');
     }
 
@@ -172,43 +172,6 @@ final class Ultimate_Watermark
             delete_option('ultimate_watermark_options');
     }
 
-    /**
-     * Plugin update, fix for version < 1.5.0
-     */
-    public function update_plugin()
-    {
-        if (!current_user_can('install_plugins'))
-            return;
-
-        $db_version = get_option('ultimate_watermark_version');
-        $db_version = !($db_version) && (get_option('df_watermark_installed') != false) ? get_option('version') : $db_version;
-
-        if ($db_version != false) {
-            if (version_compare($db_version, '1.5.0', '<')) {
-                $options = array();
-
-                $old_new = array(
-                    'df_watermark_on' => 'watermark_on',
-                    'df_watermark_cpt_on' => 'watermark_cpt_on',
-                    'df_watermark_image' => 'watermark_image',
-                    'df_image_protection' => 'image_protection',
-                    'df_watermark_installed' => '',
-                    'version' => '',
-                    'ultimate_watermark_version' => '',
-                );
-
-                foreach ($old_new as $old => $new) {
-                    if ($new) {
-                        $options[$new] = get_option($old);
-                    }
-                    delete_option($old);
-                }
-
-                add_option('ultimate_watermark_options', $options, '', 'no');
-                add_option('ultimate_watermark_version', $this->defaults['version'], '', 'no');
-            }
-        }
-    }
 
     /**
      * Load textdomain.

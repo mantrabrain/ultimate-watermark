@@ -313,6 +313,8 @@ class Ultimate_Watermark_Settings {
 		<fieldset id="ulwm_enable_for">
 			<div id="thumbnail-select">
 				<?php
+                /*echo '<pre>';
+                print_r(Ultimate_Watermark()->options);exit;*/
 				foreach ( $this->image_sizes as $image_size ) {
 					?>
 					<input name="ulwm_options[watermark_on][<?php echo $image_size; ?>]" type="checkbox" id="<?php echo $image_size; ?>" value="1" <?php echo (in_array( $image_size, array_keys( Ultimate_Watermark()->options['watermark_on'] ) ) ? ' checked="checked"' : ''); ?> />
@@ -715,7 +717,7 @@ class Ultimate_Watermark_Settings {
 			return;
 	 
 		foreach ( (array) $wp_settings_sections[$page] as $section ) {
-			echo '<div id="" class="stuffbox postbox '.$section['id'].'">';
+			echo '<div id="" class="postbox '.$section['id'].'">';
 			echo '<button type="button" class="handlediv button-link" aria-expanded="true"><span class="screen-reader-text">' . __('Toggle panel', 'ultimate-watermark') . '</span><span class="toggle-indicator" aria-hidden="true"></span></button>';
 			if ( $section['title'] )
 				echo "<h3 class=\"hndle\"><span>{$section['title']}</span></h3>\n";
