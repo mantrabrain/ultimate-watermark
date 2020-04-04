@@ -3,8 +3,8 @@ Contributors: mantrabrain
 Donate link: https://mantrabrain.com
 Tags: image, watermark
 Requires at least: 4.0
-Tested up to: 5.1.1
-Stable tag: 1.0.2
+Tested up to: 5.4
+Stable tag: 1.0.3
 License: MIT License
 License URI: http://opensource.org/licenses/MIT
 
@@ -22,6 +22,8 @@ Watermark plugin for WordPress media. This plugins allows you to add watermark o
 
 == Changelog ==
 
+= 1.0.3 - 2020/04/04 =
+* Fix - Version tested
 = 1.0.2 - 2019/04/14 =
 * Fix - Minor issue fixed
 
