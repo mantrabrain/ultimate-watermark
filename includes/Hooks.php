@@ -48,12 +48,12 @@ class Hooks
             // admin
             if ($this->is_admin === true) {
                 if (ultimate_watermark()->options['watermark_image']['plugin_off'] == 1 && ultimate_watermark()->options['watermark_image']['attachment_id'] != 0 && in_array($file['type'], ultimate_watermark()->utils->get_allowed_mime_types())) {
-                    add_filter('wp_generate_attachment_metadata', array($this, 'apply_watermark'), 10, 2);
+                    add_filter('wp_generate_attachment_metadata', array(ultimate_watermark()->watermark, 'apply_watermark'), 10, 2);
                 }
                 // frontend
             } else {
                 if (ultimate_watermark()->options['watermark_image']['frontend_active'] == 1 && ultimate_watermark()->options['watermark_image']['attachment_id'] != 0 && in_array($file['type'], ultimate_watermark()->utils->get_allowed_mime_types())) {
-                    add_filter('wp_generate_attachment_metadata', array($this, 'apply_watermark'), 10, 2);
+                    add_filter('wp_generate_attachment_metadata', array(ultimate_watermark()->watermark, 'apply_watermark'), 10, 2);
                 }
             }
         }
