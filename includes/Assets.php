@@ -16,7 +16,7 @@ class Assets
      */
     public function wp_enqueue_media($page)
     {
-        wp_enqueue_style('watermark-style', ULTIMATE_WATERMARK_URL . '/assets/css/ultimate-watermark.css', array(), ULTIMATE_WATERMARK_VERSION);
+        wp_enqueue_style('watermark-style', ULTIMATE_WATERMARK_URI . '/assets/css/ultimate-watermark.css', array(), ULTIMATE_WATERMARK_VERSION);
     }
 
     public function wp_enqueue_scripts()

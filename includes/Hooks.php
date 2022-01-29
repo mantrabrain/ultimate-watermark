@@ -1,7 +1,7 @@
 <?php
 
-namespace Ultimate_Watermark\Admin;
-class Admin
+namespace Ultimate_Watermark;
+class Hooks
 {
     public function __construct()
     {

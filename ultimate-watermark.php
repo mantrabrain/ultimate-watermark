@@ -20,11 +20,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 if (!defined('ABSPATH'))
     exit;
 
-define('ULTIMATE_WATERMARK_URL', plugins_url('', __FILE__));
-define('ULTIMATE_WATERMARK_PATH', plugin_dir_path(__FILE__));
+define('ULTIMATE_WATERMARK_FILE', __FILE__);
 define('ULTIMATE_WATERMARK_VERSION', '1.0.4');
+define('ULTIMATE_WATERMARK_URI', plugins_url('', ULTIMATE_WATERMARK_FILE));
+define('ULTIMATE_WATERMARK_DIR', plugin_dir_path(ULTIMATE_WATERMARK_FILE));
 
-include_once ULTIMATE_WATERMARK_PATH . 'vendor/autoload.php';
+include_once plugin_dir_path(ULTIMATE_WATERMARK_FILE) . 'vendor/autoload.php';
 
 /**
  * Get instance of main class.

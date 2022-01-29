@@ -19,8 +19,9 @@ class Utils
         /* if ( is_multisite() && ! is_main_site() ) {
           $filepath = 'sites' . DIRECTORY_SEPARATOR . get_current_blog_id() . DIRECTORY_SEPARATOR . $filepath;
           } */
-        return ULTIMATE_WATERMARK_BACKUP_DIR . DIRECTORY_SEPARATOR . $filepath;
+        return ultimate_watermark()->get_backup_dir(true) . $filepath;
     }
+
     public function get_extensions()
     {
         return $this->extensions;

@@ -137,8 +137,13 @@ class Watermark
 
             $destfilecontent = @file_get_contents($file);
 
+
             if (!$destfilecontent)
                 return false;
+
+            if (strlen($destfilecontent) < 1) {
+                return false;
+            }
 
             if (strlen($destfilecontent) > 0) {
                 $destfilecontent = substr($destfilecontent, 2);
@@ -149,7 +154,7 @@ class Watermark
                 $exifadded = !$exifdata;
                 $iptcadded = !$iptcdata;
 
-                while ((substr($destfilecontent, 0, 2) & 0xFFF0) === 0xFFE0) {
+                while (@(substr($destfilecontent, 0, 2) & 0xFFF0) === 0xFFE0) {
                     $segmentlen = (substr($destfilecontent, 2, 2) & 0xFFFF);
 
                     // last 4 bits of second byte is IPTC segment
@@ -314,7 +319,7 @@ class Watermark
 
             $image = $this->get_image_resource($filepath, $mime['type']);
             if (false !== $image) {
-                // create backup directory if needed
+
                 wp_mkdir_p($this->get_image_backup_folder_location($data['file']));
 
                 // save backup image
@@ -325,6 +330,30 @@ class Watermark
                 $image = null;
             }
         }
+    }
+
+    private function get_image_backup_folder_location($filepath)
+    {
+
+
+        $path = explode('/', $filepath);
+
+        if (count($path) < 2) {
+
+            $path = explode(DIRECTORY_SEPARATOR, $filepath);
+        }
+
+        array_pop($path);
+
+
+        $path = implode(DIRECTORY_SEPARATOR, $path);
+
+        // Multisite?
+        /* if ( is_multisite() && ! is_main_site() ) {
+          $path = 'sites' . DIRECTORY_SEPARATOR . get_current_blog_id() . DIRECTORY_SEPARATOR . $path;
+          } */
+
+        return ultimate_watermark()->get_backup_dir() . $path;
     }
 
     public function remove_watermark($data, $attachment_id, $method = '')
@@ -393,31 +422,6 @@ class Watermark
 
         return $image;
     }
-
-    private function get_image_backup_folder_location($filepath)
-    {
-
-
-        $path = explode('/', $filepath);
-
-        if (count($path) < 2) {
-
-            $path = explode(DIRECTORY_SEPARATOR, $filepath);
-        }
-
-        array_pop($path);
-
-
-        $path = implode(DIRECTORY_SEPARATOR, $path);
-
-        // Multisite?
-        /* if ( is_multisite() && ! is_main_site() ) {
-          $path = 'sites' . DIRECTORY_SEPARATOR . get_current_blog_id() . DIRECTORY_SEPARATOR . $path;
-          } */
-
-        return ULTIMATE_WATERMARK_BACKUP_DIR . DIRECTORY_SEPARATOR . $path;
-    }
-
 
     /**
      * Calculate watermark dimensions.

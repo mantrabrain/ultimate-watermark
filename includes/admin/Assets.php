@@ -15,12 +15,12 @@ class Assets
     {
         global $pagenow;
 
-        wp_register_style('watermark-style', ULTIMATE_WATERMARK_URL . '/assets/css/ultimate-watermark.css', array(), ULTIMATE_WATERMARK_VERSION);
+        wp_register_style('watermark-style', ULTIMATE_WATERMARK_URI . '/assets/css/ultimate-watermark.css', array(), ULTIMATE_WATERMARK_VERSION);
 
         if ($page === 'settings_page_watermark-options') {
             wp_enqueue_media();
 
-            wp_enqueue_script('upload-manager', ULTIMATE_WATERMARK_URL . '/assets/js/admin-upload.js', array(), ULTIMATE_WATERMARK_VERSION);
+            wp_enqueue_script('upload-manager', ULTIMATE_WATERMARK_URI . '/assets/js/admin-upload.js', array(), ULTIMATE_WATERMARK_VERSION);
 
             wp_localize_script(
                 'upload-manager', 'ulwmUploadArgs', array(
@@ -35,7 +35,7 @@ class Assets
                 )
             );
 
-            wp_enqueue_script('watermark-admin-script', ULTIMATE_WATERMARK_URL . '/assets/js/admin-settings.js', array('jquery', 'jquery-ui-core', 'jquery-ui-button', 'jquery-ui-slider'), ULTIMATE_WATERMARK_VERSION);
+            wp_enqueue_script('watermark-admin-script', ULTIMATE_WATERMARK_URI . '/assets/js/admin-settings.js', array('jquery', 'jquery-ui-core', 'jquery-ui-button', 'jquery-ui-slider'), ULTIMATE_WATERMARK_VERSION);
 
             wp_localize_script(
                 'watermark-admin-script', 'ulwmArgs', array(
@@ -43,7 +43,7 @@ class Assets
                 )
             );
 
-            wp_enqueue_style('wp-like-ui-theme', ULTIMATE_WATERMARK_URL . '/assets/css/wp-like-ui-theme.css', array(), ULTIMATE_WATERMARK_VERSION);
+            wp_enqueue_style('wp-like-ui-theme', ULTIMATE_WATERMARK_URI . '/assets/css/wp-like-ui-theme.css', array(), ULTIMATE_WATERMARK_VERSION);
             wp_enqueue_style('watermark-style');
 
             wp_enqueue_script('postbox');
@@ -56,7 +56,7 @@ class Assets
         // I've omitted $pagenow === 'upload.php' because the image modal could be loaded in various places
         if (ultimate_watermark()->options['watermark_image']['manual_watermarking'] == 1) {
 
-            wp_enqueue_script('watermark-admin-image-actions', ULTIMATE_WATERMARK_URL . '/assets/js/admin-image-actions.js', array('jquery'), ULTIMATE_WATERMARK_VERSION, true);
+            wp_enqueue_script('watermark-admin-image-actions', ULTIMATE_WATERMARK_URI . '/assets/js/admin-image-actions.js', array('jquery'), ULTIMATE_WATERMARK_VERSION, true);
 
             wp_localize_script(
                 'watermark-admin-image-actions', 'ulwmImageActionArgs', array(

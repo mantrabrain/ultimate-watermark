@@ -57,8 +57,9 @@ class Settings
         // general
         add_settings_section('ultimate_watermark_general', __('General settings', 'ultimate-watermark'), '', 'ultimate_watermark_options');
 
+        $extensions = ultimate_watermark()->utils->get_extensions();
         // is imagick available?
-        if (isset(Ultimate_Watermark()->extensions['imagick']))
+        if (isset($extensions['imagick']))
             add_settings_field('ulwm_extension', __('PHP library', 'ultimate-watermark'), array($this, 'ulwm_extension'), 'ultimate_watermark_options', 'ultimate_watermark_general');
 
         add_settings_field('ulwm_automatic_watermarking', __('Automatic watermarking', 'ultimate-watermark'), array($this, 'ulwm_automatic_watermarking'), 'ultimate_watermark_options', 'ultimate_watermark_general');
@@ -155,21 +156,18 @@ class Settings
         <?php
     }
 
-    /**
-     * Validate options.
-     *
-     * @param array $input
-     * @return array
-     */
-    public function validate_options($input)
+
+    public function validate_options($inputs)
     {
+        $input = array();
 
         if (!current_user_can('manage_options'))
-            return $input;
+            return $inputs;
+
 
         if (isset($_POST['save_ultimate_watermark_options'])) {
-            $input['watermark_image']['plugin_off'] = isset($_POST['ulwm_options']['watermark_image']['plugin_off']) ? ((bool)$_POST['ulwm_options']['watermark_image']['plugin_off'] == 1 ? true : false) : Ultimate_Watermark()->defaults['options']['watermark_image']['plugin_off'];
-            $input['watermark_image']['manual_watermarking'] = isset($_POST['ulwm_options']['watermark_image']['manual_watermarking']) ? ((bool)$_POST['ulwm_options']['watermark_image']['manual_watermarking'] == 1 ? true : false) : Ultimate_Watermark()->defaults['options']['watermark_image']['manual_watermarking'];
+            $input['watermark_image']['plugin_off'] = isset($_POST['ulwm_options']['watermark_image']['plugin_off']) ? ((bool)$_POST['ulwm_options']['watermark_image']['plugin_off'] == 1 ? true : false) : ultimate_watermark()->options['watermark_image']['plugin_off'];
+            $input['watermark_image']['manual_watermarking'] = isset($_POST['ulwm_options']['watermark_image']['manual_watermarking']) ? ((bool)$_POST['ulwm_options']['watermark_image']['manual_watermarking'] == 1 ? true : false) : ultimate_watermark()->options['watermark_image']['manual_watermarking'];
 
             $watermark_on = array();
 
@@ -183,7 +181,7 @@ class Settings
 
             $input['watermark_on'] = $watermark_on;
 
-            $input['watermark_cpt_on'] = Ultimate_Watermark()->defaults['options']['watermark_cpt_on'];
+            $input['watermark_cpt_on'] = ultimate_watermark()->options['watermark_cpt_on'];
 
             if (isset($_POST['ulwm_options']['watermark_cpt_on']) && in_array(esc_attr($_POST['ulwm_options']['watermark_cpt_on']), array('everywhere', 'specific'))) {
                 if ($_POST['ulwm_options']['watermark_cpt_on'] === 'specific') {
@@ -204,10 +202,10 @@ class Settings
             }
 
             // extension
-            $input['watermark_image']['extension'] = isset($_POST['ulwm_options']['watermark_image']['extension']) ? sanitize_text_field($_POST['ulwm_options']['watermark_image']['extension']) : Ultimate_Watermark()->defaults['options']['watermark_image']['extension'];
+            $input['watermark_image']['extension'] = isset($_POST['ulwm_options']['watermark_image']['extension']) ? sanitize_text_field($_POST['ulwm_options']['watermark_image']['extension']) : ultimate_watermark()->options['watermark_image']['extension'];
 
-            $input['watermark_image']['frontend_active'] = isset($_POST['ulwm_options']['watermark_image']['frontend_active']) ? ((bool)$_POST['ulwm_options']['watermark_image']['frontend_active'] == 1 ? true : false) : Ultimate_Watermark()->defaults['options']['watermark_image']['frontend_active'];
-            $input['watermark_image']['deactivation_delete'] = isset($_POST['ulwm_options']['watermark_image']['deactivation_delete']) ? ((bool)$_POST['ulwm_options']['watermark_image']['deactivation_delete'] == 1 ? true : false) : Ultimate_Watermark()->defaults['options']['watermark_image']['deactivation_delete'];
+            $input['watermark_image']['frontend_active'] = isset($_POST['ulwm_options']['watermark_image']['frontend_active']) ? ((bool)$_POST['ulwm_options']['watermark_image']['frontend_active'] == 1 ? true : false) : ultimate_watermark()->options['watermark_image']['frontend_active'];
+            $input['watermark_image']['deactivation_delete'] = isset($_POST['ulwm_options']['watermark_image']['deactivation_delete']) ? ((bool)$_POST['ulwm_options']['watermark_image']['deactivation_delete'] == 1 ? true : false) : ultimate_watermark()->options['watermark_image']['deactivation_delete'];
 
 
             $positions = array();
@@ -217,31 +215,31 @@ class Settings
                     $positions[] = $position_y . '_' . $position_x;
                 }
             }
-            $input['watermark_image']['position'] = isset($_POST['ulwm_options']['watermark_image']['position']) && in_array(sanitize_text_field($_POST['ulwm_options']['watermark_image']['position']), $positions) ? sanitize_text_field($_POST['ulwm_options']['watermark_image']['position']) : Ultimate_Watermark()->defaults['options']['watermark_image']['position'];
+            $input['watermark_image']['position'] = isset($_POST['ulwm_options']['watermark_image']['position']) && in_array(sanitize_text_field($_POST['ulwm_options']['watermark_image']['position']), $positions) ? sanitize_text_field($_POST['ulwm_options']['watermark_image']['position']) : ultimate_watermark()->options['watermark_image']['position'];
 
-            $input['watermark_image']['offset_unit'] = isset($_POST['ulwm_options']['watermark_image']['offset_unit']) && in_array($_POST['ulwm_options']['watermark_image']['offset_unit'], array('pixels', 'percentages'), true) ? sanitize_text_field($_POST['ulwm_options']['watermark_image']['offset_unit']) : Ultimate_Watermark()->defaults['options']['watermark_image']['offset_unit'];
-            $input['watermark_image']['offset_width'] = isset($_POST['ulwm_options']['watermark_image']['offset_width']) ? (int)$_POST['ulwm_options']['watermark_image']['offset_width'] : Ultimate_Watermark()->defaults['options']['watermark_image']['offset_width'];
-            $input['watermark_image']['offset_height'] = isset($_POST['ulwm_options']['watermark_image']['offset_height']) ? (int)$_POST['ulwm_options']['watermark_image']['offset_height'] : Ultimate_Watermark()->defaults['options']['watermark_image']['offset_height'];
-            $input['watermark_image']['attachment_id'] = isset($_POST['ulwm_options']['watermark_image']['attachment_id']) ? (int)$_POST['ulwm_options']['watermark_image']['attachment_id'] : Ultimate_Watermark()->defaults['options']['watermark_image']['attachment_id'];
-            $input['watermark_image']['watermark_size_type'] = isset($_POST['ulwm_options']['watermark_image']['watermark_size_type']) ? (int)$_POST['ulwm_options']['watermark_image']['watermark_size_type'] : Ultimate_Watermark()->defaults['options']['watermark_image']['watermark_size_type'];
-            $input['watermark_image']['absolute_width'] = isset($_POST['ulwm_options']['watermark_image']['absolute_width']) ? (int)$_POST['ulwm_options']['watermark_image']['absolute_width'] : Ultimate_Watermark()->defaults['options']['watermark_image']['absolute_width'];
-            $input['watermark_image']['absolute_height'] = isset($_POST['ulwm_options']['watermark_image']['absolute_height']) ? (int)$_POST['ulwm_options']['watermark_image']['absolute_height'] : Ultimate_Watermark()->defaults['options']['watermark_image']['absolute_height'];
-            $input['watermark_image']['width'] = isset($_POST['ulwm_options']['watermark_image']['width']) ? (int)$_POST['ulwm_options']['watermark_image']['width'] : Ultimate_Watermark()->defaults['options']['watermark_image']['width'];
-            $input['watermark_image']['transparent'] = isset($_POST['ulwm_options']['watermark_image']['transparent']) ? (int)$_POST['ulwm_options']['watermark_image']['transparent'] : Ultimate_Watermark()->defaults['options']['watermark_image']['transparent'];
-            $input['watermark_image']['quality'] = isset($_POST['ulwm_options']['watermark_image']['quality']) ? (int)$_POST['ulwm_options']['watermark_image']['quality'] : Ultimate_Watermark()->defaults['options']['watermark_image']['quality'];
-            $input['watermark_image']['jpeg_format'] = isset($_POST['ulwm_options']['watermark_image']['jpeg_format']) && in_array(esc_attr($_POST['ulwm_options']['watermark_image']['jpeg_format']), array('baseline', 'progressive')) ? sanitize_text_field($_POST['ulwm_options']['watermark_image']['jpeg_format']) : Ultimate_Watermark()->defaults['options']['watermark_image']['jpeg_format'];
+            $input['watermark_image']['offset_unit'] = isset($_POST['ulwm_options']['watermark_image']['offset_unit']) && in_array($_POST['ulwm_options']['watermark_image']['offset_unit'], array('pixels', 'percentages'), true) ? sanitize_text_field($_POST['ulwm_options']['watermark_image']['offset_unit']) : ultimate_watermark()->options['watermark_image']['offset_unit'];
+            $input['watermark_image']['offset_width'] = isset($_POST['ulwm_options']['watermark_image']['offset_width']) ? (int)$_POST['ulwm_options']['watermark_image']['offset_width'] : ultimate_watermark()->options['watermark_image']['offset_width'];
+            $input['watermark_image']['offset_height'] = isset($_POST['ulwm_options']['watermark_image']['offset_height']) ? (int)$_POST['ulwm_options']['watermark_image']['offset_height'] : ultimate_watermark()->options['watermark_image']['offset_height'];
+            $input['watermark_image']['attachment_id'] = isset($_POST['ulwm_options']['watermark_image']['attachment_id']) ? (int)$_POST['ulwm_options']['watermark_image']['attachment_id'] : ultimate_watermark()->options['watermark_image']['attachment_id'];
+            $input['watermark_image']['watermark_size_type'] = isset($_POST['ulwm_options']['watermark_image']['watermark_size_type']) ? (int)$_POST['ulwm_options']['watermark_image']['watermark_size_type'] : ultimate_watermark()->options['watermark_image']['watermark_size_type'];
+            $input['watermark_image']['absolute_width'] = isset($_POST['ulwm_options']['watermark_image']['absolute_width']) ? (int)$_POST['ulwm_options']['watermark_image']['absolute_width'] : ultimate_watermark()->options['watermark_image']['absolute_width'];
+            $input['watermark_image']['absolute_height'] = isset($_POST['ulwm_options']['watermark_image']['absolute_height']) ? (int)$_POST['ulwm_options']['watermark_image']['absolute_height'] : ultimate_watermark()->options['watermark_image']['absolute_height'];
+            $input['watermark_image']['width'] = isset($_POST['ulwm_options']['watermark_image']['width']) ? (int)$_POST['ulwm_options']['watermark_image']['width'] : ultimate_watermark()->options['watermark_image']['width'];
+            $input['watermark_image']['transparent'] = isset($_POST['ulwm_options']['watermark_image']['transparent']) ? (int)$_POST['ulwm_options']['watermark_image']['transparent'] : ultimate_watermark()->options['watermark_image']['transparent'];
+            $input['watermark_image']['quality'] = isset($_POST['ulwm_options']['watermark_image']['quality']) ? (int)$_POST['ulwm_options']['watermark_image']['quality'] : ultimate_watermark()->options['watermark_image']['quality'];
+            $input['watermark_image']['jpeg_format'] = isset($_POST['ulwm_options']['watermark_image']['jpeg_format']) && in_array(esc_attr($_POST['ulwm_options']['watermark_image']['jpeg_format']), array('baseline', 'progressive')) ? sanitize_text_field($_POST['ulwm_options']['watermark_image']['jpeg_format']) : ultimate_watermark()->options['watermark_image']['jpeg_format'];
 
-            $input['image_protection']['rightclick'] = isset($_POST['ulwm_options']['image_protection']['rightclick']) ? ((bool)$_POST['ulwm_options']['image_protection']['rightclick'] == 1 ? true : false) : Ultimate_Watermark()->defaults['options']['image_protection']['rightclick'];
-            $input['image_protection']['draganddrop'] = isset($_POST['ulwm_options']['image_protection']['draganddrop']) ? ((bool)$_POST['ulwm_options']['image_protection']['draganddrop'] == 1 ? true : false) : Ultimate_Watermark()->defaults['options']['image_protection']['draganddrop'];
-            $input['image_protection']['forlogged'] = isset($_POST['ulwm_options']['image_protection']['forlogged']) ? ((bool)$_POST['ulwm_options']['image_protection']['forlogged'] == 1 ? true : false) : Ultimate_Watermark()->defaults['options']['image_protection']['forlogged'];
+            $input['image_protection']['rightclick'] = isset($_POST['ulwm_options']['image_protection']['rightclick']) ? ((bool)$_POST['ulwm_options']['image_protection']['rightclick'] == 1 ? true : false) : ultimate_watermark()->options['image_protection']['rightclick'];
+            $input['image_protection']['draganddrop'] = isset($_POST['ulwm_options']['image_protection']['draganddrop']) ? ((bool)$_POST['ulwm_options']['image_protection']['draganddrop'] == 1 ? true : false) : ultimate_watermark()->options['image_protection']['draganddrop'];
+            $input['image_protection']['forlogged'] = isset($_POST['ulwm_options']['image_protection']['forlogged']) ? ((bool)$_POST['ulwm_options']['image_protection']['forlogged'] == 1 ? true : false) : ultimate_watermark()->options['image_protection']['forlogged'];
 
             $input['backup']['backup_image'] = isset($_POST['ulwm_options']['backup']['backup_image']);
-            $input['backup']['backup_quality'] = isset($_POST['ulwm_options']['backup']['backup_quality']) ? (int)$_POST['ulwm_options']['backup']['backup_quality'] : Ultimate_Watermark()->defaults['options']['backup']['backup_quality'];
+            $input['backup']['backup_quality'] = isset($_POST['ulwm_options']['backup']['backup_quality']) ? (int)$_POST['ulwm_options']['backup']['backup_quality'] : ultimate_watermark()->options['backup']['backup_quality'];
 
             add_settings_error('ulwm_settings_errors', 'ulwm_settings_saved', __('Settings saved.', 'ultimate-watermark'), 'updated');
         } elseif (isset($_POST['reset_ultimate_watermark_options'])) {
 
-            $input = Ultimate_Watermark()->defaults['options'];
+            $input = ultimate_watermark()->options;
 
             add_settings_error('ulwm_settings_errors', 'ulwm_settings_reset', __('Settings restored to defaults.', 'ultimate-watermark'), 'updated');
         }
@@ -269,9 +267,9 @@ class Settings
 			<fieldset>
 				<select name="ulwm_options[watermark_image][extension]">';
 
-        foreach (Ultimate_Watermark()->extensions as $extension => $label) {
+        foreach (ultimate_watermark()->utils->get_extensions() as $extension => $label) {
             echo '
-					<option value="' . esc_attr($extension) . '" ' . selected($extension, Ultimate_Watermark()->options['watermark_image']['extension'], false) . '>' . esc_html($label) . '</option>';
+					<option value="' . esc_attr($extension) . '" ' . selected($extension, ultimate_watermark()->options['watermark_image']['extension'], false) . '>' . esc_html($label) . '</option>';
         }
 
         echo '
@@ -291,7 +289,7 @@ class Settings
         ?>
         <label for="ulwm_automatic_watermarking">
             <input id="ulwm_automatic_watermarking"
-                   type="checkbox" <?php checked((!empty(Ultimate_Watermark()->options['watermark_image']['plugin_off']) ? 1 : 0), 1, true); ?>
+                   type="checkbox" <?php checked((!empty(ultimate_watermark()->options['watermark_image']['plugin_off']) ? 1 : 0), 1, true); ?>
                    value="1" name="ulwm_options[watermark_image][plugin_off]">
             <?php echo __('Enable watermark for uploaded images.', 'ultimate-watermark'); ?>
         </label>
@@ -308,7 +306,7 @@ class Settings
         ?>
         <label for="ulwm_manual_watermarking">
             <input id="ulwm_manual_watermarking"
-                   type="checkbox" <?php checked((!empty(Ultimate_Watermark()->options['watermark_image']['manual_watermarking']) ? 1 : 0), 1, true); ?>
+                   type="checkbox" <?php checked((!empty(ultimate_watermark()->options['watermark_image']['manual_watermarking']) ? 1 : 0), 1, true); ?>
                    value="1" name="ulwm_options[watermark_image][manual_watermarking]">
             <?php echo __('Enable Apply Watermark option for Media Library images.', 'ultimate-watermark'); ?>
         </label>
@@ -327,12 +325,12 @@ class Settings
             <div id="thumbnail-select">
                 <?php
                 /*echo '<pre>';
-                print_r(Ultimate_Watermark()->options);exit;*/
+                print_r(ultimate_watermark()->$this->options);exit;*/
                 foreach ($this->image_sizes as $image_size) {
                     ?>
                     <input name="ulwm_options[watermark_on][<?php echo $image_size; ?>]" type="checkbox"
                            id="<?php echo $image_size; ?>"
-                           value="1" <?php echo(in_array($image_size, array_keys(Ultimate_Watermark()->options['watermark_on'])) ? ' checked="checked"' : ''); ?> />
+                           value="1" <?php echo(in_array($image_size, array_keys(ultimate_watermark()->options['watermark_on'])) ? ' checked="checked"' : ''); ?> />
                     <label for="<?php echo $image_size; ?>"><?php echo $image_size; ?></label>
                     <?php
                 }
@@ -342,9 +340,10 @@ class Settings
                 <?php echo __('Check the image sizes watermark will be applied to.', 'ultimate-watermark'); ?><br/>
                 <?php echo __('<strong>IMPORTANT:</strong> checking full size is NOT recommended as it\'s the original image. You may need it later - for removing or changing watermark, image sizes regeneration or any other image manipulations. Use it only if you know what you are doing.', 'ultimate-watermark'); ?>
             </p>
-
             <?php
-            $watermark_cpt_on = array_keys(Ultimate_Watermark()->options['watermark_cpt_on']);
+            $watermark_cpt_on_array = (ultimate_watermark()->options['watermark_cpt_on']);
+
+            $watermark_cpt_on = is_array($watermark_cpt_on_array) ? array_keys(ultimate_watermark()->options['watermark_cpt_on']) : array();
 
             if (in_array('everywhere', $watermark_cpt_on) && count($watermark_cpt_on) === 1) {
                 $first_checked = true;
@@ -393,7 +392,7 @@ class Settings
         ?>
         <label for="ulwm_frontend_watermarking">
             <input id="ulwm_frontend_watermarking"
-                   type="checkbox" <?php checked((!empty(Ultimate_Watermark()->options['watermark_image']['frontend_active']) ? 1 : 0), 1, true); ?>
+                   type="checkbox" <?php checked((!empty(ultimate_watermark()->options['watermark_image']['frontend_active']) ? 1 : 0), 1, true); ?>
                    value="1" name="ulwm_options[watermark_image][frontend_active]">
             <?php echo __('Enable frontend image uploading. (uploading script is not included, but you may use a plugin or custom code).', 'ultimate-watermark'); ?>
         </label>
@@ -411,7 +410,7 @@ class Settings
         ?>
         <label for="ulwm_deactivation">
             <input id="ulwm_deactivation"
-                   type="checkbox" <?php checked((!empty(Ultimate_Watermark()->options['watermark_image']['deactivation_delete']) ? 1 : 0), 1, true); ?>
+                   type="checkbox" <?php checked((!empty(ultimate_watermark()->options['watermark_image']['deactivation_delete']) ? 1 : 0), 1, true); ?>
                    value="1" name="ulwm_options[watermark_image][deactivation_delete]">
             <?php echo __('Delete all database settings on plugin deactivation.', 'ultimate-watermark'); ?>
         </label>
@@ -429,7 +428,7 @@ class Settings
         <fieldset id="ulwm_alignment">
             <table id="watermark_position" border="1">
                 <?php
-                $watermark_position = Ultimate_Watermark()->options['watermark_image']['position'];
+                $watermark_position = ultimate_watermark()->options['watermark_image']['position'];
 
                 foreach ($this->watermark_positions['y'] as $y) {
                     ?>
@@ -463,10 +462,10 @@ class Settings
         ?>
         <fieldset id="ulwm_offset_unit">
             <input type="radio" id="offset_pixels" value="pixels"
-                   name="ulwm_options[watermark_image][offset_unit]" <?php checked(Ultimate_Watermark()->options['watermark_image']['offset_unit'], 'pixels', true); ?> /><label
+                   name="ulwm_options[watermark_image][offset_unit]" <?php checked(ultimate_watermark()->options['watermark_image']['offset_unit'], 'pixels', true); ?> /><label
                     for="offset_pixels"><?php _e('pixels', 'ultimate-watermark'); ?></label>
             <input type="radio" id="offset_percentages" value="percentages"
-                   name="ulwm_options[watermark_image][offset_unit]" <?php checked(Ultimate_Watermark()->options['watermark_image']['offset_unit'], 'percentages', true); ?> /><label
+                   name="ulwm_options[watermark_image][offset_unit]" <?php checked(ultimate_watermark()->options['watermark_image']['offset_unit'], 'percentages', true); ?> /><label
                     for="offset_percentages"><?php _e('percentages', 'ultimate-watermark'); ?></label>
             <p class="description"><?php _e('Select the watermark offset unit.', 'ultimate-watermark'); ?></p>
         </fieldset>
@@ -484,11 +483,11 @@ class Settings
         <fieldset id="ulwm_offset">
             <?php echo __('x:', 'ultimate-watermark'); ?> <input type="number" class="small-text"
                                                                  name="ulwm_options[watermark_image][offset_width]"
-                                                                 value="<?php echo Ultimate_Watermark()->options['watermark_image']['offset_width']; ?>">
+                                                                 value="<?php echo ultimate_watermark()->options['watermark_image']['offset_width']; ?>">
             <br/>
             <?php echo __('y:', 'ultimate-watermark'); ?> <input type="number" class="small-text"
                                                                  name="ulwm_options[watermark_image][offset_height]"
-                                                                 value="<?php echo Ultimate_Watermark()->options['watermark_image']['offset_height']; ?>">
+                                                                 value="<?php echo ultimate_watermark()->options['watermark_image']['offset_height']; ?>">
             <p class="description"><?php _e('Enter watermark offset value.', 'ultimate-watermark'); ?></p>
         </fieldset>
         <?php
@@ -501,8 +500,8 @@ class Settings
      */
     public function ulwm_watermark_image()
     {
-        if (Ultimate_Watermark()->options['watermark_image']['attachment_id'] !== NULL && Ultimate_Watermark()->options['watermark_image']['attachment_id'] != 0) {
-            $image = wp_get_attachment_image_src(Ultimate_Watermark()->options['watermark_image']['attachment_id'], array(300, 300), false);
+        if (ultimate_watermark()->options['watermark_image']['attachment_id'] !== NULL && ultimate_watermark()->options['watermark_image']['attachment_id'] != 0) {
+            $image = wp_get_attachment_image_src(ultimate_watermark()->options['watermark_image']['attachment_id'], array(300, 300), false);
             $image_selected = true;
         } else {
             $image_selected = false;
@@ -510,7 +509,7 @@ class Settings
         ?>
         <div class="ulwm_watermark_image">
             <input id="ulwm_upload_image" type="hidden" name="ulwm_options[watermark_image][attachment_id]"
-                   value="<?php echo (int)Ultimate_Watermark()->options['watermark_image']['attachment_id']; ?>"/>
+                   value="<?php echo (int)ultimate_watermark()->options['watermark_image']['attachment_id']; ?>"/>
             <input id="ulwm_upload_image_button" type="button" class="button button-secondary"
                    value="<?php echo __('Select image', 'ultimate-watermark'); ?>"/>
             <input id="ulwm_turn_off_image_button" type="button" class="button button-secondary"
@@ -527,8 +526,8 @@ class Settings
      */
     public function ulwm_watermark_preview()
     {
-        if (Ultimate_Watermark()->options['watermark_image']['attachment_id'] !== NULL && Ultimate_Watermark()->options['watermark_image']['attachment_id'] != 0) {
-            $image = wp_get_attachment_image_src(Ultimate_Watermark()->options['watermark_image']['attachment_id'], array(300, 300), false);
+        if (ultimate_watermark()->options['watermark_image']['attachment_id'] !== NULL && ultimate_watermark()->options['watermark_image']['attachment_id'] != 0) {
+            $image = wp_get_attachment_image_src(ultimate_watermark()->options['watermark_image']['attachment_id'], array(300, 300), false);
             $image_selected = true;
         } else
             $image_selected = false;
@@ -537,7 +536,7 @@ class Settings
             <div id="previewImg_imageDiv">
                 <?php
                 if ($image_selected) {
-                    $image = wp_get_attachment_image_src(Ultimate_Watermark()->options['watermark_image']['attachment_id'], array(300, 300), false);
+                    $image = wp_get_attachment_image_src(ultimate_watermark()->options['watermark_image']['attachment_id'], array(300, 300), false);
                     ?>
                     <img id="previewImg_image" src="<?php echo $image[0]; ?>" alt="" width="300"/>
                 <?php } else { ?>
@@ -550,7 +549,7 @@ class Settings
                 if (!$image_selected) {
                     _e('Watermak has not been selected yet.', 'ultimate-watermark');
                 } else {
-                    $image_full_size = wp_get_attachment_image_src(Ultimate_Watermark()->options['watermark_image']['attachment_id'], 'full', false);
+                    $image_full_size = wp_get_attachment_image_src(ultimate_watermark()->options['watermark_image']['attachment_id'], 'full', false);
 
                     echo __('Original size', 'ultimate-watermark') . ': ' . $image_full_size[1] . ' ' . __('px', 'ultimate-watermark') . ' / ' . $image_full_size[2] . ' ' . __('px', 'ultimate-watermark');
                 }
@@ -571,13 +570,13 @@ class Settings
         <fieldset id="ulwm_watermark_size">
             <div id="watermark-type">
                 <input type="radio" id="type1" value="0"
-                       name="ulwm_options[watermark_image][watermark_size_type]" <?php checked(Ultimate_Watermark()->options['watermark_image']['watermark_size_type'], 0, true); ?> /><label
+                       name="ulwm_options[watermark_image][watermark_size_type]" <?php checked(ultimate_watermark()->options['watermark_image']['watermark_size_type'], 0, true); ?> /><label
                         for="type1"><?php _e('original', 'ultimate-watermark'); ?></label>
                 <input type="radio" id="type2" value="1"
-                       name="ulwm_options[watermark_image][watermark_size_type]" <?php checked(Ultimate_Watermark()->options['watermark_image']['watermark_size_type'], 1, true); ?> /><label
+                       name="ulwm_options[watermark_image][watermark_size_type]" <?php checked(ultimate_watermark()->options['watermark_image']['watermark_size_type'], 1, true); ?> /><label
                         for="type2"><?php _e('custom', 'ultimate-watermark'); ?></label>
                 <input type="radio" id="type3" value="2"
-                       name="ulwm_options[watermark_image][watermark_size_type]" <?php checked(Ultimate_Watermark()->options['watermark_image']['watermark_size_type'], 2, true); ?> /><label
+                       name="ulwm_options[watermark_image][watermark_size_type]" <?php checked(ultimate_watermark()->options['watermark_image']['watermark_size_type'], 2, true); ?> /><label
                         for="type3"><?php _e('scaled', 'ultimate-watermark'); ?></label>
             </div>
             <p class="description"><?php _e('Select method of aplying watermark size.', 'ultimate-watermark'); ?></p>
@@ -596,11 +595,11 @@ class Settings
         <fieldset id="ulwm_watermark_size_custom">
             <?php _e('x:', 'ultimate-watermark'); ?> <input type="text" size="5"
                                                             name="ulwm_options[watermark_image][absolute_width]"
-                                                            value="<?php echo Ultimate_Watermark()->options['watermark_image']['absolute_width']; ?>"> <?php _e('px', 'ultimate-watermark'); ?>
+                                                            value="<?php echo ultimate_watermark()->options['watermark_image']['absolute_width']; ?>"> <?php _e('px', 'ultimate-watermark'); ?>
             <br/>
             <?php _e('y:', 'ultimate-watermark'); ?> <input type="text" size="5"
                                                             name="ulwm_options[watermark_image][absolute_height]"
-                                                            value="<?php echo Ultimate_Watermark()->options['watermark_image']['absolute_height']; ?>"> <?php _e('px', 'ultimate-watermark'); ?>
+                                                            value="<?php echo ultimate_watermark()->options['watermark_image']['absolute_height']; ?>"> <?php _e('px', 'ultimate-watermark'); ?>
         </fieldset>
         <p class="description"><?php _e('Those dimensions will be used if "custom" method is selected above.', 'ultimate-watermark'); ?></p>
         <?php
@@ -618,12 +617,12 @@ class Settings
             <div>
                 <input type="text" id="ulwm_size_input" maxlength="3" class="hide-if-js"
                        name="ulwm_options[watermark_image][width]"
-                       value="<?php echo Ultimate_Watermark()->options['watermark_image']['width']; ?>"/>
+                       value="<?php echo ultimate_watermark()->options['watermark_image']['width']; ?>"/>
                 <div class="wplike-slider">
                     <span class="left hide-if-no-js">0</span><span class="middle" id="ulwm_size_span"
-                                                                   title="<?php echo Ultimate_Watermark()->options['watermark_image']['width']; ?>"><span
+                                                                   title="<?php echo ultimate_watermark()->options['watermark_image']['width']; ?>"><span
                                 class="ulwm-current-value"
-                                style="left: <?php echo Ultimate_Watermark()->options['watermark_image']['width']; ?>%;"><?php echo Ultimate_Watermark()->options['watermark_image']['width']; ?></span></span><span
+                                style="left: <?php echo ultimate_watermark()->options['watermark_image']['width']; ?>%;"><?php echo ultimate_watermark()->options['watermark_image']['width']; ?></span></span><span
                             class="right hide-if-no-js">100</span>
                 </div>
             </div>
@@ -644,12 +643,12 @@ class Settings
             <div>
                 <input type="text" id="ulwm_opacity_input" maxlength="3" class="hide-if-js"
                        name="ulwm_options[watermark_image][transparent]"
-                       value="<?php echo Ultimate_Watermark()->options['watermark_image']['transparent']; ?>"/>
+                       value="<?php echo ultimate_watermark()->options['watermark_image']['transparent']; ?>"/>
                 <div class="wplike-slider">
                     <span class="left hide-if-no-js">0</span><span class="middle" id="ulwm_opacity_span"
-                                                                   title="<?php echo Ultimate_Watermark()->options['watermark_image']['transparent']; ?>"><span
+                                                                   title="<?php echo ultimate_watermark()->options['watermark_image']['transparent']; ?>"><span
                                 class="ulwm-current-value"
-                                style="left: <?php echo Ultimate_Watermark()->options['watermark_image']['transparent']; ?>%;"><?php echo Ultimate_Watermark()->options['watermark_image']['transparent']; ?></span></span><span
+                                style="left: <?php echo ultimate_watermark()->options['watermark_image']['transparent']; ?>%;"><?php echo ultimate_watermark()->options['watermark_image']['transparent']; ?></span></span><span
                             class="right hide-if-no-js">100</span>
                 </div>
             </div>
@@ -670,12 +669,12 @@ class Settings
             <div>
                 <input type="text" id="ulwm_quality_input" maxlength="3" class="hide-if-js"
                        name="ulwm_options[watermark_image][quality]"
-                       value="<?php echo Ultimate_Watermark()->options['watermark_image']['quality']; ?>"/>
+                       value="<?php echo ultimate_watermark()->options['watermark_image']['quality']; ?>"/>
                 <div class="wplike-slider">
                     <span class="left hide-if-no-js">0</span><span class="middle" id="ulwm_quality_span"
-                                                                   title="<?php echo Ultimate_Watermark()->options['watermark_image']['quality']; ?>"><span
+                                                                   title="<?php echo ultimate_watermark()->options['watermark_image']['quality']; ?>"><span
                                 class="ulwm-current-value"
-                                style="left: <?php echo Ultimate_Watermark()->options['watermark_image']['quality']; ?>%;"><?php echo Ultimate_Watermark()->options['watermark_image']['quality']; ?></span></span><span
+                                style="left: <?php echo ultimate_watermark()->options['watermark_image']['quality']; ?>%;"><?php echo ultimate_watermark()->options['watermark_image']['quality']; ?></span></span><span
                             class="right hide-if-no-js">100</span>
                 </div>
             </div>
@@ -695,10 +694,10 @@ class Settings
         <fieldset id="ulwm_image_format">
             <div id="jpeg-format">
                 <input type="radio" id="baseline" value="baseline"
-                       name="ulwm_options[watermark_image][jpeg_format]" <?php checked(Ultimate_Watermark()->options['watermark_image']['jpeg_format'], 'baseline', true); ?> /><label
+                       name="ulwm_options[watermark_image][jpeg_format]" <?php checked(ultimate_watermark()->options['watermark_image']['jpeg_format'], 'baseline', true); ?> /><label
                         for="baseline"><?php _e('baseline', 'ultimate-watermark'); ?></label>
                 <input type="radio" id="progressive" value="progressive"
-                       name="ulwm_options[watermark_image][jpeg_format]" <?php checked(Ultimate_Watermark()->options['watermark_image']['jpeg_format'], 'progressive', true); ?> /><label
+                       name="ulwm_options[watermark_image][jpeg_format]" <?php checked(ultimate_watermark()->options['watermark_image']['jpeg_format'], 'progressive', true); ?> /><label
                         for="progressive"><?php _e('progressive', 'ultimate-watermark'); ?></label>
             </div>
         </fieldset>
@@ -716,7 +715,7 @@ class Settings
         ?>
         <label for="ulwm_protection_right_click">
             <input id="ulwm_protection_right_click"
-                   type="checkbox" <?php checked((!empty(Ultimate_Watermark()->options['image_protection']['rightclick']) ? 1 : 0), 1, true); ?>
+                   type="checkbox" <?php checked((!empty(ultimate_watermark()->options['image_protection']['rightclick']) ? 1 : 0), 1, true); ?>
                    value="1" name="ulwm_options[image_protection][rightclick]">
             <?php _e('Disable right mouse click on images', 'ultimate-watermark'); ?>
         </label>
@@ -733,7 +732,7 @@ class Settings
         ?>
         <label for="ulwm_protection_drag_drop">
             <input id="ulwm_protection_drag_drop"
-                   type="checkbox" <?php checked((!empty(Ultimate_Watermark()->options['image_protection']['draganddrop']) ? 1 : 0), 1, true); ?>
+                   type="checkbox" <?php checked((!empty(ultimate_watermark()->options['image_protection']['draganddrop']) ? 1 : 0), 1, true); ?>
                    value="1" name="ulwm_options[image_protection][draganddrop]">
             <?php _e('Prevent drag and drop', 'ultimate-watermark'); ?>
         </label>
@@ -750,7 +749,7 @@ class Settings
         ?>
         <label for="ulwm_protection_logged">
             <input id="ulwm_protection_logged"
-                   type="checkbox" <?php checked((!empty(Ultimate_Watermark()->options['image_protection']['forlogged']) ? 1 : 0), 1, true); ?>
+                   type="checkbox" <?php checked((!empty(ultimate_watermark()->options['image_protection']['forlogged']) ? 1 : 0), 1, true); ?>
                    value="1" name="ulwm_options[image_protection][forlogged]">
             <?php _e('Enable image protection for logged-in users also', 'ultimate-watermark'); ?>
         </label>
@@ -767,7 +766,7 @@ class Settings
         ?>
         <label for="ulwm_backup_size_full">
             <input id="ulwm_backup_size_full"
-                   type="checkbox" <?php checked(!empty(Ultimate_Watermark()->options['backup']['backup_image']), true, true); ?>
+                   type="checkbox" <?php checked(!empty(ultimate_watermark()->options['backup']['backup_image']), true, true); ?>
                    value="1" name="ulwm_options[backup][backup_image]">
             <?php echo __('Backup the full size image.', 'ultimate-watermark'); ?>
         </label>
@@ -786,12 +785,12 @@ class Settings
             <div>
                 <input type="text" id="ulwm_backup_quality_input" maxlength="3" class="hide-if-js"
                        name="ulwm_options[backup][backup_quality]"
-                       value="<?php echo Ultimate_Watermark()->options['backup']['backup_quality']; ?>"/>
+                       value="<?php echo ultimate_watermark()->options['backup']['backup_quality']; ?>"/>
                 <div class="wplike-slider">
                     <span class="left hide-if-no-js">0</span><span class="middle" id="ulwm_backup_quality_span"
-                                                                   title="<?php echo Ultimate_Watermark()->options['backup']['backup_quality']; ?>"><span
+                                                                   title="<?php echo ultimate_watermark()->options['backup']['backup_quality']; ?>"><span
                                 class="ulwm-current-value"
-                                style="left: <?php echo Ultimate_Watermark()->options['backup']['backup_quality']; ?>%;"><?php echo Ultimate_Watermark()->options['backup']['backup_quality']; ?></span></span><span
+                                style="left: <?php echo ultimate_watermark()->options['backup']['backup_quality']; ?>%;"><?php echo ultimate_watermark()->options['backup']['backup_quality']; ?></span></span><span
                             class="right hide-if-no-js">100</span>
                 </div>
             </div>

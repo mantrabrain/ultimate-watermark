@@ -2,7 +2,7 @@
 
 namespace Ultimate_Watermark;
 
-use Ultimate_Watermark\Admin\Admin;
+
 use Ultimate_Watermark\Admin\Ajax;
 use Ultimate_Watermark\Admin\Assets;
 use Ultimate_Watermark\Admin\Options;
@@ -11,56 +11,17 @@ use Ultimate_Watermark\Admin\Update;
 use Ultimate_Watermark\Admin\Utils;
 use Ultimate_Watermark\Image\Watermark;
 
+defined('ABSPATH') || exit;
+
 final class Init
 {
-
-    private static $instance;
-    private $is_admin = true;
-    private $extension = false;
-    private $allowed_mime_types = array(
-        'image/jpeg',
-        'image/pjpeg',
-        'image/png'
-    );
-    private $is_watermarked_metakey = 'ulwm-is-watermarked';
-    public $is_backup_folder_writable = null;
-    public $extensions;
-    public $defaults = array(
-        'options' => array(
-            'watermark_on' => array(),
-            'watermark_cpt_on' => array('everywhere'),
-            'watermark_image' => array(
-                'extension' => '',
-                'attachment_id' => 0,
-                'width' => 80,
-                'plugin_off' => 0,
-                'frontend_active' => false,
-                'manual_watermarking' => 0,
-                'position' => 'bottom_right',
-                'watermark_size_type' => 2,
-                'offset_unit' => 'pixels',
-                'offset_width' => 0,
-                'offset_height' => 0,
-                'absolute_width' => 0,
-                'absolute_height' => 0,
-                'transparent' => 50,
-                'quality' => 90,
-                'jpeg_format' => 'baseline',
-                'deactivation_delete' => false,
-                'media_library_notice' => true
-            ),
-            'image_protection' => array(
-                'rightclick' => 0,
-                'draganddrop' => 0,
-                'forlogged' => 0
-            ),
-            'backup' => array(
-                'backup_image' => true,
-                'backup_quality' => 90
-            )
-        ),
-        'version' => ULTIMATE_WATERMARK_VERSION
-    );
+    /**
+     * The single instance of the class.
+     *
+     * @var Init
+     * @since 1.0.0
+     */
+    protected static $_instance = null;
 
     /**
      * Options instance.
@@ -84,153 +45,209 @@ final class Init
     public $watermark;
 
     /**
-     * Class constructor.
-     */
-    public function __construct()
-    {
-        // installer
-        register_activation_hook(__FILE__, array($this, 'activate_watermark'));
-        register_deactivation_hook(__FILE__, array($this, 'deactivate_watermark'));
-
-        // settings
-        if (!isset($this->defaults['options'])) {
-            $this->defaults['options'] = array();
-        }
-        $options = get_option('ultimate_watermark_options', $this->defaults['options']);
-
-        $this->options = array_merge($this->defaults['options'], $options);
-        $options['watermark_image'] = is_array($options['watermark_image']) ? $options['watermark_image'] : array();
-        $options['image_protection'] = is_array($options['image_protection']) ? $options['image_protection'] : array();
-
-
-        $this->options['watermark_image'] = array_merge($this->defaults['options']['watermark_image'], $options['watermark_image']);
-
-
-        $this->options['image_protection'] = array_merge($this->defaults['options']['image_protection'], $options['image_protection']);
-
-        $this->options['backup'] = array_merge($this->defaults['options']['backup'], isset($options['backup']) ? $options['backup'] : array());
-
-        new Settings();
-        new Update();
-        new Assets();
-        $option_instance = new Options();
-        $this->options = $option_instance->get_options();
-
-        // actions
-        add_action('plugins_loaded', array($this, 'load_textdomain'));
-        new \Ultimate_Watermark\Assets();
-        new Admin();
-        add_action('admin_notices', array($this, 'bulk_admin_notices'));
-        new Ajax();
-        $this->utils = new Utils();
-        $this->watermark = new Watermark();
-
-        // filters
-        add_filter('plugin_row_meta', array($this, 'plugin_extend_links'), 10, 2);
-        add_filter('plugin_action_links', array($this, 'plugin_settings_link'), 10, 2);
-
-        // define our backup location
-        $upload_dir = wp_upload_dir();
-        define('ULTIMATE_WATERMARK_BACKUP_DIR', apply_filters('ultimate_watermark_backup_dir', $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'ulwm-backup'));
-
-        // create backup folder and security if enabled
-        if ($this->options['backup']['backup_image']) {
-
-            if (is_writable($upload_dir['basedir'])) {
-                $this->is_backup_folder_writable = true;
-
-                // create backup folder ( if it exists this returns true: https://codex.wordpress.org/Function_Reference/wp_mkdir_p )
-                $backup_folder_created = wp_mkdir_p(ULTIMATE_WATERMARK_BACKUP_DIR);
-
-                // check if the folder exists and is writable
-                if ($backup_folder_created && is_writable(ULTIMATE_WATERMARK_BACKUP_DIR)) {
-                    // check if the htaccess file exists
-                    if (!file_exists(ULTIMATE_WATERMARK_BACKUP_DIR . DIRECTORY_SEPARATOR . '.htaccess')) {
-                        // htaccess security
-                        file_put_contents(ULTIMATE_WATERMARK_BACKUP_DIR . DIRECTORY_SEPARATOR . '.htaccess', 'deny from all');
-                    }
-                } else {
-                    $this->is_backup_folder_writable = false;
-                }
-            } else {
-                $this->is_backup_folder_writable = false;
-            }
-            if (true !== $this->is_backup_folder_writable) {
-                // disable backup setting
-                $this->options['backup']['backup_image'] = false;
-                update_option('ultimate_watermark_options', $this->options);
-            }
-
-            add_action('admin_notices', array($this, 'folder_writable_admin_notice'));
-        }
-
-    }
-
-    /**
-     * Create single instance.
+     * Main Ultimate Watermark Instance.
      *
-     * @return object Main plugin instance
+     * Ensures only one instance of Ultimate Watermark is loaded or can be loaded.
+     *
+     * @return Init - Main instance.
+     * @since 1.0.0
+     * @static
      */
     public static function instance()
     {
-        if (self::$instance === null)
-            self::$instance = new self();
-
-        return self::$instance;
+        if (is_null(self::$_instance)) {
+            self::$_instance = new self();
+        }
+        return self::$_instance;
     }
 
     /**
-     * Plugin activation.
-     */
-    public function activate_watermark()
-    {
-        update_option('ultimate_watermark_options', $this->defaults['options'], 'no');
-        add_option('ultimate_watermark_version', $this->defaults['version'], '', 'no');
-    }
-
-    /**
-     * Plugin deactivation.
-     */
-    public function deactivate_watermark()
-    {
-        // remove options from database?
-        if ($this->options['watermark_image']['deactivation_delete'])
-            delete_option('ultimate_watermark_options');
-    }
-
-
-    /**
-     * Load textdomain.
-     */
-    public function load_textdomain()
-    {
-        load_plugin_textdomain('ultimate-watermark', false, basename(dirname(__FILE__)) . '/languages');
-    }
-
-
-
-
-
-
-    /**
-     * Add watermark buttons on attachment image locations
-     */
-
-    /**
-     * Apply watermark for selected images on media page.
-     */
-
-    /**
-     * Apply watermark for selected images on media page.
+     * Cloning is forbidden.
      *
-     * @return void
+     * @since 1.0.0
      */
+    public function __clone()
+    {
+        _doing_it_wrong(__FUNCTION__, __('Cloning is forbidden.', 'ultimate-watermark'), '1.0.0');
+    }
 
     /**
-     * Display admin notices.
+     * Unserializing instances of this class is forbidden.
      *
+     * @since 1.0.0
+     */
+    public function __wakeup()
+    {
+        _doing_it_wrong(__FUNCTION__, __('Unserializing instances of this class is forbidden.', 'ultimate-watermark'), '1.0.0');
+    }
+
+    /**
+     * Auto-load in-accessible properties on demand.
+     *
+     * @param mixed $key Key name.
      * @return mixed
      */
+    public function __get($key)
+    {
+        if (in_array($key, array(''), true)) {
+            return $this->$key();
+        }
+    }
+
+    /**
+     * Constructor.
+     */
+    public function __construct()
+    {
+
+        $this->define_constants();
+        $this->includes();
+        $this->init_hooks();
+
+
+        do_action('ultimate_watermark_loaded');
+    }
+
+    /**
+     * Hook into actions and filters.
+     *
+     * @since 1.0.0
+     */
+    private function init_hooks()
+    {
+
+        register_activation_hook(ULTIMATE_WATERMARK_FILE, array('\Ultimate_Watermark\Install', 'install'));
+
+        add_action('init', array($this, 'init'), 0);
+        add_action('admin_notices', array($this, 'bulk_admin_notices'));
+        add_filter('plugin_action_links', array($this, 'plugin_settings_link'), 10, 2);
+        add_action('admin_notices', array($this, 'folder_writable_admin_notice'));
+
+
+    }
+
+    /**
+     * Define Constants.
+     */
+    private function define_constants()
+    {
+
+        $this->define('ULTIMATE_WATERMARK_ABSPATH', dirname(ULTIMATE_WATERMARK_FILE) . '/');
+        $this->define('ULTIMATE_WATERMARK_BASENAME', plugin_basename(ULTIMATE_WATERMARK_FILE));
+
+    }
+
+    /**
+     * Define constant if not already set.
+     *
+     * @param string $name Constant name.
+     * @param string|bool $value Constant value.
+     */
+    private function define($name, $value)
+    {
+        if (!defined($name)) {
+            define($name, $value);
+        }
+    }
+
+    /**
+     * What type of request is this?
+     *
+     * @param string $type admin, ajax, cron or frontend.
+     * @return bool
+     */
+    private function is_request($type)
+    {
+        switch ($type) {
+            case 'admin':
+                return is_admin();
+            case 'ajax':
+                return defined('DOING_AJAX');
+            case 'cron':
+                return defined('DOING_CRON');
+            case 'frontend':
+                return (!is_admin() || defined('DOING_AJAX')) && !defined('DOING_CRON') && !defined('REST_REQUEST');
+        }
+    }
+
+    /**
+     * Include required core files used in admin and on the frontend.
+     */
+    public function includes()
+    {
+        $options = new Options();
+        $this->options = $options->get_options();
+        new Settings();
+        new Assets();
+        new \Ultimate_Watermark\Assets();
+        new Hooks();
+        new Ajax();
+        $this->utils = new Utils();
+        $this->watermark = new Watermark();
+    }
+
+
+    /**
+     * Init plugin when WordPress Initialises.
+     */
+    public function init()
+    {
+        // Before init action.
+        do_action('before_ultimate_watermark_init');
+
+        // Set up localisation.
+        $this->load_plugin_textdomain();
+
+        if ($this->is_request('admin')) {
+
+
+        }
+
+
+        // Init action.
+        do_action('ultimate_watermark_init');
+    }
+
+    /**
+     * Load Localisation files.
+     *
+     * Note: the first-loaded translation file overrides any following ones if the same translation is present.
+     *
+     * Locales found in:
+     *      - WP_LANG_DIR/ultimate-watermark/ultimate-watermark-LOCALE.mo
+     *      - WP_LANG_DIR/plugins/ultimate-watermark-LOCALE.mo
+     */
+    public function load_plugin_textdomain()
+    {
+        $locale = is_admin() && function_exists('get_user_locale') ? get_user_locale() : get_locale();
+        $locale = apply_filters('plugin_locale', $locale, 'ultimate-watermark');
+        unload_textdomain('ultimate-watermark');
+        load_textdomain('ultimate-watermark', WP_LANG_DIR . '/ultimate-watermark/ultimate-watermark-' . $locale . '.mo');
+        load_plugin_textdomain('ultimate-watermark', false, plugin_basename(dirname(ULTIMATE_WATERMARK_FILE)) . '/i18n/languages');
+    }
+
+
+    /**
+     * Get the plugin url.
+     *
+     * @return string
+     */
+    public function plugin_url()
+    {
+        return untrailingslashit(plugins_url('/', ULTIMATE_WATERMARK_FILE));
+    }
+
+    /**
+     * Get the plugin path.
+     *
+     * @return string
+     */
+    public function plugin_path()
+    {
+        return untrailingslashit(plugin_dir_path(ULTIMATE_WATERMARK_FILE));
+    }
+
+
     public function bulk_admin_notices()
     {
         global $post_type, $pagenow;
@@ -285,96 +302,11 @@ final class Init
         }
     }
 
-    /**
-     * Check whether ImageMagick extension is available.
-     *
-     * @return boolean True if extension is available
-     */
-
-
-    /**
-     * Check whether GD extension is available.
-     *
-     * @return boolean True if extension is available
-     */
-
-    /**
-     * Apply watermark to selected image sizes.
-     *
-     * @param array $data
-     * @param int|string $attachment_id Attachment ID
-     * @param string $method
-     * @return array
-     */
-
-    /**
-     * Remove watermark from selected image sizes.
-     *
-     * @param array $data
-     * @param int|string $attachment_id Attachment ID
-     * @param string $method
-     * @return array
-     */
-
-
-    /**
-     * Make a backup of the full size image.
-     *
-     * @param array $data
-     * @param string $upload_dir
-     * @param int $attachment_id
-     * @return bool
-     */
-
-    /**
-     * Get image resource accordingly to mimetype.
-     *
-     * @param string $filepath
-     * @param string $mime_type
-     * @return resource
-     */
-
-    /**
-     * Get image filename without the uploaded folders.
-     *
-     * @param string $filepath
-     * @return string $filename
-     */
-    private function get_image_filename($filepath)
-    {
-        return basename($filepath);
-    }
-
-    /**
-     * Get image backup folder.
-     *
-     * @param string $filepath
-     * @return string $image_backup_folder
-     */
-
-    /**
-     * Get image resource from the backup folder (if available).
-     *
-     * @param string $filepath
-     * @return string $backup_filepath
-     */
-
-
-    /**
-     * Delete the image backup if one exists.
-     *
-     * @param int $attachment_id
-     * @return bool $force_delete
-     */
-
-    /**
-     * Create admin notice when we can't create the backup folder.
-     *
-     * @return    void
-     */
     function folder_writable_admin_notice()
     {
-        if (current_user_can('manage_options') && true !== $this->is_backup_folder_writable) {
+        $backup_dir = $this->get_backup_dir(true);
+
+        if (current_user_can('manage_options') && true !== is_writable($backup_dir . 'index.html')) {
             ?>
             <div class="notice notice-error is-dismissible">
                 <p><?php _e('Ultimate Watermark', 'ultimate-watermark'); ?>
@@ -385,37 +317,6 @@ final class Init
         }
     }
 
-
-    /**
-     * Add links to support forum.
-     *
-     * @param array $links
-     * @param string $file
-     * @return array
-     */
-    public function plugin_extend_links($links, $file)
-    {
-        if (!current_user_can('install_plugins'))
-            return $links;
-
-        $plugin = plugin_basename(__FILE__);
-
-        if ($file == $plugin) {
-            return array_merge(
-                $links, array(sprintf('<a href="http://www.mantrabrain.com/support/forum/ultimate-watermark/" target="_blank">%s</a>', __('Support', 'ultimate-watermark')))
-            );
-        }
-
-        return $links;
-    }
-
-    /**
-     * Add links to settings page.
-     *
-     * @param array $links
-     * @param string $file
-     * @return array
-     */
     function plugin_settings_link($links, $file)
     {
         if (!is_admin() || !current_user_can('manage_options'))
@@ -431,6 +332,75 @@ final class Init
         }
 
         return $links;
+    }
+
+    /**
+     * Get Ajax URL.
+     *
+     * @return string
+     */
+    public function ajax_url()
+    {
+        return admin_url('admin-ajax.php', 'relative');
+    }
+
+    public function get_backup_dir($create_if_not_exists = true)
+    {
+        $wp_upload_dir = wp_upload_dir();
+
+        $backup_dir = $wp_upload_dir['basedir'] . '/ulwm-backup/';
+
+        if (!file_exists(trailingslashit($backup_dir) . 'index.html') && $create_if_not_exists) {
+
+            $files = array(
+                array(
+                    'base' => $backup_dir,
+                    'file' => 'index.html',
+                    'content' => '',
+                ),
+                array(
+                    'base' => $backup_dir,
+                    'file' => '.htaccess',
+                    'content' => 'deny from all',
+                )
+            );
+
+            $this->create_files($files, $backup_dir);
+
+
+        }
+        return $backup_dir;
+    }
+
+    private function create_files($files, $base_dir)
+    {
+        // Bypass if filesystem is read-only and/or non-standard upload system is used.
+        if (apply_filters('ultimate_watermark_install_skip_create_files', false)) {
+            return;
+        }
+
+        if (file_exists(trailingslashit($base_dir) . 'index.html')) {
+            return true;
+        }
+        $has_created_dir = false;
+
+        foreach ($files as $file) {
+            if (wp_mkdir_p($file['base']) && !file_exists(trailingslashit($file['base']) . $file['file'])) {
+                $file_handle = @fopen(trailingslashit($file['base']) . $file['file'], 'w'); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_read_fopen
+                if ($file_handle) {
+                    fwrite($file_handle, $file['content']); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_fwrite
+                    fclose($file_handle); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_fclose
+                    if (!$has_created_dir) {
+                        $has_created_dir = true;
+                    }
+                }
+            }
+        }
+        if ($has_created_dir) {
+            return true;
+        }
+
+
     }
 
 }
