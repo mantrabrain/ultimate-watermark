@@ -1,0 +1,18 @@
+{
+  "name": "mantrabrain/ultimate-watermark",
+  "description": "Ultimate Watermark Plugin for WordPress",
+  "type": "project",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "mantrabrain",
+      "email": "mantrabrain@gmail.com"
+    }
+  ],
+  "require": {},
+  "autoload": {
+    "psr-4": {
+      "Ultimate_Watermark\\": "includes/"
+    }
+  }
+}

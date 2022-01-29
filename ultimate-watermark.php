@@ -2,7 +2,7 @@
 /*
 Plugin Name: Ultimate Watermark
 Description: Watermark plugin for WordPress media.
-Version: 1.0.3
+Version: 1.0.4
 Author: mantrabrain
 Author URI: https://mantrabrain.com/
 License: MIT License
@@ -17,27 +17,32 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 */
 
 // exit if accessed directly
-if ( ! defined( 'ABSPATH' ) )
-	exit;
+if (!defined('ABSPATH'))
+    exit;
 
-define( 'ULTIMATE_WATERMARK_URL', plugins_url( '', __FILE__ ) );
-define( 'ULTIMATE_WATERMARK_PATH', plugin_dir_path( __FILE__ ) );
+define('ULTIMATE_WATERMARK_URL', plugins_url('', __FILE__));
+define('ULTIMATE_WATERMARK_PATH', plugin_dir_path(__FILE__));
+define('ULTIMATE_WATERMARK_VERSION', '1.0.4');
 
+include_once ULTIMATE_WATERMARK_PATH . 'vendor/autoload.php';
 
-include_once ULTIMATE_WATERMARK_PATH.'includes/class-ultimate-watermark.php';
 /**
  * Get instance of main class.
  *
  * @return object Instance
  */
-function Ultimate_Watermark() {
-	static $instance;
 
-	// first call to instance() initializes the plugin
-	if ( $instance === null || ! ( $instance instanceof Ultimate_Watermark ) )
-		$instance = Ultimate_Watermark::instance();
+use Ultimate_Watermark\Init;
 
-	return $instance;
+function ultimate_watermark()
+{
+    static $instance;
+
+    // first call to instance() initializes the plugin
+    if ($instance === null || !($instance instanceof Init))
+        $instance = Init::instance();
+
+    return $instance;
 }
 
-$ultimate_watermark = Ultimate_Watermark();
+ultimate_watermark();
