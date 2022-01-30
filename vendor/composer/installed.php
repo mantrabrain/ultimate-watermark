@@ -1,24 +1,23 @@
-<?php return array (
-  'root' => 
-  array (
-    'pretty_version' => 'dev-master',
-    'version' => 'dev-master',
-    'aliases' => 
-    array (
+<?php return array(
+    'root' => array(
+        'pretty_version' => 'dev-master',
+        'version' => 'dev-master',
+        'type' => 'project',
+        'install_path' => __DIR__ . '/../../',
+        'aliases' => array(),
+        'reference' => 'be532bad365569e811c28395b4f92e57a53c7b12',
+        'name' => 'mantrabrain/ultimate-watermark',
+        'dev' => true,
     ),
-    'reference' => '984e9eae2b1ea21938ddd458e7b212e579c8739c',
-    'name' => 'mantrabrain/ultimate-watermark',
-  ),
-  'versions' => 
-  array (
-    'mantrabrain/ultimate-watermark' => 
-    array (
-      'pretty_version' => 'dev-master',
-      'version' => 'dev-master',
-      'aliases' => 
-      array (
-      ),
-      'reference' => '984e9eae2b1ea21938ddd458e7b212e579c8739c',
+    'versions' => array(
+        'mantrabrain/ultimate-watermark' => array(
+            'pretty_version' => 'dev-master',
+            'version' => 'dev-master',
+            'type' => 'project',
+            'install_path' => __DIR__ . '/../../',
+            'aliases' => array(),
+            'reference' => 'be532bad365569e811c28395b4f92e57a53c7b12',
+            'dev_requirement' => false,
+        ),
     ),
-  ),
 );

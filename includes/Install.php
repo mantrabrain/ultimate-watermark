@@ -59,7 +59,7 @@ class Install
 
     private static function exe_update_callback($callbacks)
     {
-        include_once ULTIMATE_WATERMARK_ABSPATH . 'helpers/update-functions.php';
+        include_once ULTIMATE_WATERMARK_ABSPATH . 'Helpers/update-functions.php';
 
         foreach ($callbacks as $callback) {
 

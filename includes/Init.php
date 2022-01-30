@@ -7,7 +7,6 @@ use Ultimate_Watermark\Admin\Ajax;
 use Ultimate_Watermark\Admin\Assets;
 use Ultimate_Watermark\Admin\Options;
 use Ultimate_Watermark\Admin\Settings;
-use Ultimate_Watermark\Admin\Update;
 use Ultimate_Watermark\Admin\Utils;
 use Ultimate_Watermark\Image\Watermark;
 
