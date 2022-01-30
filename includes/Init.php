@@ -5,6 +5,7 @@ namespace Ultimate_Watermark;
 
 use Ultimate_Watermark\Admin\Ajax;
 use Ultimate_Watermark\Admin\Assets;
+use Ultimate_Watermark\Admin\Menu;
 use Ultimate_Watermark\Admin\Options;
 use Ultimate_Watermark\Admin\Settings;
 use Ultimate_Watermark\Admin\Utils;
@@ -174,6 +175,8 @@ final class Init
      */
     public function includes()
     {
+        include_once ULTIMATE_WATERMARK_ABSPATH . 'includes/Helpers/general-functions.php';
+
         $options = new Options();
         $this->options = $options->get_options();
         new Settings();
@@ -183,6 +186,10 @@ final class Init
         new Ajax();
         $this->utils = new Utils();
         $this->watermark = new Watermark();
+
+        if (is_admin()) {
+            new Menu();
+        }
     }
 
 

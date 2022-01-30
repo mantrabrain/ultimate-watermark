@@ -59,7 +59,7 @@ class Install
 
     private static function exe_update_callback($callbacks)
     {
-        include_once ULTIMATE_WATERMARK_ABSPATH . 'Helpers/update-functions.php';
+        include_once ULTIMATE_WATERMARK_ABSPATH . 'includes/Helpers/update-functions.php';
 
         foreach ($callbacks as $callback) {
 
@@ -69,7 +69,7 @@ class Install
     }
 
     /**
-     * Update Yatra version to current.
+     * Update version to current.
      */
     private static function update_ultimate_watermark_version()
     {
