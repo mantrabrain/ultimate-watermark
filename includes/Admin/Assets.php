@@ -16,6 +16,8 @@ class Assets
         global $pagenow;
 
         wp_register_style('watermark-style', ULTIMATE_WATERMARK_URI . '/assets/css/ultimate-watermark.css', array(), ULTIMATE_WATERMARK_VERSION);
+        wp_register_style('ultimate-watermark-setting-style', ULTIMATE_WATERMARK_URI . '/assets/css/settings.css', array(), ULTIMATE_WATERMARK_VERSION);
+        wp_register_script('ultimate-watermark-setting-script', ULTIMATE_WATERMARK_URI . '/assets/js/settings.js', array('jquery'), ULTIMATE_WATERMARK_VERSION);
 
         if ($page === 'settings_page_watermark-options') {
             wp_enqueue_media();
@@ -49,6 +51,25 @@ class Assets
             wp_enqueue_script('postbox');
         }
 
+
+        if ($page === 'toplevel_page_ultimate-watermark') {
+            wp_enqueue_media();
+
+            wp_enqueue_style('ultimate-watermark-setting-style');
+            wp_enqueue_script('ultimate-watermark-setting-script');
+            wp_localize_script(
+                'ultimate-watermark-setting-script', 'ultimateWatermarkSettings', array(
+                    'title' => __('Select watermark', 'ultimate-watermark'),
+                    'originalSize' => __('Original size', 'ultimate-watermark'),
+                    'noSelectedImg' => __('Watermak has not been selected yet.', 'ultimate-watermark'),
+                    'notAllowedImg' => __('This image is not supported as watermark. Use JPEG, PNG or GIF.', 'ultimate-watermark'),
+                    'px' => __('px', 'ultimate-watermark'),
+                    'frame' => 'select',
+                    'button' => array('text' => __('Add watermark', 'ultimate-watermark')),
+                    'multiple' => false
+                )
+            );
+        }
         if ($pagenow === 'upload.php') {
             wp_enqueue_style('watermark-style');
         }

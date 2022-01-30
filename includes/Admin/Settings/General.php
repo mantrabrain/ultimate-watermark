@@ -68,8 +68,6 @@ class General extends Base
     {
         $image_sizes = ultimate_watermark_get_image_sizes();
         $post_types = ultimate_watermark_get_post_types();
-
-
         $settings = array(
             array(
                 'title' => __('General Settings', 'ultimate-watermark'),

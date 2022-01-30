@@ -38,6 +38,7 @@ class Settings_Main {
 
 				$settings[] =new General();
 				$settings[] =new Position();
+				$settings[] =new Image();
 
 
 				self::$settings = apply_filters( 'ultimate_watermark_get_settings_pages', $settings );
@@ -623,6 +624,36 @@ class Settings_Main {
 						</tr>
 						<?php
 						break;
+						case "image":
+                            $option_value = self::get_option( $value['id'], $value['default'] );
+                            ?><tr valign="top">
+                                <th scope="row" class="titledesc">
+                                    <label for="<?php echo esc_attr( $value['id'] ); ?>"><?php echo esc_html( $value['title'] ); ?> <?php echo $tooltip_html; // WPCS: XSS ok. ?></label>
+                                </th>
+                                <td class="forminp forminp-<?php echo esc_attr( sanitize_title( $value['type'] ) ); ?>">
+                                    <input
+                                        name="<?php echo esc_attr( $value['id'] ); ?>"
+                                        id="<?php echo esc_attr( $value['id'] ); ?>"
+                                        type="text"
+                                        style="<?php echo esc_attr( $value['css'] ); ?>"
+                                        value="<?php echo esc_attr( $option_value ); ?>"
+                                        class="attachment_id <?php echo esc_attr( $value['class'] ); ?>"
+                                        placeholder="<?php echo esc_attr( $value['placeholder'] ); ?>"
+                                        <?php echo implode( ' ', $custom_attributes ); // WPCS: XSS ok. ?>
+                                        /><?php echo esc_html( $value['suffix'] ); ?> <?php echo $description; // WPCS: XSS ok. ?>
+
+                                    <div class="image-buttons">
+                                        <input id="ultimate_watermark_upload_image_button" type="button" class="ultimate_watermark_upload_image_button button button-secondary" value="Select image">
+                                        <input id="ultimate_watermark_remove_image_button" type="button" class="ultimate_watermark_remove_image_button button-secondary" value="Remove image">
+                                    </div>
+                                    <div class="preview-image">
+                                        <img  src="http://localhost/WordPressPlugins/wp-content/uploads/2022/01/snake-1.jpg" alt="" width="300">
+                                        <p>Original size: 522 px / 729 px</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php
+						    break;
 
 					// Default: run an action.
 					default:
