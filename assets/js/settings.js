@@ -1,8 +1,8 @@
 jQuery(document).ready(function ($) {
 
+    var selectedElement;
     var watermarkFileUpload = {
         frame: function (el) {
-            this.selectedEl = el;
             if (this._frameWatermark)
                 return this._frameWatermark;
 
@@ -23,13 +23,14 @@ jQuery(document).ready(function ($) {
             var _that = this;
             var attachment = this.frame.state().get('selection').first();
 
-            var elementTd = $(_that.selectedEl).closest('.td');
+            var elementTd = $(selectedElement).closest('td');
+            selectedElement = null;
             if ($.inArray(attachment.attributes.mime, ['image/gif', 'image/jpg', 'image/jpeg', 'image/png']) !== -1) {
 
                 elementTd.find('input.attachment_id').val(attachment.attributes.id);
 
-
                 elementTd.find('.preview-image').find('img').attr('src', attachment.attributes.url);
+
                 elementTd.find('.preview-image').show();
 
                 elementTd.find('.ultimate_watermark_remove_image_button').removeAttr('disabled');
@@ -51,9 +52,9 @@ jQuery(document).ready(function ($) {
         init: function () {
             var _that = this;
             $('body').on('click', '.ultimate_watermark_upload_image_button', function (e) {
-                alert(1);
                 e.preventDefault();
-                _that.frame($(this)).open();
+                selectedElement = $(this);
+                _that.frame().open();
             });
         }
     };

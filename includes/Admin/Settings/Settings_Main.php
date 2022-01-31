@@ -626,6 +626,8 @@ class Settings_Main {
 						break;
 						case "image":
                             $option_value = self::get_option( $value['id'], $value['default'] );
+                            $attachment_url = (absint($option_value)>0) ?wp_get_attachment_url($option_value): '';
+                            $image_attributes = wp_get_attachment_image_src( $option_value, 'full' );
                             ?><tr valign="top">
                                 <th scope="row" class="titledesc">
                                     <label for="<?php echo esc_attr( $value['id'] ); ?>"><?php echo esc_html( $value['title'] ); ?> <?php echo $tooltip_html; // WPCS: XSS ok. ?></label>
@@ -634,7 +636,7 @@ class Settings_Main {
                                     <input
                                         name="<?php echo esc_attr( $value['id'] ); ?>"
                                         id="<?php echo esc_attr( $value['id'] ); ?>"
-                                        type="text"
+                                        type="hidden"
                                         style="<?php echo esc_attr( $value['css'] ); ?>"
                                         value="<?php echo esc_attr( $option_value ); ?>"
                                         class="attachment_id <?php echo esc_attr( $value['class'] ); ?>"
@@ -646,9 +648,14 @@ class Settings_Main {
                                         <input id="ultimate_watermark_upload_image_button" type="button" class="ultimate_watermark_upload_image_button button button-secondary" value="Select image">
                                         <input id="ultimate_watermark_remove_image_button" type="button" class="ultimate_watermark_remove_image_button button-secondary" value="Remove image">
                                     </div>
-                                    <div class="preview-image">
-                                        <img  src="http://localhost/WordPressPlugins/wp-content/uploads/2022/01/snake-1.jpg" alt="" width="300">
-                                        <p>Original size: 522 px / 729 px</p>
+                                    <div class="preview-image <?php echo  $attachment_url==='' ? 'ultimate-watermark-hide': '';?>">
+                                        <img  src="<?php echo esc_attr($attachment_url) ?>" alt="" width="300">
+                                        <p>
+                                        <?php echo __('Original size', 'ultimate-watermark');
+                                        if(is_array($image_attributes)){
+                                            echo $image_attributes[1].'px / '.$image_attributes[2].'px';
+                                            }?>
+                                       </p>
                                     </div>
                                 </td>
                             </tr>

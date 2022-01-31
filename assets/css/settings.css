@@ -1,0 +1,11 @@
+.ultimate-watermark-hide {
+    display: none;
+}
+
+.ultimate-watermark-admin-setting-page-wrap .image-buttons {
+    padding: 10px 0;
+}
+
+.ultimate-watermark-admin-setting-page-wrap .preview-image img {
+    border: 1px solid #aaa;
+}
