@@ -85,24 +85,35 @@ class Image extends Base
                 'id' => 'ultimate_watermark_image',
                 'type' => 'image',
             )
-        , array(
-                'title' => __('Watermark offset [X]', 'ultimate-watermark'),
-                'desc' => __('Enter watermark offset value for X ( ie offset width).', 'ultimate-watermark'),
-                'desc_tip' => false,
-                'id' => 'ultimate_watermark_offset_width',
-                'default' => 0,
-                'type' => 'number',
-            )
         ,
             array(
-                'title' => __('Watermark offset [Y]', 'ultimate-watermark'),
-                'desc' => __('Enter watermark offset value for Y ( ie offset height).', 'ultimate-watermark'),
+                'title' => __('Watermark size', 'ultimate-watermark'),
+                'desc' => __('Select method of aplying watermark size.', 'ultimate-watermark'),
                 'desc_tip' => false,
-                'id' => 'ultimate_watermark_offset_height',
+                'id' => 'ultimate_watermark_watermark_size',
+                'options' => array(
+                    'original' => __('Original', 'ultimate-watermark'),
+                    'custom' => __('Custom', 'ultimate-watermark'),
+                    'scaled' => __('Scaled', 'ultimate-watermark'),
+                ),
+                'type' => 'select',
+            ),
+            array(
+                'title' => __('Watermark custom size [X]', 'ultimate-watermark'),
+                'desc' => __('X ( Width).', 'ultimate-watermark'),
+                'desc_tip' => false,
+                'id' => 'ultimate_watermark_absolute_width',
                 'default' => 0,
                 'type' => 'number',
-            )
-        ,
+            ),
+            array(
+                'title' => __('Watermark custom size [Y]', 'ultimate-watermark'),
+                'desc' => __('X ( Height).', 'ultimate-watermark'),
+                'desc_tip' => false,
+                'id' => 'ultimate_watermark_absolute_height',
+                'default' => 0,
+                'type' => 'number',
+            ),
             array(
                 'title' => __('Offset unit', 'ultimate-watermark'),
                 'desc' => __('Select the watermark offset unit.', 'ultimate-watermark'),
