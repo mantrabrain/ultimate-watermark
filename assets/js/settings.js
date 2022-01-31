@@ -57,16 +57,46 @@ jQuery(document).ready(function ($) {
                 _that.frame().open();
             });
             _that.initSlider();
+            _that.displayConditions();
         },
         initSlider: function () {
+            var slider = $('.ultimate-watermark-range-slider');
 
-            $(".ultimate-watermark-range-slider").slider({
-                range: "max",
-                min: 1,
-                max: 10,
-                value: 2,
-                slide: function (event, ui) {
-                    $("#amount").val(ui.value);
+            slider.each(function () {
+                var slider_item = $(this);
+                var handle = slider_item.find('.handle');
+                var max = slider_item.data("max");
+                var min = slider_item.data('min');
+                var value = slider_item.data('value');
+                var step = slider_item.data('step');
+                slider_item.slider({
+                    min: min,
+                    max: max,
+                    value: value,
+                    step: step,
+                    range: "min",
+                    create: function () {
+                        slider_item.closest('.slider-wrap').find('input').val($(this).slider("value"));
+                        handle.text($(this).slider("value"));
+                    },
+                    slide: function (event, ui) {
+                        handle.text(ui.value);
+                        slider_item.closest('.slider-wrap').find('input').val(ui.value);
+                    }
+                });
+            });
+
+
+        },
+        displayConditions: function () {
+            $('body').on('change', '#ultimate_watermark_watermark_on', function () {
+                var value = $(this).val();
+                var el = $('[id^="ultimate_watermark_watermark_on_custom_post_type"]');
+                var tr = el.closest('tr');
+                if (value === 'selected_custom_post_types') {
+                    tr.removeClass('ultimate-watermark-hide');
+                } else {
+                    tr.addClass('ultimate-watermark-hide');
                 }
             });
         }

@@ -11,8 +11,8 @@ class Image extends Base
      */
     public function __construct()
     {
-        $this->id = 'image';
-        $this->label = __('Image', 'ultimate-watermark');
+        $this->id = 'watermark_image';
+        $this->label = __('Watermark Image', 'ultimate-watermark');
 
         parent::__construct();
     }
@@ -25,7 +25,7 @@ class Image extends Base
     public function get_sections()
     {
         $sections = array(
-            '' => __('Image', 'ultimate-watermark'),
+            '' => __('Watermark Image', 'ultimate-watermark'),
         );
 
         return apply_filters('ultimate_watermark_get_sections_' . $this->id, $sections);
@@ -66,13 +66,10 @@ class Image extends Base
      */
     public function get_settings($current_section = '')
     {
-        $image_sizes = ultimate_watermark_get_image_sizes();
-        $post_types = ultimate_watermark_get_post_types();
-
 
         $settings = array(
             array(
-                'title' => __('Image Settings', 'ultimate-watermark'),
+                'title' => __('Watermark Image Settings', 'ultimate-watermark'),
                 'type' => 'title',
                 'desc' => '',
                 'id' => 'ultimate_watermark_image_options',
@@ -119,10 +116,51 @@ class Image extends Base
                 'desc' => __('Enter a number ranging from 0 to 100. 100 makes width of watermark image equal to width of the image it is applied to.', 'ultimate-watermark'),
                 'desc_tip' => false,
                 'id' => 'ultimate_watermark_image_width',
-                'default' => 0,
+                'default' => 80,
                 'type' => 'slider',
+                'data' => array(
+                    'max' => 100,
+                    'min' => 1,
+                    'step' => 1
+                )
             ),
-
+            array(
+                'title' => __('Watermark transparency / opacity', 'ultimate-watermark'),
+                'desc' => __('Enter a number ranging from 0 to 100. 0 makes watermark image completely transparent, 100 shows it as is.', 'ultimate-watermark'),
+                'desc_tip' => false,
+                'id' => 'ultimate_watermark_image_transparent',
+                'default' => 50,
+                'type' => 'slider',
+                'data' => array(
+                    'max' => 100,
+                    'min' => 1,
+                    'step' => 1
+                )
+            ),
+            array(
+                'title' => __('Image quality', 'ultimate-watermark'),
+                'desc' => __('Set output image quality.', 'ultimate-watermark'),
+                'desc_tip' => false,
+                'id' => 'ultimate_watermark_image_quality',
+                'default' => 90,
+                'type' => 'slider',
+                'data' => array(
+                    'max' => 100,
+                    'min' => 1,
+                    'step' => 1
+                )
+            ),
+            array(
+                'title' => __('Image format', 'ultimate-watermark'),
+                'desc' => __('Select baseline or progressive image format.', 'ultimate-watermark'),
+                'desc_tip' => false,
+                'id' => 'ultimate_watermark_image_format',
+                'options' => array(
+                    'baseline' => __('Baseline', 'ultimate-watermark'),
+                    'progressive' => __('Progressive', 'ultimate-watermark'),
+                ),
+                'type' => 'select',
+            ),
             array(
                 'type' => 'sectionend',
                 'id' => 'ultimate_watermark_image_options',

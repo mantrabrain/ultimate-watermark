@@ -39,6 +39,7 @@ class Settings_Main {
 				$settings[] =new General();
 				$settings[] =new Position();
 				$settings[] =new Image();
+				$settings[] =new Protections_Backup();
 
 
 				self::$settings = apply_filters( 'ultimate_watermark_get_settings_pages', $settings );
@@ -219,6 +220,9 @@ class Settings_Main {
 				$field_description = self::get_field_description( $value );
 				$description       = $field_description['description'];
 				$tooltip_html      = $field_description['tooltip_html'];
+                $display_condition = self::display_condition($value);
+
+                $tr_class =!$display_condition ? 'ultimate-watermark-hide': 'table-row';
 
 				// Switch based on type.
 				switch ( $value['type'] ) {
@@ -265,8 +269,10 @@ class Settings_Main {
 					case 'hidden':
 					case 'tel':
 						$option_value = self::get_option( $value['id'], $value['default'] );
-						$hidden_style = $value['type'] === 'hidden' ? 'style="display:none"': '';
-						?><tr valign="top" <?php echo $hidden_style ?>>
+						$tr_class.= $value['type'] === 'hidden' ? ' ultimate-watermark-hide': ' ';
+						?>
+						<tr valign="top" class="<?php echo esc_attr($tr_class) ?>">
+
 							<th scope="row" class="titledesc">
 								<label for="<?php echo esc_attr( $value['id'] ); ?>"><?php echo esc_html( $value['title'] ); ?> <?php echo $tooltip_html; // WPCS: XSS ok. ?></label>
 							</th>
@@ -291,7 +297,7 @@ class Settings_Main {
 						$option_value = self::get_option( $value['id'], $value['default'] );
 
 						?>
-						<tr valign="top">
+						<tr valign="top" class="<?php echo esc_attr($tr_class) ?>">
 							<th scope="row" class="titledesc">
 								<label for="<?php echo esc_attr( $value['id'] ); ?>"><?php echo esc_html( $value['title'] ); ?> <?php echo $tooltip_html; // WPCS: XSS ok. ?></label>
 							</th>
@@ -319,7 +325,7 @@ class Settings_Main {
 						$option_value = self::get_option( $value['id'], $value['default'] );
 
 						?>
-						<tr valign="top">
+						<tr valign="top" class="<?php echo esc_attr($tr_class) ?>">
 							<th scope="row" class="titledesc">
 								<label for="<?php echo esc_attr( $value['id'] ); ?>"><?php echo esc_html( $value['title'] ); ?> <?php echo $tooltip_html; // WPCS: XSS ok. ?></label>
 							</th>
@@ -373,7 +379,7 @@ class Settings_Main {
 						$option_value = self::get_option( $value['id'], $value['default'] );
 
 						?>
-						<tr valign="top">
+						<tr valign="top" class="<?php echo esc_attr($tr_class) ?>">
 							<th scope="row" class="titledesc">
 								<label for="<?php echo esc_attr( $value['id'] ); ?>"><?php echo esc_html( $value['title'] ); ?> <?php echo $tooltip_html; // WPCS: XSS ok. ?></label>
 							</th>
@@ -414,7 +420,7 @@ class Settings_Main {
 						$option_value = self::get_option( $value['id'], $value['default'] );
 
 						?>
-						<tr valign="top">
+						<tr valign="top" class="<?php echo esc_attr($tr_class) ?>">
 							<th scope="row" class="titledesc">
 								<label for="<?php echo esc_attr( $value['id'] ); ?>"><?php echo esc_html( $value['title'] ); ?> <?php echo $tooltip_html; // WPCS: XSS ok. ?></label>
 							</th>
@@ -468,8 +474,9 @@ class Settings_Main {
 						}
 
 						if ( ! isset( $value['checkboxgroup'] ) || 'start' === $value['checkboxgroup'] ) {
+                            $tr_class.=' '.implode( ' ', $visibility_class );
 							?>
-								<tr valign="top" class="<?php echo esc_attr( implode( ' ', $visibility_class ) ); ?>">
+							<tr valign="top" class="<?php echo esc_attr($tr_class) ?>">
 									<th scope="row" class="titledesc"><?php echo esc_html( $value['title'] ); ?></th>
 									<td class="forminp forminp-checkbox">
 										<fieldset>
@@ -534,9 +541,9 @@ class Settings_Main {
 						if ( 'option' === $value['show_if_checked'] ) {
 							$visibility_class[] = 'show_options_if_checked';
 						}
-
+                        $tr_class.= ' '.implode( ' ', $visibility_class );
  							?>
-								<tr valign="top" class="<?php echo esc_attr( implode( ' ', $visibility_class ) ); ?>">
+ 							    <tr valign="top" class="<?php echo esc_attr($tr_class) ?>">
 									<th scope="row" class="titledesc"><?php echo esc_html( $value['title'] ); ?>
 									<?php echo $tooltip_html; // WPCS: XSS ok. ?></th>
 									<td class="forminp forminp-checkbox">
@@ -613,8 +620,9 @@ class Settings_Main {
 							$args = wp_parse_args( $value['args'], $args );
 						}
 
+                        $tr_class.=' single_select_page';
 						?>
-						<tr valign="top" class="single_select_page">
+						<tr valign="top" class="<?php echo esc_attr($tr_class) ?>">
 							<th scope="row" class="titledesc">
 								<label><?php echo esc_html( $value['title'] ); ?> <?php echo $tooltip_html; // WPCS: XSS ok. ?></label>
 							</th>
@@ -628,7 +636,8 @@ class Settings_Main {
                             $option_value = self::get_option( $value['id'], $value['default'] );
                             $attachment_url = (absint($option_value)>0) ?wp_get_attachment_url($option_value): '';
                             $image_attributes = wp_get_attachment_image_src( $option_value, 'full' );
-                            ?><tr valign="top">
+                            ?>
+                            <tr valign="top" class="<?php echo esc_attr($tr_class) ?>">
                                 <th scope="row" class="titledesc">
                                     <label for="<?php echo esc_attr( $value['id'] ); ?>"><?php echo esc_html( $value['title'] ); ?> <?php echo $tooltip_html; // WPCS: XSS ok. ?></label>
                                 </th>
@@ -663,7 +672,12 @@ class Settings_Main {
 						    break;
 						    case "slider":
 						        $option_value = self::get_option( $value['id'], $value['default'] );
-                             ?><tr valign="top">
+						        $data = isset($value['data']) ? $value['data']: array();
+                                $max = isset($data['max']) ? absint($data['max']): 100;
+                                $min = isset($data['min']) ? absint($data['min']): 1;
+                                $step = isset($data['step']) ? absint($data['step']): 1;
+                             ?>
+                             <tr valign="top" class="<?php echo esc_attr($tr_class) ?>">
                                 <th scope="row" class="titledesc">
                                     <label for="<?php echo esc_attr( $value['id'] ); ?>"><?php echo esc_html( $value['title'] ); ?> <?php echo $tooltip_html; // WPCS: XSS ok. ?></label>
                                 </th>
@@ -672,18 +686,19 @@ class Settings_Main {
                                     <input
                                         name="<?php echo esc_attr( $value['id'] ); ?>"
                                         id="<?php echo esc_attr( $value['id'] ); ?>"
-                                        type="text"
+                                        type="hidden"
                                         style="<?php echo esc_attr( $value['css'] ); ?>"
-
                                         value="<?php echo esc_attr( $option_value ); ?>"
                                         class="<?php echo esc_attr( $value['class'] ); ?>"
                                         placeholder="<?php echo esc_attr( $value['placeholder'] ); ?>"
                                         <?php echo implode( ' ', $custom_attributes ); // WPCS: XSS ok. ?>
-                                        /><?php echo esc_html( $value['suffix'] ); ?> <?php echo $description; // WPCS: XSS ok. ?>
-                                        <div class="ultimate-watermark-range-slider"></div>
+                                        /><?php echo esc_html( $value['suffix'] ); ?>
+                                        <div class="ultimate-watermark-range-slider" data-max="<?php echo absint($max) ?>" data-min="<?php echo absint($min) ?>" data-value="<?php echo absint($option_value) ?>" data-step="<?php echo absint($step); ?>">
+                                          <div class="handle ui-slider-handle"></div>
+                                        </div>
 
                                     </div>
-
+                                    <?php echo $description; // WPCS: XSS ok. ?>
                                 </td>
                             </tr>
                             <?php
@@ -696,6 +711,46 @@ class Settings_Main {
 				}
 			}
 		}
+
+        public static function display_condition($value){
+            $display_conditions = $value['display_conditions'] ?? array();
+
+            if(count($display_conditions)<1){
+                return true;
+            }
+            $display = false;
+
+            foreach($display_conditions as $condition){
+
+                $display_status = false;
+
+                $field = isset($condition['field']) ? sanitize_text_field($condition['field']): '';
+
+                $compare = isset($condition['compare']) ? sanitize_text_field($condition['compare']): '';
+
+                $value = isset($condition['value']) ? sanitize_text_field($condition['value']): '';
+
+                if($field!='' && $compare!=''){
+
+                    $option_value = self::get_option( $field, '' );
+
+                    switch($compare){
+                        case "=":
+                            $display_status = $option_value===$value;
+                            break;
+                    }
+                }
+                $display=$display_status;
+
+                if(!$display_status){
+                    break;
+                }
+
+
+            }
+
+            return $display;
+        }
 
 		/**
 		 * Helper function to get the formatted description and tip HTML for a
@@ -801,6 +856,9 @@ class Settings_Main {
 						break;
 					case 'textarea':
 						$value = wp_kses_post( trim( $raw_value ) );
+						break;
+                    case 'slider':
+						$value = absint( trim( $raw_value ) );
 						break;
 					case 'select':
 						$allowed_values = empty( $option['options'] ) ? array() : array_map( 'strval', array_keys( $option['options'] ) );

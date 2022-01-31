@@ -102,12 +102,31 @@ class General extends Base
                 'type' => 'multicheckbox',
             ),
             array(
+                'title' => __('Watermark On', 'ultimate-watermark'),
+                'desc' => __('Select custom post types on which watermark should be applied to uploaded images.', 'ultimate-watermark'),
+                'desc_tip' => false,
+                'id' => 'ultimate_watermark_watermark_on',
+                'options' => array(
+                    'everywhere' => __('Everywhere', 'ultimate-watermark'),
+                    'selected_custom_post_types' => __('Selected Custom Post Types', 'ultimate-watermark'),
+                ),
+                'type' => 'select',
+                'default' => 'everywhere'
+            ),
+            array(
                 'title' => __('Watermark For(Custom Post Types)', 'ultimate-watermark'),
                 'desc' => __('Check custom post types on which watermark should be applied to uploaded images.', 'ultimate-watermark'),
                 'desc_tip' => false,
                 'id' => 'ultimate_watermark_watermark_on_custom_post_type',
                 'options' => $post_types,
                 'type' => 'multicheckbox',
+                'display_conditions' => array(
+                    array(
+                        'field' => 'ultimate_watermark_watermark_on',
+                        'compare' => '=',
+                        'value' => 'selected_custom_post_types'
+                    )
+                )
             ),
             array(
                 'title' => __('Frontend watermarking', 'ultimate-watermark'),
