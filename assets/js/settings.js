@@ -56,6 +56,19 @@ jQuery(document).ready(function ($) {
                 selectedElement = $(this);
                 _that.frame().open();
             });
+            _that.initSlider();
+        },
+        initSlider: function () {
+
+            $(".ultimate-watermark-range-slider").slider({
+                range: "max",
+                min: 1,
+                max: 10,
+                value: 2,
+                slide: function (event, ui) {
+                    $("#amount").val(ui.value);
+                }
+            });
         }
     };
 

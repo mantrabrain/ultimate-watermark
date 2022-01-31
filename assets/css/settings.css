@@ -9,3 +9,62 @@
 .ultimate-watermark-admin-setting-page-wrap .preview-image img {
     border: 1px solid #aaa;
 }
+
+
+.ui-slider-range {
+    height: 2px;
+    border: none;
+    background: #1abc9c;
+}
+
+.ui-slider .ui-slider-handle {
+    border: none;
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: #1abc9c;
+    margin-top: -3px;
+}
+
+.ui-slider .ui-slider-handle:focus {
+    border: none;
+    outline: none;
+}
+
+.ui-slider .ui-slider-handle:before {
+    content: attr(data-value);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    line-height: 1;
+    color: #fff;
+    background-color: #1abc9c;
+    padding: 3px 8px;
+    border-radius: 3px;
+    position: absolute;
+    bottom: 100%;
+    margin-bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    visibility: hidden;
+    opacity: 0;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.ui-slider .ui-slider-handle:after {
+    content: "";
+    border: 4px solid transparent;
+    border-top: 6px solid #1abc9c;
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    transform: translateX(-50%);
+    visibility: hidden;
+    opacity: 0;
+    transition: all 0.2s ease;
+}
+
+.ui-slider .ui-slider-handle.visible:before {
+    opacity: 1;
+    visibility: visible;
+}

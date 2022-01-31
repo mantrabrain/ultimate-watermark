@@ -115,15 +115,12 @@ class Image extends Base
                 'type' => 'number',
             ),
             array(
-                'title' => __('Offset unit', 'ultimate-watermark'),
-                'desc' => __('Select the watermark offset unit.', 'ultimate-watermark'),
+                'title' => __('Watermark scale', 'ultimate-watermark'),
+                'desc' => __('Enter a number ranging from 0 to 100. 100 makes width of watermark image equal to width of the image it is applied to.', 'ultimate-watermark'),
                 'desc_tip' => false,
-                'id' => 'ultimate_watermark_watermark_offset_unit',
-                'options' => array(
-                    'pixels' => __('Pixels', 'ultimate-watermark'),
-                    'percentages' => __('Percentages', 'ultimate-watermark'),
-                ),
-                'type' => 'select',
+                'id' => 'ultimate_watermark_image_width',
+                'default' => 0,
+                'type' => 'slider',
             ),
 
             array(

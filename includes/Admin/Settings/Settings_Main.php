@@ -661,6 +661,33 @@ class Settings_Main {
                             </tr>
                             <?php
 						    break;
+						    case "slider":
+						        $option_value = self::get_option( $value['id'], $value['default'] );
+                             ?><tr valign="top">
+                                <th scope="row" class="titledesc">
+                                    <label for="<?php echo esc_attr( $value['id'] ); ?>"><?php echo esc_html( $value['title'] ); ?> <?php echo $tooltip_html; // WPCS: XSS ok. ?></label>
+                                </th>
+                                <td class="forminp forminp-<?php echo esc_attr( sanitize_title( $value['type'] ) ); ?>">
+                                <div class="slider-wrap">
+                                    <input
+                                        name="<?php echo esc_attr( $value['id'] ); ?>"
+                                        id="<?php echo esc_attr( $value['id'] ); ?>"
+                                        type="text"
+                                        style="<?php echo esc_attr( $value['css'] ); ?>"
+
+                                        value="<?php echo esc_attr( $option_value ); ?>"
+                                        class="<?php echo esc_attr( $value['class'] ); ?>"
+                                        placeholder="<?php echo esc_attr( $value['placeholder'] ); ?>"
+                                        <?php echo implode( ' ', $custom_attributes ); // WPCS: XSS ok. ?>
+                                        /><?php echo esc_html( $value['suffix'] ); ?> <?php echo $description; // WPCS: XSS ok. ?>
+                                        <div class="ultimate-watermark-range-slider"></div>
+
+                                    </div>
+
+                                </td>
+                            </tr>
+                            <?php
+						        break;
 
 					// Default: run an action.
 					default:

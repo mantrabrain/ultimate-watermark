@@ -17,7 +17,10 @@ class Assets
 
         wp_register_style('watermark-style', ULTIMATE_WATERMARK_URI . '/assets/css/ultimate-watermark.css', array(), ULTIMATE_WATERMARK_VERSION);
         wp_register_style('ultimate-watermark-setting-style', ULTIMATE_WATERMARK_URI . '/assets/css/settings.css', array(), ULTIMATE_WATERMARK_VERSION);
-        wp_register_script('ultimate-watermark-setting-script', ULTIMATE_WATERMARK_URI . '/assets/js/settings.js', array('jquery'), ULTIMATE_WATERMARK_VERSION);
+        wp_register_style('ultimate-watermark-rangeslider-style', ULTIMATE_WATERMARK_URI . '/assets/lib/rangeslider/rangeslider.css', array('ultimate-watermark-setting-style'), ULTIMATE_WATERMARK_VERSION);
+        wp_register_script('ultimate-watermark-rangeslider-script', ULTIMATE_WATERMARK_URI . '/assets/lib/rangeslider/rangeslider.js', array('jquery'), ULTIMATE_WATERMARK_VERSION);
+
+        wp_register_script('ultimate-watermark-setting-script', ULTIMATE_WATERMARK_URI . '/assets/js/settings.js', array('jquery', 'jquery-ui-core', 'jquery-ui-slider'), ULTIMATE_WATERMARK_VERSION);
 
         if ($page === 'settings_page_watermark-options') {
             wp_enqueue_media();
