@@ -99,6 +99,26 @@ jQuery(document).ready(function ($) {
                     tr.addClass('ultimate-watermark-hide');
                 }
             });
+
+            $('body').on('change', '#ultimate_watermark_watermark_size_type', function () {
+                var value = $(this).val();
+                var absWidthTr = $('#ultimate_watermark_absolute_width').closest('tr');
+                var absHeightTr = $('#ultimate_watermark_absolute_height').closest('tr');
+                var scaledTr = $('#ultimate_watermark_scaled_image_width').closest('tr');
+                if (value === 'custom') {
+                    absWidthTr.removeClass('ultimate-watermark-hide');
+                    absHeightTr.removeClass('ultimate-watermark-hide');
+                    scaledTr.addClass('ultimate-watermark-hide');
+                } else if (value === 'scaled') {
+                    absWidthTr.addClass('ultimate-watermark-hide');
+                    absHeightTr.addClass('ultimate-watermark-hide');
+                    scaledTr.removeClass('ultimate-watermark-hide');
+                } else {
+                    absWidthTr.addClass('ultimate-watermark-hide');
+                    absHeightTr.addClass('ultimate-watermark-hide');
+                    scaledTr.addClass('ultimate-watermark-hide');
+                }
+            });
         }
     };
 

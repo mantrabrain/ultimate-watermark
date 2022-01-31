@@ -102,6 +102,13 @@ class Image extends Base
                 'id' => 'ultimate_watermark_absolute_width',
                 'default' => 0,
                 'type' => 'number',
+                'display_conditions' => array(
+                    array(
+                        'field' => 'ultimate_watermark_watermark_size_type',
+                        'compare' => '=',
+                        'value' => 'custom'
+                    )
+                )
             ),
             array(
                 'title' => __('Watermark custom size [Y]', 'ultimate-watermark'),
@@ -110,6 +117,13 @@ class Image extends Base
                 'id' => 'ultimate_watermark_absolute_height',
                 'default' => 0,
                 'type' => 'number',
+                'display_conditions' => array(
+                    array(
+                        'field' => 'ultimate_watermark_watermark_size_type',
+                        'compare' => '=',
+                        'value' => 'custom'
+                    )
+                )
             ),
             array(
                 'title' => __('Watermark scale', 'ultimate-watermark'),
@@ -122,6 +136,13 @@ class Image extends Base
                     'max' => 100,
                     'min' => 1,
                     'step' => 1
+                ),
+                'display_conditions' => array(
+                    array(
+                        'field' => 'ultimate_watermark_watermark_size_type',
+                        'compare' => '=',
+                        'value' => 'scaled'
+                    )
                 )
             ),
             array(
