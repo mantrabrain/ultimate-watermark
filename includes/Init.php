@@ -176,6 +176,7 @@ final class Init
     public function includes()
     {
         include_once ULTIMATE_WATERMARK_ABSPATH . 'includes/Helpers/general-functions.php';
+        include_once ULTIMATE_WATERMARK_ABSPATH . 'includes/Helpers/settings-functions.php';
 
         $options = new Options();
         $this->options = $options->get_options();

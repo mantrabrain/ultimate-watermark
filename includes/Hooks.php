@@ -47,12 +47,12 @@ class Hooks
 
             // admin
             if ($this->is_admin === true) {
-                if (ultimate_watermark()->options['watermark_image']['plugin_off'] == 1 && ultimate_watermark()->options['watermark_image']['attachment_id'] != 0 && in_array($file['type'], ultimate_watermark()->utils->get_allowed_mime_types())) {
+                if (ultimate_watermark_automatic_watermarking() && ultimate_watermark_watermark_image() != 0 && in_array($file['type'], ultimate_watermark()->utils->get_allowed_mime_types())) {
                     add_filter('wp_generate_attachment_metadata', array(ultimate_watermark()->watermark, 'apply_watermark'), 10, 2);
                 }
                 // frontend
             } else {
-                if (ultimate_watermark()->options['watermark_image']['frontend_active'] == 1 && ultimate_watermark()->options['watermark_image']['attachment_id'] != 0 && in_array($file['type'], ultimate_watermark()->utils->get_allowed_mime_types())) {
+                if (ultimate_watermark_frontend_watermarking() && ultimate_watermark_watermark_image() != 0 && in_array($file['type'], ultimate_watermark()->utils->get_allowed_mime_types())) {
                     add_filter('wp_generate_attachment_metadata', array(ultimate_watermark()->watermark, 'apply_watermark'), 10, 2);
                 }
             }
@@ -63,7 +63,7 @@ class Hooks
 
     public function attachment_fields_to_edit($form_fields, $post)
     {
-        if (ultimate_watermark()->options['watermark_image']['manual_watermarking'] == 1 && ultimate_watermark()->options['backup']['backup_image']) {
+        if (ultimate_watermark_manual_watermarking() && ultimate_watermark()->options['backup']['backup_image']) {
 
             $data = wp_get_attachment_metadata($post->ID, false);
 
@@ -111,7 +111,7 @@ class Hooks
 
             // only if manual watermarking is turned and we have a valid action
             // if the action is NOT "removewatermark" we also require a watermark image to be set
-            if ($action && ultimate_watermark()->options['watermark_image']['manual_watermarking'] == 1 && (ultimate_watermark()->options['watermark_image']['attachment_id'] != 0 || $action == 'removewatermark')) {
+            if ($action && ultimate_watermark_manual_watermarking() && (ultimate_watermark_watermark_image() != 0 || $action == 'removewatermark')) {
                 // security check
                 check_admin_referer('bulk-media');
 

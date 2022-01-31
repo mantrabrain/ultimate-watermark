@@ -79,7 +79,7 @@ class Image extends Base
                 'title' => __('Watermark image	', 'ultimate-watermark'),
                 'desc' => __('Watermark image', 'ultimate-watermark'),
                 'desc_tip' => false,
-                'id' => 'ultimate_watermark_image',
+                'id' => 'ultimate_watermark_watermark_image',
                 'type' => 'image',
             )
         ,
@@ -87,7 +87,7 @@ class Image extends Base
                 'title' => __('Watermark size', 'ultimate-watermark'),
                 'desc' => __('Select method of aplying watermark size.', 'ultimate-watermark'),
                 'desc_tip' => false,
-                'id' => 'ultimate_watermark_watermark_size',
+                'id' => 'ultimate_watermark_watermark_size_type',
                 'options' => array(
                     'original' => __('Original', 'ultimate-watermark'),
                     'custom' => __('Custom', 'ultimate-watermark'),
@@ -97,7 +97,7 @@ class Image extends Base
             ),
             array(
                 'title' => __('Watermark custom size [X]', 'ultimate-watermark'),
-                'desc' => __('X ( Width).', 'ultimate-watermark'),
+                'desc' => __('[px] X ( Width).', 'ultimate-watermark'),
                 'desc_tip' => false,
                 'id' => 'ultimate_watermark_absolute_width',
                 'default' => 0,
@@ -105,7 +105,7 @@ class Image extends Base
             ),
             array(
                 'title' => __('Watermark custom size [Y]', 'ultimate-watermark'),
-                'desc' => __('X ( Height).', 'ultimate-watermark'),
+                'desc' => __('[px] Y ( Height).', 'ultimate-watermark'),
                 'desc_tip' => false,
                 'id' => 'ultimate_watermark_absolute_height',
                 'default' => 0,
@@ -115,7 +115,7 @@ class Image extends Base
                 'title' => __('Watermark scale', 'ultimate-watermark'),
                 'desc' => __('Enter a number ranging from 0 to 100. 100 makes width of watermark image equal to width of the image it is applied to.', 'ultimate-watermark'),
                 'desc_tip' => false,
-                'id' => 'ultimate_watermark_image_width',
+                'id' => 'ultimate_watermark_scaled_image_width',
                 'default' => 80,
                 'type' => 'slider',
                 'data' => array(

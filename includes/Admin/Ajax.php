@@ -30,7 +30,7 @@ class Ajax
 
         // only if manual watermarking is turned and we have a valid action
         // if the action is NOT "removewatermark" we also require a watermark image to be set
-        if ($post_id > 0 && $action && ultimate_watermark()->options['watermark_image']['manual_watermarking'] == 1 && (ultimate_watermark()->options['watermark_image']['attachment_id'] != 0 || $action == 'removewatermark')) {
+        if ($post_id > 0 && $action && ultimate_watermark_manual_watermarking() && (ultimate_watermark_watermark_image() != 0 || $action == 'removewatermark')) {
             $data = wp_get_attachment_metadata($post_id, false);
 
             // is this really an image?

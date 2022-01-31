@@ -82,7 +82,7 @@ class Position extends Base
                 'title' => __('Watermark alignment', 'ultimate-watermark'),
                 'desc' => __('Select the watermark alignment.', 'ultimate-watermark'),
                 'desc_tip' => false,
-                'id' => 'ultimate_watermark_alignment',
+                'id' => 'ultimate_watermark_watermark_alignment',
                 'options' => array(
                     'top_left' => __('Top Left', 'ultimate-watermark'),
                     'top_center' => __('Top Center', 'ultimate-watermark'),

@@ -79,7 +79,7 @@ class Assets
         }
 
         // I've omitted $pagenow === 'upload.php' because the image modal could be loaded in various places
-        if (ultimate_watermark()->options['watermark_image']['manual_watermarking'] == 1) {
+        if (ultimate_watermark_manual_watermarking()) {
 
             wp_enqueue_script('watermark-admin-image-actions', ULTIMATE_WATERMARK_URI . '/assets/js/admin-image-actions.js', array('jquery'), ULTIMATE_WATERMARK_VERSION, true);
 
@@ -106,7 +106,7 @@ class Assets
         global $pagenow;
 
         if ($pagenow === 'upload.php') {
-            if (ultimate_watermark()->options['watermark_image']['manual_watermarking'] == 1) {
+            if (ultimate_watermark_manual_watermarking()) {
                 ?>
                 <script type="text/javascript">
                     jQuery(function ($) {

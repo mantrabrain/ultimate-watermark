@@ -10,6 +10,7 @@ class Watermark
     public function apply_watermark($data, $attachment_id, $method = '')
     {
         $post = get_post((int)$attachment_id);
+
         $post_id = (!empty($post) ? (int)$post->post_parent : 0);
 
         if ($attachment_id == ultimate_watermark()->options['watermark_image']['attachment_id']) {
@@ -17,9 +18,19 @@ class Watermark
             return array('error' => __('Watermark prevented, this is your selected watermark image', 'ultimate-watermark'));
         }
 
-        // something went wrong or is it automatic mode?
-        if ($method !== 'manual' && (is_admin() === true && !((isset(ultimate_watermark()->options['watermark_cpt_on'][0]) && ultimate_watermark()->options['watermark_cpt_on'][0] === 'everywhere') || ($post_id > 0 && in_array(get_post_type($post_id), array_keys(ultimate_watermark()->options['watermark_cpt_on'])) === true))))
-            return $data;
+        if ($method !== 'manual') {
+
+            if (is_admin()) {
+
+                if (
+                !((ultimate_watermark_watermark_on() === 'everywhere') ||
+                    ($post_id > 0 && ultimate_watermark_watermark_on() === 'selected_custom_post_types' && in_array(get_post_type($post_id), array_keys(ultimate_watermark_watermark_on_custom_post_type())))
+                )) {
+                    return $data;
+                }
+            }
+
+        }
 
         if (apply_filters('ulwm_watermark_display', $attachment_id) === false)
             return $data;
@@ -43,8 +54,8 @@ class Watermark
                 $this->do_backup($data, $upload_dir, $attachment_id);
 
             // loop through active image sizes
-            foreach (ultimate_watermark()->options['watermark_on'] as $image_size => $active_size) {
-                if ($active_size === 1) {
+            foreach (ultimate_watermark_watermark_on_image_size() as $image_size => $active_size) {
+                if ($active_size === 'yes') {
                     switch ($image_size) {
                         case 'full':
                             $filepath = $original_file;
@@ -436,12 +447,12 @@ class Watermark
     private function calculate_watermark_dimensions($image_width, $image_height, $watermark_width, $watermark_height, $options)
     {
         // custom
-        if ($options['watermark_image']['watermark_size_type'] === 1) {
-            $width = $options['watermark_image']['absolute_width'];
-            $height = $options['watermark_image']['absolute_height'];
+        if (ultimate_watermark_watermark_size_type() === 'custom') {
+            $width = ultimate_watermark_absolute_width();
+            $height = ultimate_watermark_absolute_height();
             // scale
-        } elseif ($options['watermark_image']['watermark_size_type'] === 2) {
-            $ratio = $image_width * $options['watermark_image']['width'] / 100 / $watermark_width;
+        } elseif (ultimate_watermark_watermark_size_type() === 'scaled') {
+            $ratio = $image_width * ultimate_watermark_scaled_image_width() / 100 / $watermark_width;
 
             $width = (int)($watermark_width * $ratio);
             $height = (int)($watermark_height * $ratio);
@@ -472,7 +483,7 @@ class Watermark
      */
     private function calculate_image_coordinates($image_width, $image_height, $watermark_width, $watermark_height, $options)
     {
-        switch ($options['watermark_image']['position']) {
+        switch (ultimate_watermark_watermark_alignment()) {
             case 'top_left':
                 $dest_x = $dest_y = 0;
                 break;
@@ -518,12 +529,15 @@ class Watermark
                 $dest_y = ($image_height / 2) - ($watermark_height / 2);
         }
 
-        if ($options['watermark_image']['offset_unit'] === 'pixels') {
-            $dest_x += $options['watermark_image']['offset_width'];
-            $dest_y += $options['watermark_image']['offset_height'];
+        $offset_width = ultimate_watermark_offset_width();
+        $offset_height = ultimate_watermark_offset_height();
+
+        if (ultimate_watermark_watermark_offset_unit() === 'pixels') {
+            $dest_x += $offset_width > 0 ? $offset_width : 0;
+            $dest_y += $offset_height > 0 ? $offset_height : 0;
         } else {
-            $dest_x += (int)($image_width * $options['watermark_image']['offset_width'] / 100);
-            $dest_y += (int)($image_height * $options['watermark_image']['offset_height'] / 100);
+            $dest_x += $offset_width > 0 ? ((int)($image_width * $offset_width / 100)) : 0;
+            $dest_y += $offset_height > 0 ? ((int)($image_height * $offset_height / 100)) : 0;
         }
 
         return array($dest_x, $dest_y);
