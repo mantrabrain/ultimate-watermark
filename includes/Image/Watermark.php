@@ -23,9 +23,9 @@ class Watermark
             if (is_admin()) {
 
                 if (
-                !((ultimate_watermark_watermark_on() === 'everywhere') ||
-                    ($post_id > 0 && ultimate_watermark_watermark_on() === 'selected_custom_post_types' && in_array(get_post_type($post_id), array_keys(ultimate_watermark_watermark_on_custom_post_type())))
-                )) {
+                    !((ultimate_watermark_watermark_on() === 'everywhere') ||
+                        ($post_id > 0 && ultimate_watermark_watermark_on() === 'selected_custom_post_types' && in_array(get_post_type($post_id), array_keys(ultimate_watermark_watermark_on_custom_post_type())))
+                    )) {
                     return $data;
                 }
             }
@@ -50,7 +50,7 @@ class Watermark
                 $this->remove_watermark($data, $attachment_id, 'manual');
 
             // create a backup if this is enabled
-            if (ultimate_watermark()->options['backup']['backup_image'])
+            if (ultimate_watermark_backup_image() === 'yes')
                 $this->do_backup($data, $upload_dir, $attachment_id);
 
             // loop through active image sizes
@@ -247,20 +247,20 @@ class Watermark
 
             // alpha channel exists?
             if ($watermark->getImageAlphaChannel() > 0)
-                $watermark->evaluateImage(Imagick::EVALUATE_MULTIPLY, round((float)($options['watermark_image']['transparent'] / 100), 2), Imagick::CHANNEL_ALPHA);
+                $watermark->evaluateImage(Imagick::EVALUATE_MULTIPLY, round((float)(ultimate_watermark_image_transparent() / 100), 2), Imagick::CHANNEL_ALPHA);
             // no alpha channel
             else
-                $watermark->setImageOpacity(round((float)($options['watermark_image']['transparent'] / 100), 2));
+                $watermark->setImageOpacity(round((float)(ultimate_watermark_image_transparent() / 100), 2));
 
             // set compression quality
             if ($mime['type'] === 'image/jpeg') {
-                $image->setImageCompressionQuality($options['watermark_image']['quality']);
+                $image->setImageCompressionQuality(ultimate_watermark_image_quality());
                 $image->setImageCompression(imagick::COMPRESSION_JPEG);
             } else
-                $image->setImageCompressionQuality($options['watermark_image']['quality']);
+                $image->setImageCompressionQuality(ultimate_watermark_image_quality());
 
             // set image output to progressive
-            if ($options['watermark_image']['jpeg_format'] === 'progressive')
+            if (ultimate_watermark_image_format() === 'progressive')
                 $image->setImageInterlaceScheme(Imagick::INTERLACE_PLANE);
 
             // get image dimensions
@@ -304,7 +304,7 @@ class Watermark
 
                 if ($image !== false) {
                     // save watermarked image
-                    $this->save_image_file($image, $mime['type'], $image_path, $options['watermark_image']['quality']);
+                    $this->save_image_file($image, $mime['type'], $image_path, ultimate_watermark_image_quality());
 
                     // clear watermark memory
                     imagedestroy($image);
@@ -334,7 +334,7 @@ class Watermark
                 wp_mkdir_p($this->get_image_backup_folder_location($data['file']));
 
                 // save backup image
-                $this->save_image_file($image, $mime['type'], $backup_filepath, ultimate_watermark()->options['backup']['backup_quality']);
+                $this->save_image_file($image, $mime['type'], $backup_filepath, ultimate_watermark_backup_image_quality());
 
                 // clear backup memory
                 imagedestroy($image);
@@ -586,9 +586,9 @@ class Watermark
         list($dest_x, $dest_y) = $this->calculate_image_coordinates($image_width, $image_height, $w, $h, $options);
 
         // combine two images together
-        $this->imagecopymerge_alpha($image, $this->resize($watermark, $w, $h, $watermark_file_info), $dest_x, $dest_y, 0, 0, $w, $h, $options['watermark_image']['transparent']);
+        $this->imagecopymerge_alpha($image, $this->resize($watermark, $w, $h, $watermark_file_info), $dest_x, $dest_y, 0, 0, $w, $h, ultimate_watermark_image_transparent());
 
-        if ($options['watermark_image']['jpeg_format'] === 'progressive')
+        if (ultimate_watermark_image_format() === 'progressive')
             imageinterlace($image, true);
 
         return $image;

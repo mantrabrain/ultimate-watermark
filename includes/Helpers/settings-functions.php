@@ -113,3 +113,59 @@ if (!function_exists('ultimate_watermark_scaled_image_width')) {
     }
 
 }
+if (!function_exists('ultimate_watermark_image_transparent')) {
+    function ultimate_watermark_image_transparent()
+    {
+        return absint(get_option('ultimate_watermark_image_transparent', 50));
+    }
+
+}
+if (!function_exists('ultimate_watermark_image_quality')) {
+    function ultimate_watermark_image_quality()
+    {
+        return absint(get_option('ultimate_watermark_image_quality', 90));
+    }
+
+}
+if (!function_exists('ultimate_watermark_image_format')) {
+    function ultimate_watermark_image_format()
+    {
+        return (get_option('ultimate_watermark_image_format', 'baseline'));
+    }
+
+}
+if (!function_exists('ultimate_watermark_disable_rightclick')) {
+    function ultimate_watermark_disable_rightclick()
+    {
+        return (get_option('ultimate_watermark_disable_rightclick', 'no'));
+    }
+
+}
+if (!function_exists('ultimate_watermark_disable_drag_and_drop')) {
+    function ultimate_watermark_disable_drag_and_drop()
+    {
+        return (get_option('ultimate_watermark_disable_drag_and_drop', 'no'));
+    }
+
+}
+if (!function_exists('ultimate_watermark_enable_protection_for_logged_in_users')) {
+    function ultimate_watermark_enable_protection_for_logged_in_users()
+    {
+        return (get_option('ultimate_watermark_enable_protection_for_logged_in_users', 'no'));
+    }
+
+}
+if (!function_exists('ultimate_watermark_backup_image')) {
+    function ultimate_watermark_backup_image()
+    {
+        return (get_option('ultimate_watermark_backup_image', 'yes'));
+    }
+
+}
+if (!function_exists('ultimate_watermark_backup_image_quality')) {
+    function ultimate_watermark_backup_image_quality()
+    {
+        return absint(get_option('ultimate_watermark_backup_image_quality', 90));
+    }
+
+}

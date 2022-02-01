@@ -63,7 +63,7 @@ class Hooks
 
     public function attachment_fields_to_edit($form_fields, $post)
     {
-        if (ultimate_watermark_manual_watermarking() && ultimate_watermark()->options['backup']['backup_image']) {
+        if (ultimate_watermark_manual_watermarking() && ultimate_watermark_backup_image() === 'yes') {
 
             $data = wp_get_attachment_metadata($post->ID, false);
 

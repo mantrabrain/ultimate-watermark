@@ -85,7 +85,7 @@ class Assets
 
             wp_localize_script(
                 'watermark-admin-image-actions', 'ulwmImageActionArgs', array(
-                    'backup_image' => (int)ultimate_watermark()->options['backup']['backup_image'],
+                    'backup_image' => ultimate_watermark_backup_image(),
                     '_nonce' => wp_create_nonce('ultimate-watermark'),
                     '__applied_none' => __('Watermark could not be applied to selected files or no valid images (JPEG, PNG) were selected.', 'ultimate-watermark'),
                     '__applied_one' => __('Watermark was succesfully applied to 1 image.', 'ultimate-watermark'),
@@ -111,11 +111,11 @@ class Assets
                 <script type="text/javascript">
                     jQuery(function ($) {
                         $(document).ready(function () {
-                            var backup = <?php echo (int)ultimate_watermark()->options['backup']['backup_image']; ?>;
+                            var backup = <?php echo ultimate_watermark_backup_image(); ?>;
 
                             $("<option>").val("applywatermark").text("<?php _e('Apply watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");
 
-                            if (backup === 1) {
+                            if (backup === 'yes') {
                                 $("<option>").val("removewatermark").text("<?php _e('Remove watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");
                             }
                         });
