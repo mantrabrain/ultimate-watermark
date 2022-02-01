@@ -1,486 +1,466 @@
-#, fuzzy
+# Copyright (C) 2022 mantrabrain
+# This file is distributed under the MIT License.
 msgid ""
 msgstr ""
-"Project-Id-Version: WordPress Watermark\n"
-"POT-Creation-Date: 2019-02-15 10:49+0100\n"
-"PO-Revision-Date: 2019-02-15 19:55+0100\n"
-"Last-Translator: mantrabrain <mantrabrain@gmail.com>\n"
-"Language-Team: mantrabrain <mantrabrain@gmail.com>\n"
-"Language: en\n"
+"Project-Id-Version: Ultimate Watermark 1.0.4\n"
+"Report-Msgid-Bugs-To: mantrabrain@gmail.com\n"
+"POT-Creation-Date: 2022-02-01 10:26:54+00:00\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Poedit 2.0.5\n"
-"X-Poedit-KeywordsList: gettext;gettext_noop;__;_e;esc_attr__;esc_attr_e;"
-"_n:1,2\n"
-"X-Poedit-Basepath: .\n"
-"X-Poedit-SourceCharset: UTF-8\n"
-"Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Poedit-SearchPath-0: ..\n"
+"PO-Revision-Date: 2022-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
+"X-Generator: grunt-wp-i18n 1.0.3\n"
 
-#: ../ultimate-watermark.php:251 ../ultimate-watermark.php:455
-msgid "Apply watermark"
+#: includes/Admin/Ajax.php:17 includes/Admin/Ajax.php:57
+msgid "Cheatin uh?"
 msgstr ""
 
-#: ../ultimate-watermark.php:254 ../ultimate-watermark.php:455
-msgid "Remove watermark"
-msgstr ""
-
-#: ../ultimate-watermark.php:288
+#: includes/Admin/Assets.php:32
 msgid "Select watermark"
 msgstr ""
 
-#: ../ultimate-watermark.php:289 ../includes/class-settings.php:525
+#: includes/Admin/Assets.php:33 includes/Admin/Settings/Settings_Main.php:663
 msgid "Original size"
 msgstr ""
 
-#: ../ultimate-watermark.php:290 ../includes/class-settings.php:521
+#: includes/Admin/Assets.php:34
 msgid "Watermak has not been selected yet."
 msgstr ""
 
-#: ../ultimate-watermark.php:291
+#: includes/Admin/Assets.php:35
 msgid "This image is not supported as watermark. Use JPEG, PNG or GIF."
 msgstr ""
 
-#: ../ultimate-watermark.php:292 ../includes/class-settings.php:525
-#: ../includes/class-settings.php:559 ../includes/class-settings.php:561
+#: includes/Admin/Assets.php:36
 msgid "px"
 msgstr ""
 
-#: ../ultimate-watermark.php:294
+#: includes/Admin/Assets.php:38
 msgid "Add watermark"
 msgstr ""
 
-#: ../ultimate-watermark.php:303
-msgid "Are you sure you want to reset settings to defaults?"
-msgstr ""
-
-#: ../ultimate-watermark.php:326 ../ultimate-watermark.php:645
+#: includes/Admin/Assets.php:56 includes/Init.php:293
 msgid ""
 "Watermark could not be applied to selected files or no valid images (JPEG, "
 "PNG) were selected."
 msgstr ""
 
-#: ../ultimate-watermark.php:327 ../ultimate-watermark.php:647
-#, php-format
+#: includes/Admin/Assets.php:57 includes/Init.php:295
 msgid "Watermark was succesfully applied to 1 image."
-msgid_plural "Watermark was succesfully applied to %s images."
-msgstr[0] ""
-msgstr[1] ""
+msgstr ""
 
-#: ../ultimate-watermark.php:328
-#, php-format
+#: includes/Admin/Assets.php:58
 msgid "Watermark was succesfully applied to %s images."
 msgstr ""
 
-#: ../ultimate-watermark.php:329 ../ultimate-watermark.php:650
+#: includes/Admin/Assets.php:59 includes/Init.php:298
 msgid ""
-"Watermark could not be removed from selected files or no valid images (JPEG, "
-"PNG) were selected."
+"Watermark could not be removed from selected files or no valid images "
+"(JPEG, PNG) were selected."
 msgstr ""
 
-#: ../ultimate-watermark.php:330 ../ultimate-watermark.php:652
-#, php-format
+#: includes/Admin/Assets.php:60 includes/Init.php:300
 msgid "Watermark was succesfully removed from 1 image."
-msgid_plural "Watermark was succesfully removed from %s images."
-msgstr[0] ""
-msgstr[1] ""
+msgstr ""
 
-#: ../ultimate-watermark.php:331
-#, php-format
+#: includes/Admin/Assets.php:61
 msgid "Watermark was succesfully removed from %s images."
 msgstr ""
 
-#: ../ultimate-watermark.php:332 ../ultimate-watermark.php:647
-#: ../ultimate-watermark.php:652
+#: includes/Admin/Assets.php:62 includes/Init.php:295 includes/Init.php:300
 msgid "Skipped files"
 msgstr ""
 
-#: ../ultimate-watermark.php:333
+#: includes/Admin/Assets.php:63
 msgid "Bulk action is currently running, please wait."
 msgstr ""
 
-#: ../ultimate-watermark.php:334
+#: includes/Admin/Assets.php:64
 msgid "Dismiss this notice."
 msgstr ""
 
-#: ../ultimate-watermark.php:454 ../ultimate-watermark.php:1165
-#: ../includes/class-settings.php:116 ../includes/class-settings.php:122
+#: includes/Admin/Assets.php:83 includes/Hooks.php:78
+msgid "Apply watermark"
+msgstr ""
+
+#: includes/Admin/Assets.php:86 includes/Hooks.php:78
+msgid "Remove watermark"
+msgstr ""
+
+#. Plugin Name of the plugin/theme
 msgid "Ultimate Watermark"
 msgstr ""
 
-#: ../ultimate-watermark.php:478 ../ultimate-watermark.php:518
-msgid "Cheatin uh?"
+#: includes/Admin/Menu.php:20
+msgid "Watermark"
 msgstr ""
 
-#: ../ultimate-watermark.php:635
-#, php-format
+#: includes/Admin/Settings/General.php:15
+#: includes/Admin/Settings/General.php:28
+msgid "General"
+msgstr ""
+
+#: includes/Admin/Settings/General.php:73
+msgid "General Settings"
+msgstr ""
+
+#: includes/Admin/Settings/General.php:80
+msgid "Automatic watermarking"
+msgstr ""
+
+#: includes/Admin/Settings/General.php:81
+msgid "Enable watermark for uploaded images."
+msgstr ""
+
+#: includes/Admin/Settings/General.php:88
+msgid "Manual watermarking"
+msgstr ""
+
+#: includes/Admin/Settings/General.php:89
+msgid "Enable Apply Watermark option for Media Library images."
+msgstr ""
+
+#: includes/Admin/Settings/General.php:97
+msgid "Watermark For (Image Sizes)"
+msgstr ""
+
+#: includes/Admin/Settings/General.php:98
+msgid ""
+"Check the image sizes watermark will be applied to.%sImportant:%s checking "
+"full size is NOT recommended as it's the original image. You may need it "
+"later - for removing or changing watermark, image sizes regeneration or any "
+"other image manipulations. Use it only if you know what you are doing."
+msgstr ""
+
+#: includes/Admin/Settings/General.php:105
+msgid "Watermark On"
+msgstr ""
+
+#: includes/Admin/Settings/General.php:106
+msgid ""
+"Select custom post types on which watermark should be applied to uploaded "
+"images."
+msgstr ""
+
+#: includes/Admin/Settings/General.php:110
+msgid "Everywhere"
+msgstr ""
+
+#: includes/Admin/Settings/General.php:111
+msgid "Selected Custom Post Types"
+msgstr ""
+
+#: includes/Admin/Settings/General.php:117
+msgid "Watermark For(Custom Post Types)"
+msgstr ""
+
+#: includes/Admin/Settings/General.php:118
+msgid ""
+"Check custom post types on which watermark should be applied to uploaded "
+"images."
+msgstr ""
+
+#: includes/Admin/Settings/General.php:132
+msgid "Frontend watermarking"
+msgstr ""
+
+#: includes/Admin/Settings/General.php:133
+msgid ""
+"Enable frontend image uploading. (uploading script is not included, but you "
+"may use a plugin or custom code).%sNotice:%s This functionality works only "
+"if uploaded images are processed using WordPress native upload methods."
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:15 includes/Admin/Settings/Image.php:28
+msgid "Watermark Image"
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:72
+msgid "Watermark Image Settings"
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:79
+msgid "Watermark image\t"
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:80
+msgid "Watermark image"
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:87
+msgid "Watermark size"
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:88
+msgid "Select method of aplying watermark size."
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:92
+msgid "Original"
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:93
+msgid "Custom"
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:94
+msgid "Scaled"
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:99
+msgid "Watermark custom size [X]"
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:100
+msgid "[px] X ( Width)."
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:114
+msgid "Watermark custom size [Y]"
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:115
+msgid "[px] Y ( Height)."
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:129
+msgid "Watermark scale"
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:130
+msgid ""
+"Enter a number ranging from 0 to 100. 100 makes width of watermark image "
+"equal to width of the image it is applied to."
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:149
+msgid "Watermark transparency / opacity"
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:150
+msgid ""
+"Enter a number ranging from 0 to 100. 0 makes watermark image completely "
+"transparent, 100 shows it as is."
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:162
+msgid "Image quality"
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:163
+#: includes/Admin/Settings/Protections_Backup.php:122
+msgid "Set output image quality."
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:175
+msgid "Image format"
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:176
+msgid "Select baseline or progressive image format."
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:180
+msgid "Baseline"
+msgstr ""
+
+#: includes/Admin/Settings/Image.php:181
+msgid "Progressive"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:15
+#: includes/Admin/Settings/Position.php:28
+msgid "Position"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:75
+msgid "Position Settings"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:82
+msgid "Watermark alignment"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:83
+msgid "Select the watermark alignment."
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:87
+msgid "Top Left"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:88
+msgid "Top Center"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:89
+msgid "Top Right"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:90
+msgid "Middle Left"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:91
+msgid "Middle Center"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:92
+msgid "Middle Right"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:93
+msgid "Bottom Left"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:94
+msgid "Bottom Center"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:95
+msgid "Bottom Right"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:101
+msgid "Watermark offset [X]"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:102
+msgid "Enter watermark offset value for X ( ie offset width)."
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:110
+msgid "Watermark offset [Y]"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:111
+msgid "Enter watermark offset value for Y ( ie offset height)."
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:119
+msgid "Offset unit"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:120
+msgid "Select the watermark offset unit."
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:124
+msgid "Pixels"
+msgstr ""
+
+#: includes/Admin/Settings/Position.php:125
+msgid "Percentages"
+msgstr ""
+
+#: includes/Admin/Settings/Protections_Backup.php:15
+#: includes/Admin/Settings/Protections_Backup.php:28
+msgid "Image Protection & Backup"
+msgstr ""
+
+#: includes/Admin/Settings/Protections_Backup.php:72
+msgid "Image Protection Settings"
+msgstr ""
+
+#: includes/Admin/Settings/Protections_Backup.php:79
+msgid "Right click"
+msgstr ""
+
+#: includes/Admin/Settings/Protections_Backup.php:80
+msgid " Disable right mouse click on images."
+msgstr ""
+
+#: includes/Admin/Settings/Protections_Backup.php:87
+msgid "Drag and Drop"
+msgstr ""
+
+#: includes/Admin/Settings/Protections_Backup.php:88
+msgid " Prevent drag and drop"
+msgstr ""
+
+#: includes/Admin/Settings/Protections_Backup.php:95
+msgid "Logged-in Users"
+msgstr ""
+
+#: includes/Admin/Settings/Protections_Backup.php:96
+msgid " Enable image protection for logged-in users also"
+msgstr ""
+
+#: includes/Admin/Settings/Protections_Backup.php:107
+msgid "Backup Settings"
+msgstr ""
+
+#: includes/Admin/Settings/Protections_Backup.php:113
+msgid "Backup full size image"
+msgstr ""
+
+#: includes/Admin/Settings/Protections_Backup.php:114
+msgid "  Backup the full size image."
+msgstr ""
+
+#: includes/Admin/Settings/Protections_Backup.php:121
+msgid "Backup image quality."
+msgstr ""
+
+#: includes/Admin/Settings/Settings_Main.php:64
+msgid "Your settings have been saved."
+msgstr ""
+
+#: includes/Admin/Settings/Settings_Main.php:630
+msgid "Select a page&hellip;"
+msgstr ""
+
+#: includes/Admin/Settings/views/html-admin-settings.php:47
+msgid "Save changes"
+msgstr ""
+
+#: includes/Image/Watermark.php:16
+msgid "Watermark prevented, this is your selected watermark image"
+msgstr ""
+
+#: includes/Init.php:69
+msgid "Cloning is forbidden."
+msgstr ""
+
+#: includes/Init.php:79
+msgid "Unserializing instances of this class is forbidden."
+msgstr ""
+
+#: includes/Init.php:283
 msgid ""
 "<strong>Ultimate Watermark:</strong> Bulk watermarking is available in list "
 "mode only, under <em>Bulk Actions</em> dropdown. <a href=\"%1$s\">Got to "
 "List Mode</a> or <a href=\"%2$s\">Hide this notice</a>"
 msgstr ""
 
-#: ../ultimate-watermark.php:645 ../ultimate-watermark.php:650
+#: includes/Init.php:293 includes/Init.php:298
 msgid "Images skipped"
 msgstr ""
 
-#: ../ultimate-watermark.php:711
-msgid "Watermark prevented, this is your selected watermark image"
-msgstr ""
-
-#: ../ultimate-watermark.php:1165 ../includes/class-settings.php:92
+#: includes/Init.php:315
 msgid "Image backup"
 msgstr ""
 
-#: ../ultimate-watermark.php:1165
+#: includes/Init.php:316
 msgid ""
 "Your uploads folder is not writable so we can't create a backup of your "
 "image uploads. We've disabled this feature for now."
 msgstr ""
 
-#: ../ultimate-watermark.php:1412
-msgid "Support"
-msgstr ""
-
-#: ../ultimate-watermark.php:1435
+#: includes/Init.php:332
 msgid "Settings"
 msgstr ""
 
-#: ../includes/class-settings.php:56
-msgid "General settings"
+#. Description of the plugin/theme
+msgid "Watermark plugin for WordPress media."
 msgstr ""
 
-#: ../includes/class-settings.php:60
-msgid "PHP library"
+#. Author of the plugin/theme
+msgid "mantrabrain"
 msgstr ""
 
-#: ../includes/class-settings.php:62
-msgid "Automatic watermarking"
-msgstr ""
-
-#: ../includes/class-settings.php:63
-msgid "Manual watermarking"
-msgstr ""
-
-#: ../includes/class-settings.php:64
-msgid "Enable watermark for"
-msgstr ""
-
-#: ../includes/class-settings.php:65
-msgid "Frontend watermarking"
-msgstr ""
-
-#: ../includes/class-settings.php:66
-msgid "Deactivation"
-msgstr ""
-
-#: ../includes/class-settings.php:69
-msgid "Watermark position"
-msgstr ""
-
-#: ../includes/class-settings.php:70
-msgid "Watermark alignment"
-msgstr ""
-
-#: ../includes/class-settings.php:71
-msgid "Watermark offset"
-msgstr ""
-
-#: ../includes/class-settings.php:72
-msgid "Offset unit"
-msgstr ""
-
-#: ../includes/class-settings.php:75 ../includes/class-settings.php:76
-msgid "Watermark image"
-msgstr ""
-
-#: ../includes/class-settings.php:77
-msgid "Watermark preview"
-msgstr ""
-
-#: ../includes/class-settings.php:78
-msgid "Watermark size"
-msgstr ""
-
-#: ../includes/class-settings.php:79
-msgid "Watermark custom size"
-msgstr ""
-
-#: ../includes/class-settings.php:80
-msgid "Watermark scale"
-msgstr ""
-
-#: ../includes/class-settings.php:81
-msgid "Watermark transparency / opacity"
-msgstr ""
-
-#: ../includes/class-settings.php:82
-msgid "Image quality"
-msgstr ""
-
-#: ../includes/class-settings.php:83
-msgid "Image format"
-msgstr ""
-
-#: ../includes/class-settings.php:86
-msgid "Image protection"
-msgstr ""
-
-#: ../includes/class-settings.php:87
-msgid "Right click"
-msgstr ""
-
-#: ../includes/class-settings.php:88
-msgid "Drag and drop"
-msgstr ""
-
-#: ../includes/class-settings.php:89
-msgid "Logged-in users"
-msgstr ""
-
-#: ../includes/class-settings.php:93
-msgid "Backup full size image"
-msgstr ""
-
-#: ../includes/class-settings.php:94
-msgid "Backup image quality"
-msgstr ""
-
-#: ../includes/class-settings.php:102
-msgid "Ultimate Watermark Options"
-msgstr ""
-
-#: ../includes/class-settings.php:102
-msgid "Watermark"
-msgstr ""
-
-#: ../includes/class-settings.php:124
-msgid "Need support?"
-msgstr ""
-
-#: ../includes/class-settings.php:125
-msgid "If you are having problems with this plugin, checkout plugin"
-msgstr ""
-
-#: ../includes/class-settings.php:125
-msgid "Documentation"
-msgstr ""
-
-#: ../includes/class-settings.php:125
-msgid "or talk about them in the"
-msgstr ""
-
-#: ../includes/class-settings.php:125
-msgid "Support forum"
-msgstr ""
-
-#: ../includes/class-settings.php:127
-msgid "Do you like this plugin?"
-msgstr ""
-
-#: ../includes/class-settings.php:128
-msgid "Rate it 5"
-msgstr ""
-
-#: ../includes/class-settings.php:128
-msgid "on WordPress.org"
-msgstr ""
-
-#: ../includes/class-settings.php:129
-msgid "Blog about it & link to the"
-msgstr ""
-
-#: ../includes/class-settings.php:129
-msgid "plugin page"
-msgstr ""
-
-#: ../includes/class-settings.php:130
-msgid "Check out our other"
-msgstr ""
-
-#: ../includes/class-settings.php:130
-msgid "WordPress plugins"
-msgstr ""
-
-#: ../includes/class-settings.php:133
-msgid "Created by"
-msgstr ""
-
-#: ../includes/class-settings.php:148
-msgid "Reset to defaults"
-msgstr ""
-
-#: ../includes/class-settings.php:252
-msgid "Settings saved."
-msgstr ""
-
-#: ../includes/class-settings.php:257
-msgid "Settings restored to defaults."
-msgstr ""
-
-#: ../includes/class-settings.php:262
-msgid "Watermark will not be applied when watermark image is not set."
-msgstr ""
-
-#: ../includes/class-settings.php:265
-msgid "Watermark will not be applied when no image sizes are selected."
-msgstr ""
-
-#: ../includes/class-settings.php:303
-msgid "Enable watermark for uploaded images."
-msgstr ""
-
-#: ../includes/class-settings.php:317
-msgid "Enable Apply Watermark option for Media Library images."
-msgstr ""
-
-#: ../includes/class-settings.php:341
-msgid "Check the image sizes watermark will be applied to."
-msgstr ""
-
-#: ../includes/class-settings.php:342
-msgid ""
-"<strong>IMPORTANT:</strong> checking full size is NOT recommended as it's "
-"the original image. You may need it later - for removing or changing "
-"watermark, image sizes regeneration or any other image manipulations. Use it "
-"only if you know what you are doing."
-msgstr ""
-
-#: ../includes/class-settings.php:359
-msgid "everywhere"
-msgstr ""
-
-#: ../includes/class-settings.php:360
-msgid "on selected post types only"
-msgstr ""
-
-#: ../includes/class-settings.php:374
-msgid ""
-"Check custom post types on which watermark should be applied to uploaded "
-"images."
-msgstr ""
-
-#: ../includes/class-settings.php:388
-msgid ""
-"Enable frontend image uploading. (uploading script is not included, but you "
-"may use a plugin or custom code)."
-msgstr ""
-
-#: ../includes/class-settings.php:390
-msgid ""
-"<br /><strong>Notice:</strong> This functionality works only if uploaded "
-"images are processed using WordPress native upload methods."
-msgstr ""
-
-#: ../includes/class-settings.php:403
-msgid "Delete all database settings on plugin deactivation."
-msgstr ""
-
-#: ../includes/class-settings.php:436
-msgid "Select the watermark alignment."
-msgstr ""
-
-#: ../includes/class-settings.php:449
-msgid "pixels"
-msgstr ""
-
-#: ../includes/class-settings.php:450
-msgid "percentages"
-msgstr ""
-
-#: ../includes/class-settings.php:451
-msgid "Select the watermark offset unit."
-msgstr ""
-
-#: ../includes/class-settings.php:464 ../includes/class-settings.php:559
-msgid "x:"
-msgstr ""
-
-#: ../includes/class-settings.php:466 ../includes/class-settings.php:561
-msgid "y:"
-msgstr ""
-
-#: ../includes/class-settings.php:467
-msgid "Enter watermark offset value."
-msgstr ""
-
-#: ../includes/class-settings.php:487
-msgid "Select image"
-msgstr ""
-
-#: ../includes/class-settings.php:488
-msgid "Remove image"
-msgstr ""
-
-#: ../includes/class-settings.php:489
-msgid "You have to save changes after the selection or removal of the image."
-msgstr ""
-
-#: ../includes/class-settings.php:542
-msgid "original"
-msgstr ""
-
-#: ../includes/class-settings.php:543
-msgid "custom"
-msgstr ""
-
-#: ../includes/class-settings.php:544
-msgid "scaled"
-msgstr ""
-
-#: ../includes/class-settings.php:546
-msgid "Select method of aplying watermark size."
-msgstr ""
-
-#: ../includes/class-settings.php:563
-msgid "Those dimensions will be used if \"custom\" method is selected above."
-msgstr ""
-
-#: ../includes/class-settings.php:582
-msgid ""
-"Enter a number ranging from 0 to 100. 100 makes width of watermark image "
-"equal to width of the image it is applied to."
-msgstr ""
-
-#: ../includes/class-settings.php:601
-msgid ""
-"Enter a number ranging from 0 to 100. 0 makes watermark image completely "
-"transparent, 100 shows it as is."
-msgstr ""
-
-#: ../includes/class-settings.php:620 ../includes/class-settings.php:712
-msgid "Set output image quality."
-msgstr ""
-
-#: ../includes/class-settings.php:633
-msgid "baseline"
-msgstr ""
-
-#: ../includes/class-settings.php:634
-msgid "progressive"
-msgstr ""
-
-#: ../includes/class-settings.php:637
-msgid "Select baseline or progressive image format."
-msgstr ""
-
-#: ../includes/class-settings.php:650
-msgid "Disable right mouse click on images"
-msgstr ""
-
-#: ../includes/class-settings.php:664
-msgid "Prevent drag and drop"
-msgstr ""
-
-#: ../includes/class-settings.php:678
-msgid "Enable image protection for logged-in users also"
-msgstr ""
-
-#: ../includes/class-settings.php:692
-msgid "Backup the full size image."
-msgstr ""
-
-#: ../includes/class-settings.php:735
-msgid "Toggle panel"
+#. Author URI of the plugin/theme
+msgid "https://mantrabrain.com/"
 msgstr ""
