@@ -37,6 +37,7 @@ You can add watermark images and their scale position and different settings lik
 2. Watermark Image Settings
 3. Position Settings
 4. Image Protection & Backup
+5. Bulk Image Watermark / Remove Watermark Option
 
 == Changelog ==
 
