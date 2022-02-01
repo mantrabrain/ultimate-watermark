@@ -44,7 +44,7 @@ if (!function_exists('ultimate_watermark_watermark_on_custom_post_type')) {
 if (!function_exists('ultimate_watermark_frontend_watermarking')) {
     function ultimate_watermark_frontend_watermarking()
     {
-        return get_option('ultimate_watermark_frontend_watermarking', 'no');
+        return get_option('ultimate_watermark_frontend_watermarking', 'no') == 'yes';
     }
 
 }
@@ -74,7 +74,7 @@ if (!function_exists('ultimate_watermark_offset_height')) {
 if (!function_exists('ultimate_watermark_watermark_offset_unit')) {
     function ultimate_watermark_watermark_offset_unit()
     {
-        return absint(get_option('ultimate_watermark_watermark_offset_unit', 'pixels'));
+        return get_option('ultimate_watermark_watermark_offset_unit', 'pixels');
     }
 
 }
@@ -137,28 +137,28 @@ if (!function_exists('ultimate_watermark_image_format')) {
 if (!function_exists('ultimate_watermark_disable_rightclick')) {
     function ultimate_watermark_disable_rightclick()
     {
-        return (get_option('ultimate_watermark_disable_rightclick', 'no'));
+        return get_option('ultimate_watermark_disable_rightclick', 'no') == 'yes';
     }
 
 }
 if (!function_exists('ultimate_watermark_disable_drag_and_drop')) {
     function ultimate_watermark_disable_drag_and_drop()
     {
-        return (get_option('ultimate_watermark_disable_drag_and_drop', 'no'));
+        return (get_option('ultimate_watermark_disable_drag_and_drop', 'no') == 'yes');
     }
 
 }
 if (!function_exists('ultimate_watermark_enable_protection_for_logged_in_users')) {
     function ultimate_watermark_enable_protection_for_logged_in_users()
     {
-        return (get_option('ultimate_watermark_enable_protection_for_logged_in_users', 'no'));
+        return (get_option('ultimate_watermark_enable_protection_for_logged_in_users', 'no') == 'yes');
     }
 
 }
 if (!function_exists('ultimate_watermark_backup_image')) {
     function ultimate_watermark_backup_image()
     {
-        return (get_option('ultimate_watermark_backup_image', 'yes'));
+        return (get_option('ultimate_watermark_backup_image', 'yes') == 'yes');
     }
 
 }

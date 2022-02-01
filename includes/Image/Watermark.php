@@ -48,7 +48,7 @@ class Watermark
                 $this->remove_watermark($data, $attachment_id, 'manual');
 
             // create a backup if this is enabled
-            if (ultimate_watermark_backup_image() === 'yes')
+            if (ultimate_watermark_backup_image())
                 $this->do_backup($data, $upload_dir, $attachment_id);
 
             // loop through active image sizes

@@ -14,7 +14,7 @@ class Assets
     {
         $right_click = true;
 
-        if ((ultimate_watermark_enable_protection_for_logged_in_users() != 'yes' && is_user_logged_in()) || (ultimate_watermark_disable_drag_and_drop() != 'yes' && ultimate_watermark_disable_rightclick() != 'yes'))
+        if ((!ultimate_watermark_enable_protection_for_logged_in_users() && is_user_logged_in()) || (!ultimate_watermark_disable_drag_and_drop() && !ultimate_watermark_disable_rightclick()))
             $right_click = false;
 
         if (apply_filters('ulwm_block_right_click', (bool)$right_click) === true) {
@@ -22,8 +22,8 @@ class Assets
 
             wp_localize_script(
                 'ulwm-no-right-click', 'ulwmNRCargs', array(
-                    'rightclick' => (ultimate_watermark_disable_rightclick() == 'yes' ? 'Y' : 'N'),
-                    'draganddrop' => (ultimate_watermark_disable_drag_and_drop() == 'yes' ? 'Y' : 'N')
+                    'rightclick' => (ultimate_watermark_disable_rightclick() ? 'Y' : 'N'),
+                    'draganddrop' => (ultimate_watermark_disable_drag_and_drop() ? 'Y' : 'N')
                 )
             );
         }

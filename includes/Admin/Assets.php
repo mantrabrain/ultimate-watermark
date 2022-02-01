@@ -78,11 +78,11 @@ class Assets
                     jQuery(function ($) {
                         $(document).ready(function () {
 
-                            var backup = "<?php echo ultimate_watermark_backup_image(); ?>";
+                            var backup = <?php echo ultimate_watermark_backup_image(); ?>;
 
                             $("<option>").val("applywatermark").text("<?php _e('Apply watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");
 
-                            if (backup === 'yes') {
+                            if (backup === 'true' || backup===true) {
                                 $("<option>").val("removewatermark").text("<?php _e('Remove watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");
                             }
                         });
