@@ -32,6 +32,16 @@ You can add watermark images and their scale position and different settings lik
 1. Upload the `ultimate-watermark` folder to the `/wp-content/plugins/` directory or install directly through the plugin installer.
 2. Activate the plugin through the 'Plugins' menu in WordPress or by using the link provided by the plugin installer
 
+== Frequently asked questions ==
+
+= How to setup Ultimate Watermark Plugin ? =
+Simply, Just install it from plugin area of your dashboard and navigate Ultimate Watermark Menu. Then check the following options.
+i. Enable Automatic watermarking From General Setting [ This settings is for new images not for old already uploaded images ]
+ii. Enable Manual Watermarking From General Setting - [ If you want to add bulk watermark from media , you can enable this setting ]
+iii. Select Watermark For (Image Sizes ) From General Setting [ You have to select any of the image size to add watermark on that image size ]
+iv. Choose Watermark Image from Watermark Image settings tab ( You can just add watermark image )
+You just finished the minimal setup for Ultimate Watermark plugin. There are more features and settings there. They are not mandatory but you can try if you need those features.
+
 == Screenshots ==
 1. General Settings
 2. Watermark Image Settings
