@@ -1,7 +1,7 @@
 === Ultimate Watermark - Image Watermark Plugin for WordPress, WordPress Watermark Plugin ===
 Contributors: mantrabrain
 Donate link: https://mantrabrain.com
-Tags: image, watermark
+Tags: image, watermark,  media, photo, picture
 Requires at least: 5.3
 Tested up to: 5.9
 Stable tag: 1.0.4
