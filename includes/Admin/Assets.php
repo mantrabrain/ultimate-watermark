@@ -15,7 +15,7 @@ class Assets
     {
         global $pagenow;
 
-         wp_register_style('ultimate-watermark-jquery-ui', ULTIMATE_WATERMARK_URI . '/assets/lib/jquery-ui/jquery-ui.css', array(), ULTIMATE_WATERMARK_VERSION);
+        wp_register_style('ultimate-watermark-jquery-ui', ULTIMATE_WATERMARK_URI . '/assets/lib/jquery-ui/jquery-ui.css', array(), ULTIMATE_WATERMARK_VERSION);
 
         wp_register_style('ultimate-watermark-setting-style', ULTIMATE_WATERMARK_URI . '/assets/css/settings.css', array('ultimate-watermark-jquery-ui'), ULTIMATE_WATERMARK_VERSION);
 
@@ -82,7 +82,7 @@ class Assets
 
                             $("<option>").val("applywatermark").text("<?php _e('Apply watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");
 
-                            if (backup === 'true' || backup===true) {
+                            if (backup === 'true' || backup === true || backup === "1" || backup === 1) {
                                 $("<option>").val("removewatermark").text("<?php _e('Remove watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");
                             }
                         });
