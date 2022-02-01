@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Ultimate Watermark 1.0.4\n"
 "Report-Msgid-Bugs-To: mantrabrain@gmail.com\n"
-"POT-Creation-Date: 2022-02-01 10:26:54+00:00\n"
+"POT-Creation-Date: 2022-02-01 11:21:47+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -41,13 +41,13 @@ msgstr ""
 msgid "Add watermark"
 msgstr ""
 
-#: includes/Admin/Assets.php:56 includes/Init.php:293
+#: includes/Admin/Assets.php:56 includes/Init.php:288
 msgid ""
 "Watermark could not be applied to selected files or no valid images (JPEG, "
 "PNG) were selected."
 msgstr ""
 
-#: includes/Admin/Assets.php:57 includes/Init.php:295
+#: includes/Admin/Assets.php:57 includes/Init.php:290
 msgid "Watermark was succesfully applied to 1 image."
 msgstr ""
 
@@ -55,13 +55,13 @@ msgstr ""
 msgid "Watermark was succesfully applied to %s images."
 msgstr ""
 
-#: includes/Admin/Assets.php:59 includes/Init.php:298
+#: includes/Admin/Assets.php:59 includes/Init.php:293
 msgid ""
 "Watermark could not be removed from selected files or no valid images "
 "(JPEG, PNG) were selected."
 msgstr ""
 
-#: includes/Admin/Assets.php:60 includes/Init.php:300
+#: includes/Admin/Assets.php:60 includes/Init.php:295
 msgid "Watermark was succesfully removed from 1 image."
 msgstr ""
 
@@ -69,7 +69,7 @@ msgstr ""
 msgid "Watermark was succesfully removed from %s images."
 msgstr ""
 
-#: includes/Admin/Assets.php:62 includes/Init.php:295 includes/Init.php:300
+#: includes/Admin/Assets.php:62 includes/Init.php:290 includes/Init.php:295
 msgid "Skipped files"
 msgstr ""
 
@@ -420,22 +420,22 @@ msgstr ""
 msgid "Watermark prevented, this is your selected watermark image"
 msgstr ""
 
-#: includes/Init.php:69
+#: includes/Init.php:63
 msgid "Cloning is forbidden."
 msgstr ""
 
-#: includes/Init.php:79
+#: includes/Init.php:73
 msgid "Unserializing instances of this class is forbidden."
 msgstr ""
 
-#: includes/Init.php:283
+#: includes/Init.php:278
 msgid ""
 "<strong>Ultimate Watermark:</strong> Bulk watermarking is available in list "
 "mode only, under <em>Bulk Actions</em> dropdown. <a href=\"%1$s\">Got to "
 "List Mode</a> or <a href=\"%2$s\">Hide this notice</a>"
 msgstr ""
 
-#: includes/Init.php:293 includes/Init.php:298
+#: includes/Init.php:288 includes/Init.php:293
 msgid "Images skipped"
 msgstr ""
 
