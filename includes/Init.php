@@ -6,7 +6,7 @@ namespace Ultimate_Watermark;
 use Ultimate_Watermark\Admin\Ajax;
 use Ultimate_Watermark\Admin\Assets;
 use Ultimate_Watermark\Admin\Menu;
- use Ultimate_Watermark\Admin\Utils;
+use Ultimate_Watermark\Admin\Utils;
 use Ultimate_Watermark\Image\Watermark;
 
 defined('ABSPATH') || exit;
@@ -21,12 +21,6 @@ final class Init
      */
     protected static $_instance = null;
 
-    /**
-     * Options instance.
-     *
-     * @var Options
-     */
-    public $options;
 
     /**
      * Utils instance.
@@ -118,6 +112,7 @@ final class Init
 
         add_action('init', array($this, 'init'), 0);
         add_action('admin_notices', array($this, 'bulk_admin_notices'));
+        add_action('admin_notices', array($this, 'admin_notices'));
         add_filter('plugin_action_links', array($this, 'plugin_settings_link'), 10, 2);
         add_action('admin_notices', array($this, 'folder_writable_admin_notice'));
 
@@ -302,6 +297,11 @@ final class Init
                 $_SERVER['REQUEST_URI'] = esc_url(remove_query_arg(array('watermarked', 'skipped'), $_SERVER['REQUEST_URI']));
             }
         }
+    }
+
+    public function admin_notices()
+    {
+        
     }
 
     function folder_writable_admin_notice()
