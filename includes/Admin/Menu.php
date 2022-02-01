@@ -2,7 +2,7 @@
 
 namespace Ultimate_Watermark\Admin;
 
-use Ultimate_Watermark\Admin\Pages\Settings_Page;
+
 use Ultimate_Watermark\Admin\Settings\Settings_Main;
 
 class Menu
@@ -22,7 +22,7 @@ class Menu
             'ultimate-watermark',
             array($this, 'watermark_page'),
             'dashicons-images-alt',
-            3
+            10
 
         );
 

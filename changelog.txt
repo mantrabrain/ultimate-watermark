@@ -1,0 +1,11 @@
+= 1.0.3 - 2020/04/04 =
+* Fix - Version tested
+= 1.0.2 - 2019/04/14 =
+* Fix - Minor issue fixed
+
+= 1.0.1 - 2019/02/19 =
+* Fix - Sanitization issue fixed
+* Fix - Backup directory issue fixed
+
+= 1.0.0 - 2019/02/16 =
+* Initial release

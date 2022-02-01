@@ -37,8 +37,8 @@ class Settings_Main {
 				$settings = array();
 
 				$settings[] =new General();
+                $settings[] =new Image();
 				$settings[] =new Position();
-				$settings[] =new Image();
 				$settings[] =new Protections_Backup();
 
 

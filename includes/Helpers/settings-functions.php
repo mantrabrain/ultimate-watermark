@@ -11,7 +11,7 @@ if (!function_exists('ultimate_watermark_automatic_watermarking')) {
 if (!function_exists('ultimate_watermark_manual_watermarking')) {
     function ultimate_watermark_manual_watermarking()
     {
-        if (get_option('ultimate_watermark_manual_watermarking', 'no') === 'yes') {
+        if (get_option('ultimate_watermark_manual_watermarking', 'yes') === 'yes') {
             return true;
         }
         return false;

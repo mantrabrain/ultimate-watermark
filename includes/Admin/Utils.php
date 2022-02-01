@@ -57,15 +57,8 @@ class Utils
                 $ext = 'gd';
         }
 
-        if (isset(ultimate_watermark()->options['watermark_image']['extension'])) {
-            if (ultimate_watermark()->options['watermark_image']['extension'] === 'imagick' && isset($this->extensions['imagick']))
-                $this->extension = 'imagick';
-            elseif (ultimate_watermark()->options['watermark_image']['extension'] === 'gd' && isset($this->extensions['gd']))
-                $this->extension = 'gd';
-            else
-                $this->extension = $ext;
-        } else
-            $this->extension = $ext;
+
+        $this->extension = $ext;
     }
 
     private function check_imagick()

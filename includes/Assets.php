@@ -6,19 +6,10 @@ class Assets
 {
     public function __construct()
     {
-        add_action('wp_enqueue_media', array($this, 'wp_enqueue_media'));
         add_action('wp_enqueue_scripts', array($this, 'wp_enqueue_scripts'));
 
     }
-
-    /**
-     * Enqueue admin scripts and styles.
-     */
-    public function wp_enqueue_media($page)
-    {
-        wp_enqueue_style('watermark-style', ULTIMATE_WATERMARK_URI . '/assets/css/ultimate-watermark.css', array(), ULTIMATE_WATERMARK_VERSION);
-    }
-
+    
     public function wp_enqueue_scripts()
     {
         $right_click = true;
@@ -27,7 +18,7 @@ class Assets
             $right_click = false;
 
         if (apply_filters('ulwm_block_right_click', (bool)$right_click) === true) {
-            wp_enqueue_script('ulwm-no-right-click', plugins_url('js/no-right-click.js', __FILE__), array(), ULTIMATE_WATERMARK_VERSION);
+            wp_enqueue_script('ulwm-no-right-click', ULTIMATE_WATERMARK_URI . '/assets/js/no-right-click.js', array(), ULTIMATE_WATERMARK_VERSION);
 
             wp_localize_script(
                 'ulwm-no-right-click', 'ulwmNRCargs', array(

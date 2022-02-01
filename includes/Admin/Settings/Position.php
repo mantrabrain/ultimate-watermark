@@ -72,7 +72,7 @@ class Position extends Base
 
         $settings = array(
             array(
-                'title' => __('Positiion Settings', 'ultimate-watermark'),
+                'title' => __('Position Settings', 'ultimate-watermark'),
                 'type' => 'title',
                 'desc' => '',
                 'id' => 'ultimate_watermark_position_options',

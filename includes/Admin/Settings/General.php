@@ -89,7 +89,7 @@ class General extends Base
                 'desc' => __('Enable Apply Watermark option for Media Library images.', 'ultimate-watermark'),
                 'desc_tip' => false,
                 'id' => 'ultimate_watermark_manual_watermarking',
-                'default' => 'no',
+                'default' => 'yes',
                 'type' => 'checkbox',
             )
         ,

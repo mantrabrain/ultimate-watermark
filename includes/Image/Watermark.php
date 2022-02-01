@@ -2,8 +2,6 @@
 
 namespace Ultimate_Watermark\Image;
 
-use Ultimate_Watermark\Admin\Options;
-
 class Watermark
 {
 
@@ -228,7 +226,6 @@ class Watermark
      */
     public function do_watermark($attachment_id, $image_path, $image_size, $upload_dir, $metadata = array())
     {
-        $options = apply_filters('ulwm_watermark_options', ultimate_watermark()->options);
 
         // get image mime type
         $mime = wp_check_filetype($image_path);
@@ -270,13 +267,13 @@ class Watermark
             $watermark_dim = $watermark->getImageGeometry();
 
             // calculate watermark new dimensions
-            list($width, $height) = $this->calculate_watermark_dimensions($image_dim['width'], $image_dim['height'], $watermark_dim['width'], $watermark_dim['height'], $options);
+            list($width, $height) = $this->calculate_watermark_dimensions($image_dim['width'], $image_dim['height'], $watermark_dim['width'], $watermark_dim['height']);
 
             // resize watermark
             $watermark->resizeImage($width, $height, imagick::FILTER_CATROM, 1);
 
             // calculate image coordinates
-            list($dest_x, $dest_y) = $this->calculate_image_coordinates($image_dim['width'], $image_dim['height'], $width, $height, $options);
+            list($dest_x, $dest_y) = $this->calculate_image_coordinates($image_dim['width'], $image_dim['height'], $width, $height);
 
             // combine two images together
             $image->compositeImage($watermark, Imagick::COMPOSITE_DEFAULT, $dest_x, $dest_y, Imagick::CHANNEL_ALL);
@@ -300,7 +297,7 @@ class Watermark
 
             if ($image !== false) {
                 // add watermark image to image
-                $image = $this->add_watermark_image($image, $options, $upload_dir);
+                $image = $this->add_watermark_image($image, $upload_dir);
 
                 if ($image !== false) {
                     // save watermarked image
@@ -441,10 +438,10 @@ class Watermark
      * @param $image_height Image height
      * @param $watermark_width Watermark width
      * @param $watermark_height    Watermark height
-     * @param $options Options
+
      * @return array Watermark new dimensions
      */
-    private function calculate_watermark_dimensions($image_width, $image_height, $watermark_width, $watermark_height, $options)
+    private function calculate_watermark_dimensions($image_width, $image_height, $watermark_width, $watermark_height)
     {
         // custom
         if (ultimate_watermark_watermark_size_type() === 'custom') {
@@ -478,10 +475,10 @@ class Watermark
      * @param $image_height    Image height
      * @param $watermark_width Watermark width
      * @param $watermark_height    Watermark height
-     * @param $options Options
+
      * @return array Image coordinates
      */
-    private function calculate_image_coordinates($image_width, $image_height, $watermark_width, $watermark_height, $options)
+    private function calculate_image_coordinates($image_width, $image_height, $watermark_width, $watermark_height)
     {
         switch (ultimate_watermark_watermark_alignment()) {
             case 'top_left':
@@ -547,11 +544,10 @@ class Watermark
      * Add watermark image to an image.
      *
      * @param resource $image Image resource
-     * @param array $options Plugin options
      * @param array $upload_dir WP upload dir data
      * @return resource    Watermarked image
      */
-    private function add_watermark_image($image, $options, $upload_dir)
+    private function add_watermark_image($image, $upload_dir)
     {
         $watermark_file = wp_get_attachment_metadata(ultimate_watermark_watermark_image(), true);
         $url = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . $watermark_file['file'];
@@ -580,10 +576,10 @@ class Watermark
         $image_height = imagesy($image);
 
         // calculate watermark new dimensions
-        list($w, $h) = $this->calculate_watermark_dimensions($image_width, $image_height, imagesx($watermark), imagesy($watermark), $options);
+        list($w, $h) = $this->calculate_watermark_dimensions($image_width, $image_height, imagesx($watermark), imagesy($watermark));
 
         // calculate image coordinates
-        list($dest_x, $dest_y) = $this->calculate_image_coordinates($image_width, $image_height, $w, $h, $options);
+        list($dest_x, $dest_y) = $this->calculate_image_coordinates($image_width, $image_height, $w, $h);
 
         // combine two images together
         $this->imagecopymerge_alpha($image, $this->resize($watermark, $w, $h, $watermark_file_info), $dest_x, $dest_y, 0, 0, $w, $h, ultimate_watermark_image_transparent());
