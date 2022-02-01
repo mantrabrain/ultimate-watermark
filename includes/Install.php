@@ -4,7 +4,11 @@ namespace Ultimate_Watermark;
 class Install
 {
 
-    private static $update_callbacks = array();
+    private static $update_callbacks = array(
+        '1.0.4' => array(
+            'ultimate_watermark_update_1040_update_previous_option',
+        ),
+    );
 
     public static function install()
     {
@@ -35,7 +39,7 @@ class Install
 
     private static function create_options()
     {
-        update_option('ultimate_watermark_options', ultimate_watermark()->options, 'no');
+        
     }
 
     private static function versionwise_update()
