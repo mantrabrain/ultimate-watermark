@@ -265,12 +265,11 @@ final class Init
 
             // hide media library notice
             if (isset($_GET['ulwm_action']) && $_GET['ulwm_action'] == 'hide_library_notice') {
-                $this->options['watermark_image']['media_library_notice'] = false;
-                update_option('ultimate_watermark_options', $this->options);
+                update_option('ultimate_watermark_media_library_notice', false);
             }
 
             // check if manual watermarking is enabled
-            if (!empty($this->options['watermark_image']['manual_watermarking']) && (!isset($this->options['watermark_image']['media_library_notice']) || $this->options['watermark_image']['media_library_notice'] === true)) {
+            if (ultimate_watermark_manual_watermarking() && get_option('ultimate_watermark_media_library_notice', true)) {
                 $mode = get_user_option('media_library_mode', get_current_user_id()) ? get_user_option('media_library_mode', get_current_user_id()) : 'grid';
 
                 if (isset($_GET['mode']) && in_array($_GET['mode'], array('grid', 'list')))

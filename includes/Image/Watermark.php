@@ -13,7 +13,7 @@ class Watermark
 
         $post_id = (!empty($post) ? (int)$post->post_parent : 0);
 
-        if ($attachment_id == ultimate_watermark()->options['watermark_image']['attachment_id']) {
+        if ($attachment_id == ultimate_watermark_watermark_image()) {
             // this is the current watermark, do not apply
             return array('error' => __('Watermark prevented, this is your selected watermark image', 'ultimate-watermark'));
         }
@@ -234,7 +234,7 @@ class Watermark
         $mime = wp_check_filetype($image_path);
 
         // get watermark path
-        $watermark_file = wp_get_attachment_metadata($options['watermark_image']['attachment_id'], true);
+        $watermark_file = wp_get_attachment_metadata(ultimate_watermark_watermark_image(), true);
         $watermark_path = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . $watermark_file['file'];
 
         // imagick extension
@@ -553,7 +553,7 @@ class Watermark
      */
     private function add_watermark_image($image, $options, $upload_dir)
     {
-        $watermark_file = wp_get_attachment_metadata($options['watermark_image']['attachment_id'], true);
+        $watermark_file = wp_get_attachment_metadata(ultimate_watermark_watermark_image(), true);
         $url = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . $watermark_file['file'];
         $watermark_file_info = getimagesize($url);
 
