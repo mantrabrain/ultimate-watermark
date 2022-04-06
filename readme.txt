@@ -51,8 +51,5 @@ You just finished the minimal setup for Ultimate Watermark plugin. There are mor
 
 == Changelog ==
 
-= 1.0.5 - 2022/02/01 =
-* Updated - Restructured
-* Fixed - Version compatibility issue fixed
-* Fixed - Remove watermark not showing issue solved
-
+= 1.0.6 - 2022/04/06 =
+* Fixed - class not found issue fixed

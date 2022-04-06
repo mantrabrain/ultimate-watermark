@@ -1,3 +1,8 @@
+= 1.0.5 - 2022/02/01 =
+* Updated - Restructured
+* Fixed - Version compatibility issue fixed
+* Fixed - Remove watermark not showing issue solved
+
 = 1.0.3 - 2020/04/04 =
 * Fix - Version tested
 = 1.0.2 - 2019/04/14 =
