@@ -237,14 +237,14 @@ class Watermark
         // imagick extension
         if (ultimate_watermark()->utils->get_extension() === 'imagick') {
             // create image resource
-            $image = new Imagick($image_path);
+            $image = new \Imagick($image_path);
 
             // create watermark resource
-            $watermark = new Imagick($watermark_path);
+            $watermark = new \Imagick($watermark_path);
 
             // alpha channel exists?
             if ($watermark->getImageAlphaChannel() > 0)
-                $watermark->evaluateImage(Imagick::EVALUATE_MULTIPLY, round((float)(ultimate_watermark_image_transparent() / 100), 2), Imagick::CHANNEL_ALPHA);
+                $watermark->evaluateImage(\Imagick::EVALUATE_MULTIPLY, round((float)(ultimate_watermark_image_transparent() / 100), 2), \Imagick::CHANNEL_ALPHA);
             // no alpha channel
             else
                 $watermark->setImageOpacity(round((float)(ultimate_watermark_image_transparent() / 100), 2));
@@ -252,13 +252,13 @@ class Watermark
             // set compression quality
             if ($mime['type'] === 'image/jpeg') {
                 $image->setImageCompressionQuality(ultimate_watermark_image_quality());
-                $image->setImageCompression(imagick::COMPRESSION_JPEG);
+                $image->setImageCompression(\Imagick::COMPRESSION_JPEG);
             } else
                 $image->setImageCompressionQuality(ultimate_watermark_image_quality());
 
             // set image output to progressive
             if (ultimate_watermark_image_format() === 'progressive')
-                $image->setImageInterlaceScheme(Imagick::INTERLACE_PLANE);
+                $image->setImageInterlaceScheme(\Imagick::INTERLACE_PLANE);
 
             // get image dimensions
             $image_dim = $image->getImageGeometry();
@@ -270,13 +270,13 @@ class Watermark
             list($width, $height) = $this->calculate_watermark_dimensions($image_dim['width'], $image_dim['height'], $watermark_dim['width'], $watermark_dim['height']);
 
             // resize watermark
-            $watermark->resizeImage($width, $height, imagick::FILTER_CATROM, 1);
+            $watermark->resizeImage($width, $height, \Imagick::FILTER_CATROM, 1);
 
             // calculate image coordinates
             list($dest_x, $dest_y) = $this->calculate_image_coordinates($image_dim['width'], $image_dim['height'], $width, $height);
 
             // combine two images together
-            $image->compositeImage($watermark, Imagick::COMPOSITE_DEFAULT, $dest_x, $dest_y, Imagick::CHANNEL_ALL);
+            $image->compositeImage($watermark, \Imagick::COMPOSITE_DEFAULT, $dest_x, $dest_y, \Imagick::CHANNEL_ALL);
 
             // save watermarked image
             $image->writeImage($image_path);
