@@ -72,7 +72,7 @@ class Utils
             return false;
 
         // check for deep requirements within Imagick
-        if (!defined('imagick::COMPRESSION_JPEG') || !defined('imagick::COMPOSITE_OVERLAY') || !defined('Imagick::INTERLACE_PLANE') || !defined('imagick::FILTER_CATROM') || !defined('Imagick::CHANNEL_ALL'))
+        if (!defined('Imagick::COMPRESSION_JPEG') || !defined('Imagick::COMPOSITE_OVERLAY') || !defined('Imagick::INTERLACE_PLANE') || !defined('Imagick::FILTER_CATROM') || !defined('Imagick::CHANNEL_ALL'))
             return false;
 
         // check methods
