@@ -1,18 +1,18 @@
-=== Ultimate Watermark - Image Watermark Plugin for WordPress, WordPress Watermark Plugin ===
+=== Image Watermark Plugin for WordPress, WordPress Watermark Plugin - Ultimate Watermark ===
 Contributors: mantrabrain
 Donate link: https://mantrabrain.com
 Tags: image, watermark, media, photo, picture
 Requires at least: 5.0
 Tested up to: 5.9
-Stable tag: 1.0.5
+Stable tag: 1.0.6
 License: MIT License
 License URI: http://opensource.org/licenses/MIT
 
 == Description ==
 
-Ultimate Watermark is Image Watermark plugin for WordPress. It can automatically add watermark to any images as they are uploaded to WordPress media library and bulk watermark previously uploaded images.
+Ultimate Watermark is WordPress Image Watermark plugin. It can automatically add watermark to any images as they are uploaded to WordPress media library and bulk watermark previously uploaded images.
 
-= Plugin features =
+= Watermark Plugin for WordPress features =
 You can add watermark images and their scale position and different settings like backup images etc. You can control their position and size and apply them to your media independently.
 
 * Single Image watermark
