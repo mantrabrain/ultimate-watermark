@@ -138,80 +138,90 @@ class Watermark
      */
     public function save_image_metadata($metadata, $file)
     {
-        $mime = wp_check_filetype($file);
+        try {
+            $mime = wp_check_filetype($file);
 
-        if (file_exists($file) && $mime['type'] !== 'image/png') {
-            $exifdata = $metadata['exif'];
-            $iptcdata = $metadata['iptc'];
+            if (file_exists($file) && $mime['type'] !== 'image/png') {
+                $exifdata = $metadata['exif'];
+                $iptcdata = $metadata['iptc'];
 
-            $destfilecontent = @file_get_contents($file);
+                $destfilecontent = @file_get_contents($file);
 
+                if (!$destfilecontent)
+                    return false;
 
-            if (!$destfilecontent)
-                return false;
-
-            if (strlen($destfilecontent) < 1) {
-                return false;
-            }
-
-            if (strlen($destfilecontent) > 0) {
-                $destfilecontent = substr($destfilecontent, 2);
-
-                // variable accumulates new & original IPTC application segments
-                $portiontoadd = chr(0xFF) . chr(0xD8);
-
-                $exifadded = !$exifdata;
-                $iptcadded = !$iptcdata;
-
-                while (@(substr($destfilecontent, 0, 2) & 0xFFF0) === 0xFFE0) {
-                    $segmentlen = (substr($destfilecontent, 2, 2) & 0xFFFF);
-
-                    // last 4 bits of second byte is IPTC segment
-                    $iptcsegmentnumber = (substr($destfilecontent, 1, 1) & 0x0F);
-
-                    if ($segmentlen <= 2)
-                        return false;
-
-                    $thisexistingsegment = substr($destfilecontent, 0, $segmentlen + 2);
-
-                    if (($iptcsegmentnumber >= 1) && (!$exifadded)) {
-                        $portiontoadd .= $exifdata;
-                        $exifadded = true;
-
-                        if ($iptcsegmentnumber === 1)
-                            $thisexistingsegment = '';
-                    }
-
-                    if (($iptcsegmentnumber >= 13) && (!$iptcadded)) {
-                        $portiontoadd .= $iptcdata;
-                        $iptcadded = true;
-
-                        if ($iptcsegmentnumber === 13)
-                            $thisexistingsegment = '';
-                    }
-
-                    $portiontoadd .= $thisexistingsegment;
-                    $destfilecontent = substr($destfilecontent, $segmentlen + 2);
+                if (strlen($destfilecontent) < 1) {
+                    return false;
                 }
 
-                // add EXIF data if not added already
-                if (!$exifadded)
-                    $portiontoadd .= $exifdata;
+                if (strlen($destfilecontent) > 0) {
+                    $destfilecontent = substr($destfilecontent, 2);
 
-                // add IPTC data if not added already
-                if (!$iptcadded)
-                    $portiontoadd .= $iptcdata;
+                    // variable accumulates new & original IPTC application segments
+                    $portiontoadd = chr(0xFF) . chr(0xD8);
 
-                $outputfile = fopen($file, 'w');
+                    $exifadded = !$exifdata;
+                    $iptcadded = !$iptcdata;
 
-                if ($outputfile)
-                    return fwrite($outputfile, $portiontoadd . $destfilecontent);
-                else
+                    if (is_string(substr($destfilecontent, 0, 2))) {
+                        return false;
+                    }
+                    while (@(substr($destfilecontent, 0, 2) & 0xFFF0) === 0xFFE0) {
+                        $segmentlen = (substr($destfilecontent, 2, 2) & 0xFFFF);
+
+                        // last 4 bits of second byte is IPTC segment
+                        $iptcsegmentnumber = (substr($destfilecontent, 1, 1) & 0x0F);
+
+                        if ($segmentlen <= 2)
+                            return false;
+
+                        $thisexistingsegment = substr($destfilecontent, 0, $segmentlen + 2);
+
+                        if (($iptcsegmentnumber >= 1) && (!$exifadded)) {
+                            $portiontoadd .= $exifdata;
+                            $exifadded = true;
+
+                            if ($iptcsegmentnumber === 1)
+                                $thisexistingsegment = '';
+                        }
+
+                        if (($iptcsegmentnumber >= 13) && (!$iptcadded)) {
+                            $portiontoadd .= $iptcdata;
+                            $iptcadded = true;
+
+                            if ($iptcsegmentnumber === 13)
+                                $thisexistingsegment = '';
+                        }
+
+                        $portiontoadd .= $thisexistingsegment;
+                        $destfilecontent = substr($destfilecontent, $segmentlen + 2);
+
+                        if (is_string(substr($destfilecontent, 0, 2))) {
+                            return false;
+                        }
+                    }
+
+                    // add EXIF data if not added already
+                    if (!$exifadded)
+                        $portiontoadd .= $exifdata;
+
+                    // add IPTC data if not added already
+                    if (!$iptcadded)
+                        $portiontoadd .= $iptcdata;
+
+                    $outputfile = fopen($file, 'w');
+
+                    if ($outputfile)
+                        return fwrite($outputfile, $portiontoadd . $destfilecontent);
+                    else
+                        return false;
+                } else
                     return false;
             } else
                 return false;
-        } else
+        } catch (\Exception $e) {
             return false;
+        }
     }
 
     /**
@@ -415,8 +425,6 @@ class Watermark
 
             case 'image/png':
                 $image = imagecreatefrompng($filepath);
-
-                imagefilledrectangle($image, 0, 0, imagesx($image), imagesy($image), imagecolorallocatealpha($image, 255, 255, 255, 127));
                 break;
 
             default:
@@ -438,7 +446,6 @@ class Watermark
      * @param $image_height Image height
      * @param $watermark_width Watermark width
      * @param $watermark_height    Watermark height
-
      * @return array Watermark new dimensions
      */
     private function calculate_watermark_dimensions($image_width, $image_height, $watermark_width, $watermark_height)
@@ -475,7 +482,6 @@ class Watermark
      * @param $image_height    Image height
      * @param $watermark_width Watermark width
      * @param $watermark_height    Watermark height
-
      * @return array Image coordinates
      */
     private function calculate_image_coordinates($image_width, $image_height, $watermark_width, $watermark_height)
@@ -663,6 +669,8 @@ class Watermark
 
             case 'image/png':
                 imagepng($image, $filepath, (int)round(9 - (9 * $quality / 100), 0));
+                header('Content-Type: image/png');
+
                 break;
         }
     }
