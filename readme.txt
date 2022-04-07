@@ -4,7 +4,7 @@ Donate link: https://mantrabrain.com
 Tags: image, watermark, media, photo, picture
 Requires at least: 5.0
 Tested up to: 5.9
-Stable tag: 1.0.6
+Stable tag: 1.0.7
 License: MIT License
 License URI: http://opensource.org/licenses/MIT
 
@@ -51,5 +51,6 @@ You just finished the minimal setup for Ultimate Watermark plugin. There are mor
 
 == Changelog ==
 
-= 1.0.6 - 2022/04/06 =
+= 1.0.7 - 2022/04/07 =
 * Fixed - class not found issue fixed
+* Fixed - another class issue fixed
