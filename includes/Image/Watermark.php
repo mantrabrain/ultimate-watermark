@@ -147,8 +147,9 @@ class Watermark
 
                 $destfilecontent = @file_get_contents($file);
 
-                if (!$destfilecontent)
+                if (!$destfilecontent) {
                     return false;
+                }
 
                 if (strlen($destfilecontent) < 1) {
                     return false;
@@ -202,23 +203,28 @@ class Watermark
                     }
 
                     // add EXIF data if not added already
-                    if (!$exifadded)
+                    if (!$exifadded) {
                         $portiontoadd .= $exifdata;
+                    }
 
                     // add IPTC data if not added already
-                    if (!$iptcadded)
+                    if (!$iptcadded) {
                         $portiontoadd .= $iptcdata;
+                    }
 
                     $outputfile = fopen($file, 'w');
 
-                    if ($outputfile)
+                    if ($outputfile) {
                         return fwrite($outputfile, $portiontoadd . $destfilecontent);
-                    else
+                    } else {
                         return false;
-                } else
+                    }
+                } else {
                     return false;
-            } else
+                }
+            } else {
                 return false;
+            }
         } catch (\Exception $e) {
             return false;
         }
