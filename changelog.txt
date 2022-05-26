@@ -1,3 +1,7 @@
+= 1.0.7 - 2022/04/07 =
+* Fixed - class not found issue fixed
+* Fixed - another class issue fixed
+
 = 1.0.5 - 2022/02/01 =
 * Updated - Restructured
 * Fixed - Version compatibility issue fixed

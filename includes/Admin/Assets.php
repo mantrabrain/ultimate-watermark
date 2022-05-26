@@ -75,17 +75,15 @@ class Assets
             if (ultimate_watermark_manual_watermarking()) {
                 ?>
                 <script type="text/javascript">
-                    jQuery(function ($) {
-                        $(document).ready(function () {
+                    document.addEventListener("DOMContentLoaded", function (event) {
 
-                            var backup = <?php echo ultimate_watermark_backup_image(); ?>;
+                        var backup = <?php echo ultimate_watermark_backup_image(); ?>;
 
-                            $("<option>").val("applywatermark").text("<?php _e('Apply watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");
+                        jQuery("<option>").val("applywatermark").text("<?php _e('Apply watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");
 
-                            if (backup === 'true' || backup === true || backup === "1" || backup === 1) {
-                                $("<option>").val("removewatermark").text("<?php _e('Remove watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");
-                            }
-                        });
+                        if (backup === 'true' || backup === true || backup === "1" || backup === 1) {
+                            jQuery("<option>").val("removewatermark").text("<?php _e('Remove watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");
+                        }
                     });
                 </script>
                 <?php
