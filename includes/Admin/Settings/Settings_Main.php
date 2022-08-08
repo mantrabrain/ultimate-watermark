@@ -37,6 +37,8 @@ class Settings_Main {
 				$settings = array();
 
 				$settings[] =new Image_Watermark();
+				$settings[] =new Video_Watermark();
+				$settings[] =new PDF_Watermark();
 
 
 				self::$settings = apply_filters( 'ultimate_watermark_get_settings_pages', $settings );
