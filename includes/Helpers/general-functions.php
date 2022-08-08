@@ -80,3 +80,9 @@ if (!function_exists('ultimate_watermark_get_post_types')) {
         return $new_post_types;
     }
 }
+if (!function_exists('ultimate_watermark_is_premium')) {
+    function ultimate_watermark_is_premium()
+    {
+        return apply_filters('ultimate_watermark_is_premium', false);
+    }
+}

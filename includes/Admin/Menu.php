@@ -29,6 +29,17 @@ class Menu
         add_action('load-' . $settings_page, array($this, 'settings_page_init'));
 
 
+        if (!ultimate_watermark_is_premium()) {
+            add_submenu_page(
+                'ultimate-watermark',
+                esc_html__('Upgrade to Pro', 'ultimate-watermark'),
+                '<span style="color:#e27730">' . esc_html__('Upgrade to Pro', 'ultimate-watermark') . '</span>',
+                'administrator',
+                esc_url('https://mantrabrain.com/pricing/?utm_campaign=ultimate-watermark&utm_medium=admin-menu&utm_source=WordPress&utm_content=Upgrade+to+Pro'),
+                '',
+                1000
+            );
+        }
     }
 
     public function watermark_page()
