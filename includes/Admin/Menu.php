@@ -55,7 +55,7 @@ class Menu
         Settings_Main::get_settings_pages();
 
         // Get current tab/section.
-        $current_tab = empty($_GET['tab']) ? 'general' : sanitize_title(wp_unslash($_GET['tab'])); // WPCS: input var okay, CSRF ok.
+        $current_tab = empty($_GET['tab']) ? 'image-watermark' : sanitize_title(wp_unslash($_GET['tab'])); // WPCS: input var okay, CSRF ok.
         $current_section = empty($_REQUEST['section']) ? '' : sanitize_title(wp_unslash($_REQUEST['section'])); // WPCS: input var okay, CSRF ok.
 
         // Save settings if data has been posted.

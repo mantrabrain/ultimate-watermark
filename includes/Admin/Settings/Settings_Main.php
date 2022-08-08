@@ -36,10 +36,7 @@ class Settings_Main {
 			if ( empty( self::$settings ) ) {
 				$settings = array();
 
-				$settings[] =new General();
-                $settings[] =new Image();
-				$settings[] =new Position();
-				$settings[] =new Protections_Backup();
+				$settings[] =new Image_Watermark();
 
 
 				self::$settings = apply_filters( 'ultimate_watermark_get_settings_pages', $settings );
