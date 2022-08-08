@@ -35,7 +35,7 @@ class Menu
                 esc_html__('Upgrade to Pro', 'ultimate-watermark'),
                 '<span style="color:#e27730">' . esc_html__('Upgrade to Pro', 'ultimate-watermark') . '</span>',
                 'administrator',
-                esc_url('https://mantrabrain.com/pricing/?utm_campaign=ultimate-watermark&utm_medium=admin-menu&utm_source=WordPress&utm_content=Upgrade+to+Pro'),
+                esc_url('https://mantrabrain.com/downloads/ultimate-watermark-pro/?utm_campaign=ultimate-watermark&utm_medium=admin-menu&utm_source=WordPress&utm_content=Upgrade+to+Pro'),
                 '',
                 1000
             );
