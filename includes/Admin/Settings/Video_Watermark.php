@@ -31,7 +31,7 @@ class Video_Watermark extends Base
     {
         $sections = array(
             '' => __('General Settings', 'ultimate-watermark'),
-            'watermark-image' => __('Watermark Video', 'ultimate-watermark'),
+            'watermark-image' => __('Watermark Image', 'ultimate-watermark'),
             'watermark-position' => __('Watermark Position', 'ultimate-watermark'),
             'image-protection' => __('Video Protection & Backup', 'ultimate-watermark'),
         );
