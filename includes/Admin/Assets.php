@@ -80,6 +80,7 @@ class Assets
                         var backup = <?php echo ultimate_watermark_backup_image(); ?>;
 
                         jQuery("<option>").val("applywatermark").text("<?php _e('Apply watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");
+                        jQuery("<option>").val("apply_video_watermark").text("<?php _e('Apply Video  watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");
 
                         if (backup === 'true' || backup === true || backup === "1" || backup === 1) {
                             jQuery("<option>").val("removewatermark").text("<?php _e('Remove watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");

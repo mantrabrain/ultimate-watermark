@@ -38,7 +38,7 @@ jQuery( document ).ready( function ( $ ) {
 		}
 
 		// Validate action
-		if ( 'applywatermark' == action || 'removewatermark' == action ) {
+		if ( 'applywatermark' == action || 'removewatermark' == action || action=="apply_video_watermark" ) {
 		    // Stop default
 		    e.preventDefault();
 
@@ -81,7 +81,7 @@ jQuery( document ).ready( function ( $ ) {
 		id = $( this ).attr( 'data-id' );
 
 		// Validate action
-		if ( 'applywatermark' == action || 'removewatermark' == action && !isNaN( id ) ) {
+		if ( 'applywatermark' == action || 'removewatermark' == action || action=="apply_video_watermark" && !isNaN( id ) ) {
 		    // Stop default
 		    e.preventDefault();
 
