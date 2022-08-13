@@ -2,6 +2,8 @@
 
 namespace Ultimate_Watermark\Admin;
 
+use Ultimate_Watermark\Video\Watermark;
+
 class Ajax
 {
     public function __construct()
@@ -12,6 +14,18 @@ class Ajax
 
     public function watermark_action_ajax()
     {
+        //Need to modify the code before go to live
+        if ($_POST['ulwm-action'] === "apply_video_watermark") {
+
+            $attachment_id = $_POST['attachment_id'] ? absint($_POST['attachment_id']) : 0;
+
+            $video_watermark = new Watermark();
+
+            $video_watermark->apply_watermark($attachment_id);
+
+            die('finish video watermarking');
+
+        }
         // Security & data check
         if (!defined('DOING_AJAX') || !DOING_AJAX || !isset($_POST['_ulwm_nonce']) || !isset($_POST['ulwm-action']) || !isset($_POST['attachment_id']) || !is_numeric($_POST['attachment_id']) || !wp_verify_nonce($_POST['_ulwm_nonce'], 'ultimate-watermark'))
             wp_send_json_error(__('Cheatin uh?', 'ultimate-watermark'));
