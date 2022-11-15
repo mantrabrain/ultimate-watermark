@@ -14,7 +14,7 @@ class Ajax
     {
         // Security & data check
         if (!defined('DOING_AJAX') || !DOING_AJAX || !isset($_POST['_ulwm_nonce']) || !isset($_POST['ulwm-action']) || !isset($_POST['attachment_id']) || !is_numeric($_POST['attachment_id']) || !wp_verify_nonce($_POST['_ulwm_nonce'], 'ultimate-watermark'))
-            wp_send_json_error(__('Cheatin uh?', 'ultimate-watermark'));
+            wp_send_json_error(__('Something went wrong, please try again.', 'ultimate-watermark'));
 
         $post_id = (int)$_POST['attachment_id'];
         $action = false;
@@ -54,7 +54,7 @@ class Ajax
                 wp_send_json_success('skipped');
         }
 
-        wp_send_json_error(__('Cheatin uh?', 'ultimate-watermark'));
+        wp_send_json_error(__('Something went wrong, please try again.', 'ultimate-watermark'));
     }
 
 
