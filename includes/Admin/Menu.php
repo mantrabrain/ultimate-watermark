@@ -30,7 +30,7 @@ class Menu
 
 
         if (!ultimate_watermark_is_premium()) {
-            add_submenu_page(
+            /*add_submenu_page(
                 'ultimate-watermark',
                 esc_html__('Upgrade to Pro', 'ultimate-watermark'),
                 '<span style="color:#e27730">' . esc_html__('Upgrade to Pro', 'ultimate-watermark') . '</span>',
@@ -38,7 +38,7 @@ class Menu
                 esc_url('https://mantrabrain.com/downloads/ultimate-watermark-pro/?utm_campaign=ultimate-watermark&utm_medium=admin-menu&utm_source=WordPress&utm_content=Upgrade+to+Pro'),
                 '',
                 1000
-            );
+            );*/
         }
     }
 
