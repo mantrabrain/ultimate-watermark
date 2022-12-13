@@ -61,7 +61,7 @@ class Assets
                     '__removed_multi' => __('Watermark was succesfully removed from %s images.', 'ultimate-watermark'),
                     '__skipped' => __('Skipped files', 'ultimate-watermark'),
                     '__running' => __('Bulk action is currently running, please wait.', 'ultimate-watermark'),
-                    '__dismiss' => __('Dismiss this notice.'), // Wordpress default string
+                    '__dismiss' => __('Dismiss this notice.','ultimate-watermark'), // Wordpress default string
                 )
             );
         }
@@ -80,7 +80,7 @@ class Assets
                         var backup = <?php echo ultimate_watermark_backup_image(); ?>;
 
                         jQuery("<option>").val("applywatermark").text("<?php _e('Apply watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");
-                        jQuery("<option>").val("apply_video_watermark").text("<?php _e('Apply Video  watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");
+                        //jQuery("<option>").val("apply_video_watermark").text("<?php _e('Apply Video  watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");
 
                         if (backup === 'true' || backup === true || backup === "1" || backup === 1) {
                             jQuery("<option>").val("removewatermark").text("<?php _e('Remove watermark', 'ultimate-watermark'); ?>").appendTo("select[name='action'], select[name='action2']");

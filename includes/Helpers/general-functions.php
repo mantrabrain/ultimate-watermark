@@ -51,7 +51,7 @@ if (!function_exists('ultimate_watermark_get_image_sizes')) {
                     $size_string .= ' <strong>[ ' . $size_array['width'] . ' x ' . $size_array['height'] . ' ]</strong>';
                 }
                 if ($size === "full") {
-                    $size_string = "<strong>Full/Original Image</strong> [If you watermark this you will not be able to remove watermark unless you enable backup images on the <a target='_blank' href='" . admin_url('admin.php?page=ultimate-watermark&tab=protections_backup') . "'><strong>image protection & backup</strong></a> tab.]";
+                    $size_string = "<strong>Full/Original Image</strong> [ <span style='color:red'>If you watermark this you will not be able to remove watermark unless you enable backup images on the <a target='_blank' href='" . admin_url('admin.php?page=ultimate-watermark&tab=image-watermark&section=image-protection') . "'><strong>image protection & backup</strong></a> tab.</span> ]";
                 }
                 $new_image_sizes[] = array(
                     'id' => $size,
