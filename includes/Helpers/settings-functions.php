@@ -60,14 +60,14 @@ if (!function_exists('ultimate_watermark_watermark_alignment')) {
 if (!function_exists('ultimate_watermark_offset_width')) {
     function ultimate_watermark_offset_width()
     {
-        return absint(get_option('ultimate_watermark_offset_width', 0));
+        return intval(get_option('ultimate_watermark_offset_width', 0));
     }
 
 }
 if (!function_exists('ultimate_watermark_offset_height')) {
     function ultimate_watermark_offset_height()
     {
-        return absint(get_option('ultimate_watermark_offset_height', 0));
+        return intval(get_option('ultimate_watermark_offset_height', 0));
     }
 
 }

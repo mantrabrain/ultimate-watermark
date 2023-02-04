@@ -542,11 +542,11 @@ class Watermark
         $offset_height = ultimate_watermark_offset_height();
 
         if (ultimate_watermark_watermark_offset_unit() === 'pixels') {
-            $dest_x += $offset_width > 0 ? $offset_width : 0;
-            $dest_y += $offset_height > 0 ? $offset_height : 0;
+            $dest_x += $offset_width;
+            $dest_y += $offset_height;
         } else {
-            $dest_x += $offset_width > 0 ? ((int)($image_width * $offset_width / 100)) : 0;
-            $dest_y += $offset_height > 0 ? ((int)($image_height * $offset_height / 100)) : 0;
+            $dest_x += (($image_width * $offset_width) / 100);
+            $dest_y += (($image_width * $offset_height) / 100);
         }
 
         return array($dest_x, $dest_y);
