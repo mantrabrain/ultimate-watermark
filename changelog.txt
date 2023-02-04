@@ -1,3 +1,6 @@
+= 1.0.9 - 2022/12/13 =
+* Fixed - WordPress 6.1 compatibility issue fixed
+* Fixed - User Reported issue solved
 = 1.0.7 - 2022/04/07 =
 * Fixed - class not found issue fixed
 * Fixed - another class issue fixed
