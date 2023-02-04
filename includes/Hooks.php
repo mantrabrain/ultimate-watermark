@@ -17,6 +17,9 @@ class Hooks
 
     public function handle_upload_files($file)
     {
+
+
+        ultimate_watermark()->utils->check_extensions();
         // is extension available?
         if (ultimate_watermark()->utils->get_extension()) {
             // determine ajax frontend or backend request
@@ -44,11 +47,12 @@ class Hooks
                 else
                     $this->is_admin = false;
             }
-
-            // admin
-            if ($this->is_admin === true) {
+                        // admin
+            if ($this->is_admin === true || current_user_can('upload_files')) {
                 if (ultimate_watermark_automatic_watermarking() && ultimate_watermark_watermark_image() != 0 && in_array($file['type'], ultimate_watermark()->utils->get_allowed_mime_types())) {
+
                     add_filter('wp_generate_attachment_metadata', array(ultimate_watermark()->watermark, 'apply_watermark'), 10, 2);
+
                 }
                 // frontend
             } else {
