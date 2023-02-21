@@ -26,6 +26,18 @@ class Menu
 
         );
 
+
+
+        $settings_page =  add_submenu_page(
+            'ultimate-watermark',
+            esc_html__('Settings', 'ultimate-watermark'),
+            esc_html__('Settings', 'ultimate-watermark'),
+            'administrator',
+            'ultimate_watermark_settings',
+            array($this, 'watermark_page'),
+            10
+        );
+
         add_action('load-' . $settings_page, array($this, 'settings_page_init'));
 
 
