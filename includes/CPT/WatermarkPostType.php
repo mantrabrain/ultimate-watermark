@@ -48,15 +48,64 @@ class WatermarkPostType
             'supports' => array('title'),
             'menu_icon' => 'dashicons-location',
             'with_front' => true,
-         );
+        );
         register_post_type(self::$slug, $args);
 
+    }
+
+    public function columns($columns)
+    {
+        $columns['title'] = __('Watermark Title', 'yatra');
+        $columns['watermark_type'] = __('Type', 'ultimate-watermark');
+        $columns['watermark_for'] = __('For', 'ultimate-watermark');
+        $columns['watermark+content'] = __('Watermark Content', 'ultimate-watermark');
+        unset($columns['date']);
+        $columns['date'] = __('Created Date', 'yatra');
+
+
+        return $columns;
+    }
+
+    public function coupons_manage_columns($column_name, $coupon_id)
+    {
+        echo '<span class="yatra-column-' . esc_attr($column_name) . '">';
+        switch ($column_name) {
+            case "coupon_code":
+                echo '<strong>' . esc_html($this->get_value('yatra_coupon_code', $coupon_id)) . '</strong>';
+                break;
+            case "coupon_type":
+                echo esc_html(ucwords($this->get_value('yatra_coupon_type', $coupon_id, 'percentage')));
+                break;
+            case "discount_value":
+                echo esc_html($this->get_value('yatra_coupon_value', $coupon_id));
+                break;
+            case "usage_count":
+                $usage_limit = ($this->get_value('yatra_coupon_using_limit', $coupon_id));
+                $usage_count_array = ($this->get_value('yatra_coupon_usages_bookings', $coupon_id));
+                $usage_count_array = is_array($usage_count_array) ? $usage_count_array : array();
+                $usage_count = count($usage_count_array);
+                printf(
+                /* translators: 1: count 2: limit */
+                    __('%1$s / %2$s', 'yatra'),
+                    esc_html($usage_count),
+                    $usage_limit ? esc_html($usage_limit) : '&infin;'
+                );
+                break;
+            case "expire_date":
+                echo esc_html($this->get_value('yatra_coupon_expiry_date', $coupon_id));
+                break;
+        }
+        echo '</span>';
     }
 
 
     public function __construct()
     {
         add_filter('post_row_actions', array($this, 'remove'));
+        add_filter('manage_edit-ultimate-watermark_columns', array($this, 'columns'));
+        add_action('manage_ultimate-watermark_posts_custom_column', array($this, 'coupons_manage_columns'), 10, 2);
+
+
     }
 
 }
