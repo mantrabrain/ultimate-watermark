@@ -177,6 +177,7 @@ final class Init
         new Ajax();
         $this->utils = new Utils();
         $this->watermark = new Watermark();
+        PostTypes::init();
 
         if (is_admin()) {
             new Menu();

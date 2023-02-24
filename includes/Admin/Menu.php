@@ -16,22 +16,24 @@ class Menu
 
     public function license_menu()
     {
+
+
         add_menu_page(
             __('Ultimate Watermark', 'ultimate-watermark'),
             __('Watermark', 'ultimate-watermark'),
-            'administrator',
-            'ultimate_watermark',
-            array($this, 'watermark_page'),
+            'manage_options',
+            'edit.php?post_type=ultimate-watermark',
+            '',
             'dashicons-images-alt',
             10
 
         );
 
         $settings_page = add_submenu_page(
-            'ultimate_watermark',
+            'edit.php?post_type=ultimate-watermark',
             esc_html__('Settings', 'ultimate-watermark'),
             esc_html__('Settings', 'ultimate-watermark'),
-            'administrator',
+            'manage_options',
             'ultimate_watermark_settings',
             array($this, 'main_settings'),
             10
