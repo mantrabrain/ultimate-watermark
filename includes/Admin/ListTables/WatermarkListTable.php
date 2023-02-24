@@ -55,35 +55,21 @@ class WatermarkListTable extends \WP_List_Table
         $this->items = $this->table_data($perPage);
     }
 
-    /**
-     * Override the parent columns method. Defines the columns to use in your listing table
-     *
-     * @return Array
-     */
     public function get_columns()
     {
         $columns = array(
-            'id' => __('ID', 'yatra'),
-            'tour' => __('Tour', 'yatra'),
-            'fullname' => __('Full Name', 'yatra'),
-            'email' => __('Email', 'yatra'),
-            'country' => __('Country', 'yatra'),
-            'phone_number' => __('Phone Number', 'yatra'),
-            'adults' => __('Adults', 'yatra'),
-            'childs' => __('Childs', 'yatra'),
-            'subject' => __('Subject', 'yatra'),
-            'message' => __('Message', 'yatra'),
-            'created_at' => __('Created At', 'yatra')
+            'id' => __('ID', 'ultimate-watermark'),
+            'watermark_name' => __('Watermark Name', 'ultimate-watermark'),
+            'watermark_type' => __('Type', 'ultimate-watermark'),
+            'watermark_for' => __('For', 'ultimate-watermark'),
+            'watermark+content' => __('Watermark Content', 'ultimate-watermark'),
+            'created_at' => __('Created At', 'ultimate-watermark'),
+            'updated_at' => __('Updated At', 'ultimate-watermark')
         );
 
         return $columns;
     }
 
-    /**
-     * Define which columns are hidden
-     *
-     * @return Array
-     */
     public function get_hidden_columns()
     {
         return array();
