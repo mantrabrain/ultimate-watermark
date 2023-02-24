@@ -109,7 +109,7 @@ abstract class Base
         $array_keys = array_keys($sections);
 
         foreach ($sections as $id => $label) {
-            echo '<li><a href="' . admin_url('admin.php?page=ultimate-watermark&tab=' . $this->id . '&section=' . sanitize_title($id)) . '" class="' . ($current_section == $id ? 'current' : '') . '">' . $label . '</a> ' . (end($array_keys) == $id ? '' : '|') . ' </li>';
+            echo '<li><a href="' . admin_url('admin.php?page=ultimate_watermark_settings&tab=' . $this->id . '&section=' . sanitize_title($id)) . '" class="' . ($current_section == $id ? 'current' : '') . '">' . $label . '</a> ' . (end($array_keys) == $id ? '' : '|') . ' </li>';
         }
 
         echo '</ul><br class="clear" />';

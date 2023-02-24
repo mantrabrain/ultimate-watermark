@@ -22,7 +22,7 @@ class Assets
 
         wp_register_script('ultimate-watermark-setting-script', ULTIMATE_WATERMARK_URI . '/assets/js/settings.js', array('jquery', 'jquery-ui-core', 'jquery-ui-slider'), ULTIMATE_WATERMARK_VERSION);
 
-        if ($page === 'toplevel_page_ultimate-watermark') {
+        if ($page === 'toplevel_page_ultimate_watermark_settings') {
             wp_enqueue_media();
 
             wp_enqueue_style('ultimate-watermark-setting-style');

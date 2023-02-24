@@ -15,26 +15,24 @@ class Menu
 
     public function license_menu()
     {
-        $settings_page = add_menu_page(
+        add_menu_page(
             __('Ultimate Watermark', 'ultimate-watermark'),
             __('Watermark', 'ultimate-watermark'),
             'administrator',
-            'ultimate-watermark',
+            'ultimate_watermark',
             array($this, 'watermark_page'),
             'dashicons-images-alt',
             10
 
         );
 
-
-
-        $settings_page =  add_submenu_page(
-            'ultimate-watermark',
+        $settings_page = add_submenu_page(
+            'ultimate_watermark',
             esc_html__('Settings', 'ultimate-watermark'),
             esc_html__('Settings', 'ultimate-watermark'),
             'administrator',
             'ultimate_watermark_settings',
-            array($this, 'watermark_page'),
+            array($this, 'main_settings'),
             10
         );
 
@@ -55,6 +53,11 @@ class Menu
     }
 
     public function watermark_page()
+    {
+        echo '<h1>This is Watermark Listing Page</h1>';
+    }
+
+    public function main_settings()
     {
         Settings_Main::output();
     }
