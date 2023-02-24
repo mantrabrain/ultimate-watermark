@@ -3,6 +3,7 @@
 namespace Ultimate_Watermark\Admin;
 
 
+use Ultimate_Watermark\Admin\ListTables\WatermarkListTable;
 use Ultimate_Watermark\Admin\Settings\Settings_Main;
 
 class Menu
@@ -54,7 +55,17 @@ class Menu
 
     public function watermark_page()
     {
-        echo '<h1>This is Watermark Listing Page</h1>';
+        echo '<div class="wrap">';
+
+        $watermarkListTable = new WatermarkListTable();
+
+        $watermarkListTable->prepare_items();
+
+        echo '<h2>' . esc_html__('All Watermarks', 'ultimate-watermark') . '</h2>';
+
+        $watermarkListTable->display();
+
+        echo '</div>';
     }
 
     public function main_settings()
