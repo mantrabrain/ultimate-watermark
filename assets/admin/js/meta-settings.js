@@ -2,7 +2,7 @@
 (function ($) {
     var GeoMapsAdmin = {
         init: function () {
-            this.settings = (geoMapsAdminParams.options.settings);
+            this.settings = {};//(geoMapsAdminParams.options.settings);
             this.bindEvents();
             this.renderWatermarkPreview();
             this.image_upload_frame = '';
@@ -80,7 +80,6 @@
                     var wrap = $(this).closest('.ultimate-watermark-repeater-wrapper');
                     $(this).closest('.ultimate-watermark-repeater-item').remove();
                     _that.reindexRepeaterItems(wrap);
-                    _that.reCalculateMarkerContent();
                 }
             });
 
@@ -136,7 +135,6 @@
             });
             $('body').on('change', '.ultimate-watermark-marker-image-id, .ultimate-watermark-marker-image-height, .ultimate-watermark-marker-image-width', function (e) {
                 e.preventDefault();
-                _that.reCalculateMarkerContent();
             });
             $('body').on('click', '.ultimate-watermark-marker-scroll-wheel-zoom', function () {
                 _that.settings.scroll_wheel_zoom = false;
@@ -266,98 +264,6 @@
 
             var _that = this;
 
-            var item = $('.ultimate-watermark-repeater-item[data-item-id="' + marker_index + '"]');
-            if (item.length < 1) {
-                return;
-            }
-            var element = item.find('.ultimate_watermark_marker_item_position ');
-
-            if ($(element).hasClass('ultimate-watermark-added') && !force_remap) {
-                return;
-            }
-            const Element = jQuery(element).closest('.ultimate-watermark-marker-content-wrap');
-            $(element).addClass('ultimate-watermark-added');
-            let mapSetting = Object.assign({}, _that.settings);
-            var default_lat = geoMapsAdminParams.default_marker.lat;
-            var default_lng = geoMapsAdminParams.default_marker.lng;
-            if (item.find('.ultimate-watermark-marker-latitude').val() !== "" && item.find('.ultimate-watermark-marker-longitude').val() !== "") {
-                default_lat = item.find('.ultimate-watermark-marker-latitude').val();
-                default_lng = item.find('.ultimate-watermark-marker-longitude').val();
-            }
-
-            var title = item.find('.ultimate-watermark-marker-title').val()
-            var content = item.find('.ultimate-watermark-marker-content').val();
-            mapSetting.scroll_wheel_zoom = true;
-            mapSetting.popup_show_on = 'click';
-            mapSetting.control_position = 'topright';
-            mapSetting.show_control = true;
-            mapSetting.map_marker = [{
-                title: title,
-                content: content,
-                draggable: 'true',
-                lat: default_lat,
-                lng: default_lng,
-                dragendCallback: function (event) {
-                    _that.markerDragendCallback(event);
-                }
-            }];
-            mapSetting.center_index = 0;
-            mapSetting.map_type = _that.getMapType();
-            window.Geo_Maps_Render(
-                Element.attr("ID"),
-                mapSetting,
-            );
-
-
-            _that.reCalculateMarkerContent();
-
-
-        },
-        reCalculateMarkerContent: function () {
-            var _that = this;
-            var items = $('#ultimate_watermark_markers').find('.ultimate-watermark-repeater-wrapper').find('.ultimate-watermark-repeater-item');
-            var mapMarkers = [];
-            if (items.length > 0) {
-                $.each(items, function () {
-                    var item = $(this);
-                    var markerIndex = item.attr('data-item-id');
-                    var title = item.find('input.ultimate-watermark-marker-title').val();
-                    var latitude = item.find('input.ultimate-watermark-marker-latitude').val();
-                    var longitude = item.find('input.ultimate-watermark-marker-longitude').val();
-                    var content = item.find('.ultimate-watermark-marker-content').val();
-                    var custom_marker = {
-                        lat: latitude,
-                        lng: longitude,
-                        title: title,
-                        content: content
-                    };
-                    mapMarkers[markerIndex] = _that.getItemMarkerImage(markerIndex, custom_marker);
-
-                });
-            } else {
-                var default_marker = geoMapsAdminParams.default_marker;
-                var main_marker_image = $('#ultimate_watermark_marker_image').find('.ultimate-watermark-marker-image-id');
-                if (main_marker_image.length > 0) {
-                    if (parseInt(main_marker_image.val()) > 0) {
-                        var image_url = $('#ultimate_watermark_marker_image').find('.image-wrapper').attr('data-url');
-                        if (image_url !== '') {
-                            default_marker.customIconUrl = image_url;
-                            default_marker.iconType = 'custom';
-                        }
-                    }
-                }
-                mapMarkers[0] = default_marker;
-            }
-            _that.settings.map_marker = mapMarkers;
-
-            _that.renderWatermarkPreview();
-        },
-        markerDragendCallback: function (event) {
-            var marker = event.target;
-            var position = marker.getLatLng();
-            var wrap = $(event.target.getElement()).closest('.ultimate-watermark-fieldset-content');
-            wrap.find('.ultimate-watermark-marker-latitude').val(position.lat).trigger('change');
-            wrap.find('.ultimate-watermark-marker-longitude').val(position.lng).trigger('change');
 
         },
         initMediaUploader: function () {
@@ -398,9 +304,11 @@
                 selection.map(function (attachment_object, i) {
                     var attachment = attachment_object.toJSON();
                     attachment_id = attachment.id;
-
                     var attachment_url = attachment.sizes.full.url;
-                    imageHtml = _this.getImageElement(attachment_url);
+                    imageHtml = $(_this.getImageElement(attachment_url));
+                    var p = 'Original Size : ' + attachment.width + 'px / ' + attachment.height + 'px';
+                    selected_list_node.closest('.ultimate-watermark-image-field-wrap').find('p.label').remove();
+                    selected_list_node.closest('.ultimate-watermark-image-field-wrap').append('<p class="label">' + p + '</p>');
 
                 });
 
@@ -410,6 +318,8 @@
                     selected_list_node.find('.image-wrapper').remove();
                     selected_list_node.append(imageHtml);
                     wrapper.find('.field-container').find('.ultimate-watermark-marker-image-id').val(attachment_id).trigger('change');
+
+
                 }
             });
 

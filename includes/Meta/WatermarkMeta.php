@@ -8,6 +8,7 @@ use Ultimate_Watermark\Admin\Fields\MarkerFields;
 use Ultimate_Watermark\Admin\Fields\OSMProviderFields;
 use Ultimate_Watermark\Admin\Fields\WatermarkGeneralFields;
 use Ultimate_Watermark\Admin\Fields\WatermarkImageFields;
+use Ultimate_Watermark\Admin\Fields\WatermarkPositionFields;
 
 class WatermarkMeta
 {
@@ -22,8 +23,9 @@ class WatermarkMeta
         if ($screen_id != 'ultimate-watermark') {
             return;
         }
-        add_action('edit_form_after_editor', array($this, 'watermark_template'));
         add_action('edit_form_after_editor', array($this, 'watermark_setting_template'));
+        add_meta_box('ultimate-watermark-watermark-preview',
+            __('Watermark Preview', 'ultimate-watermark'), array($this, 'watermark_preview'), 'ultimate-watermark', 'side', 'low');
 
     }
 
@@ -42,14 +44,14 @@ class WatermarkMeta
 
     }
 
-    public function watermark_template($post)
+    public function watermark_preview($post)
     {
 
         if ($post->post_type !== 'ultimate-watermark') {
             return;
         }
 
-        ultimate_watermark_load_admin_template('Metabox.Watermark');
+        ultimate_watermark_load_admin_template('Metabox.Preview');
     }
 
 
@@ -62,7 +64,7 @@ class WatermarkMeta
         $setting_tabs = array(
             'watermark_general_options' => __('General Settings', 'ultimate-watermark'),
             'watermark_image_options' => __('Watermark Image', 'ultimate-watermark'),
-
+            'watermark_position_options' => __('Watermark Position', 'ultimate-watermark'),
 
         );
         $active_tab = get_post_meta($post->ID, 'ultimate_watermark_meta_active_tab', true);
@@ -83,6 +85,14 @@ class WatermarkMeta
         $general_settings = new WatermarkGeneralFields();
 
         $general_settings->render();
+    }
+
+    public function position_option_template()
+    {
+        $watermark_position_fields = new WatermarkPositionFields();
+
+        $watermark_position_fields->render();
+
     }
 
     public function image_option_template()
@@ -118,7 +128,10 @@ class WatermarkMeta
 
         $map_id = get_the_ID();
 
-        echo '<h1>Hello This is Watermark Preview Section</h1>';
+        ?>
+        <img src="<?php echo esc_url(ULTIMATE_WATERMARK_URI) ?>/assets/images/preview-placeholder.png"
+             style="width:100%; max-width:100%;"/>
+        <?php
 
         // ultimate_watermark_render_map($map_settings);
     }
@@ -140,8 +153,9 @@ class WatermarkMeta
         add_action('add_meta_boxes', array($self, 'metabox'));
         add_action('save_post', array($self, 'save'));
         add_action('admin_enqueue_scripts', array($self, 'scripts'), 10);
-        add_action('ultimate_watermark_metabox_postbox_item', array($self, 'preview_watermark'), 10);
+        add_action('ultimate_watermark_metabox_preview_watermark', array($self, 'preview_watermark'), 10);
         add_action('ultimate_watermark_meta_tab_content_watermark_image_options', array($self, 'image_option_template'), 10);
+        add_action('ultimate_watermark_meta_tab_content_watermark_position_options', array($self, 'position_option_template'), 10);
         add_action('ultimate_watermark_meta_tab_content_watermark_general_options', array($self, 'general_option_template'), 10);
 
     }

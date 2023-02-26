@@ -153,10 +153,11 @@
 }
 
 .ultimate-watermark-field-text input,
+.ultimate-watermark-field-number input,
 .ultimate-watermark-field-select select,
 #ultimate_watermark_map_type .ultimate-watermark-fieldset,
 #ultimate_watermark_osm_map_provider .ultimate-watermark-fieldset {
-    width: 100%;
+    width: 250px;
     max-width: 100%;
     margin: 0;
 }
@@ -303,7 +304,7 @@ select.ultimate-watermark-osm-map-provider {
 }
 
 .ultimate-watermark-image-field-wrap .image-container {
-    float: left;
+
     position: relative;
     cursor: pointer;
     width: 150px;
@@ -396,4 +397,14 @@ select.ultimate-watermark-osm-map-provider {
 
 .ultimate-watermark-field-hidden {
     display: none;
+}
+
+#ultimate-watermark-watermark-preview .inside {
+    margin: 0;
+    background: #ddd;
+}
+
+#poststuff #post-body .postbox-container {
+    width: 300px !important;
+    margin-right: -320px !important;
 }
