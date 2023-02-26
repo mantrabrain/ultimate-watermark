@@ -6,6 +6,7 @@ use Ultimate_Watermark\Admin\Fields\GeneralSettings;
 use Ultimate_Watermark\Admin\Fields\MapTypeFields;
 use Ultimate_Watermark\Admin\Fields\MarkerFields;
 use Ultimate_Watermark\Admin\Fields\OSMProviderFields;
+use Ultimate_Watermark\Admin\Fields\WatermarkApplyConditions;
 use Ultimate_Watermark\Admin\Fields\WatermarkGeneralFields;
 use Ultimate_Watermark\Admin\Fields\WatermarkImageFields;
 use Ultimate_Watermark\Admin\Fields\WatermarkPositionFields;
@@ -65,6 +66,7 @@ class WatermarkMeta
             'watermark_general_options' => __('General Settings', 'ultimate-watermark'),
             'watermark_image_options' => __('Watermark Image', 'ultimate-watermark'),
             'watermark_position_options' => __('Watermark Position', 'ultimate-watermark'),
+            'watermark_condition_options' => __('Apply Conditions', 'ultimate-watermark'),
 
         );
         $active_tab = get_post_meta($post->ID, 'ultimate_watermark_meta_active_tab', true);
@@ -100,6 +102,14 @@ class WatermarkMeta
         $watermark_image_fields = new WatermarkImageFields();
 
         $watermark_image_fields->render();
+
+    }
+
+    public function condition_option_template()
+    {
+        $apply_conditions = new WatermarkApplyConditions();
+
+        $apply_conditions->render();
 
     }
 
@@ -157,6 +167,7 @@ class WatermarkMeta
         add_action('ultimate_watermark_meta_tab_content_watermark_image_options', array($self, 'image_option_template'), 10);
         add_action('ultimate_watermark_meta_tab_content_watermark_position_options', array($self, 'position_option_template'), 10);
         add_action('ultimate_watermark_meta_tab_content_watermark_general_options', array($self, 'general_option_template'), 10);
+        add_action('ultimate_watermark_meta_tab_content_watermark_condition_options', array($self, 'condition_option_template'), 10);
 
     }
 
