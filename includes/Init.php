@@ -8,6 +8,7 @@ use Ultimate_Watermark\Admin\Assets;
 use Ultimate_Watermark\Admin\Menu;
 use Ultimate_Watermark\Admin\Utils;
 use Ultimate_Watermark\Image\Watermark;
+use Ultimate_Watermark\Meta\WatermarkMeta;
 
 defined('ABSPATH') || exit;
 
@@ -170,6 +171,7 @@ final class Init
     {
         include_once ULTIMATE_WATERMARK_ABSPATH . 'includes/Helpers/general-functions.php';
         include_once ULTIMATE_WATERMARK_ABSPATH . 'includes/Helpers/settings-functions.php';
+        include_once ULTIMATE_WATERMARK_ABSPATH . 'includes/Helpers/template-functions.php';
 
         new Assets();
         new \Ultimate_Watermark\Assets();
@@ -178,6 +180,8 @@ final class Init
         $this->utils = new Utils();
         $this->watermark = new Watermark();
         PostTypes::init();
+        WatermarkMeta::init();
+
 
         if (is_admin()) {
             new Menu();
