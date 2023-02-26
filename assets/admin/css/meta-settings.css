@@ -408,3 +408,7 @@ select.ultimate-watermark-osm-map-provider {
     width: 300px !important;
     margin-right: -320px !important;
 }
+
+.ultimate-watermark-field.ultimate-watermark-field-multicheckbox .ultimate-watermark-fieldset label {
+    line-height: 2.5;
+}

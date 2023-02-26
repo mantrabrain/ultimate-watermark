@@ -72,10 +72,12 @@ if (!function_exists('ultimate_watermark_get_post_types')) {
 
         $new_post_types = array();
         foreach ($post_types as $post_type) {
-            $new_post_types[] = array(
-                'id' => $post_type,
-                'title' => $post_type
-            );
+            if ($post_type !== 'ultimate-watermark') {
+                $new_post_types[] = array(
+                    'id' => $post_type,
+                    'title' => $post_type
+                );
+            };
         }
         return $new_post_types;
     }

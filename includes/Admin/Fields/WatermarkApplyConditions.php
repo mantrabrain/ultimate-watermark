@@ -6,65 +6,64 @@ class WatermarkApplyConditions extends Base
 {
     public function get_settings()
     {
+        $image_sizes = ultimate_watermark_get_image_sizes();
+        $post_types = ultimate_watermark_get_post_types();
+
         return [
 
             'ultimate_watermark_automatic_watermarking' => [
                 'type' => 'checkbox',
                 'title' => __('Automatic watermarking', 'ultimate-watermark'),
                 'class' => 'ultimate-watermark-automatic-watermarking',
-                'desc' => __("Enable watermark for uploaded images.", 'ultimate-watermark')
+                'label' => __("Enable watermark for uploaded images.", 'ultimate-watermark')
             ],
             'ultimate_watermark_manual_watermarking' => [
                 'type' => 'checkbox',
                 'title' => __('Manual watermarking', 'ultimate-watermark'),
                 'class' => 'ultimate-watermark-manual-watermarking',
-                'desc' => __(" Enable Apply Watermark option for Media Library images.", 'ultimate-watermark')
+                'label' => __(" Enable Apply Watermark option for Media Library images.", 'ultimate-watermark')
             ],
 
-            'ultimate_watermark_image_watermark_for' => [
-                'title' => __('Watermark alignment', 'ultimate-watermark'),
-                'desc' => __('Select the watermark alignment.', 'ultimate-watermark'),
+            'ultimate_watermark_watermark_on_image_size' => [
+                'title' => __('Watermark For (Image Sizes)', 'ultimate-watermark'),
+                'desc' => __('Watermark for image sizes.', 'ultimate-watermark'),
                 'desc_tip' => false,
-                'options' => array(
-                    'top_left' => __('Top Left', 'ultimate-watermark'),
-                    'top_center' => __('Top Center', 'ultimate-watermark'),
-                    'top_right' => __('Top Right', 'ultimate-watermark'),
-                    'middle_left' => __('Middle Left', 'ultimate-watermark'),
-                    'middle_center' => __('Middle Center', 'ultimate-watermark'),
-                    'middle_right' => __('Middle Right', 'ultimate-watermark'),
-                    'bottom_left' => __('Bottom Left', 'ultimate-watermark'),
-                    'bottom_center' => __('Bottom Center', 'ultimate-watermark'),
-                    'bottom_right' => __('Bottom Right', 'ultimate-watermark'),
-                ),
-                'type' => 'select',
+                'options' => $image_sizes,
+                'type' => 'multicheckbox',
                 'default' => 'bottom_right'
             ],
-            'ultimate_watermark_watermark_offset_width' => [
-                'title' => __('Watermark offset [X]', 'ultimate-watermark'),
-                'desc' => __('Enter watermark offset value for X ( ie offset width).', 'ultimate-watermark'),
-                'desc_tip' => false,
-
-                'default' => 0,
-                'type' => 'number',
-            ]
-            ,
-            'ultimate_watermark_watermark_offset_height' => [
-                'title' => __('Watermark offset [Y]', 'ultimate-watermark'),
-                'desc' => __('Enter watermark offset value for Y ( ie offset height).', 'ultimate-watermark'),
-                'desc_tip' => false,
-                'default' => 0,
-                'type' => 'number',
-            ]
-            ,
-            'ultimate_watermark_watermark_offset_unit' => [
-                'title' => __('Offset unit', 'ultimate-watermark'),
-                'desc' => __('Select the watermark offset unit.', 'ultimate-watermark'),
+            'ultimate_watermark_watermark_on' => [
+                'title' => __('Watermark On', 'ultimate-watermark'),
+                'desc' => __('Where do you want to apply this watermark?', 'ultimate-watermark'),
                 'desc_tip' => false,
                 'options' => array(
-                    'pixels' => __('Pixels', 'ultimate-watermark'),
-                    'percentages' => __('Percentages', 'ultimate-watermark'),
+                    'everywhere' => __('Everywhere', 'ultimate-watermark'),
+                    'selected_custom_post_types' => __('Selected Custom Post Types', 'ultimate-watermark'),
                 ),
                 'type' => 'select',
+                'default' => 'everywhere'
+            ],
+            'ultimate_watermark_watermark_on_custom_post_type' => [
+                'title' => __('Watermark For(Custom Post Types)', 'ultimate-watermark'),
+                'desc' => __('Check custom post types on which watermark should be applied to uploaded images.', 'ultimate-watermark'),
+                'desc_tip' => false,
+                'id' => 'ultimate_watermark_watermark_on_custom_post_type',
+                'options' => $post_types,
+                'type' => 'multicheckbox',
+                'display_conditions' => array(
+                    array(
+                        'field' => 'ultimate_watermark_watermark_on',
+                        'compare' => '=',
+                        'value' => 'selected_custom_post_types'
+                    )
+                )
+            ],
+
+            'ultimate_watermark_frontend_watermarking' => [
+                'type' => 'checkbox',
+                'title' => __('Frontend watermarking', 'ultimate-watermark'),
+                'class' => 'ultimate-watermark-frontend-watermarking',
+                'label' => sprintf(__('Enable frontend image uploading. (uploading script is not included, but you may use a plugin or custom code).%sNotice:%s This functionality works only if uploaded images are processed using WordPress native upload methods.', 'ultimate-watermark'), '<br/><strong>', '</strong>'),
             ],
 
         ];
