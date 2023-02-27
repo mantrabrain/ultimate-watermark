@@ -101,7 +101,7 @@ class WatermarkImageFields extends Base
 
     public function nonce_id()
     {
-        return 'ultimate_watermark_map_marker_fields';
+        return 'ultimate_watermark_watermark_image_fields';
     }
 
 }

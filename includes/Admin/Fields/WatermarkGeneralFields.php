@@ -34,6 +34,6 @@ class WatermarkGeneralFields extends Base
 
     public function nonce_id()
     {
-        return 'ultimate_watermark_map_general_setting_fields';
+        return 'ultimate_watermark_general_fields';
     }
 }

@@ -76,7 +76,7 @@ class WatermarkApplyConditions extends Base
 
     public function nonce_id()
     {
-        return 'ultimate_watermark_map_marker_fields';
+        return 'ultimate_watermark_apply_watermark_conditions_fields';
     }
 
 }
