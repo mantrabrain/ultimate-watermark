@@ -88,3 +88,16 @@ if (!function_exists('ultimate_watermark_is_premium')) {
         return apply_filters('ultimate_watermark_is_premium', false);
     }
 }
+
+function ultimate_watermark_print_image($file_path)
+{
+
+    $fileInfo = pathinfo($file_path);
+
+    if (empty($outputType)) $outputType = $fileInfo['extension'];
+    if ($outputType == "gif") $outputType = "png"; // Okay to remove after July 2004
+
+    // header() is used to send a raw HTTP  header. See the » HTTP/1.1 specification  for more information on HTTP headers.
+    header("Content-type: image/$outputType");
+    readfile($file_path);
+}

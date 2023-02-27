@@ -136,10 +136,11 @@ class WatermarkMeta
     public function preview_watermark()
     {
 
-        $map_id = get_the_ID();
+        $watermark_id = get_the_ID();
 
+        $ajax_url = admin_url('admin-ajax.php?action=ultimate_watermark_preview_placeholder&watermark_id=' . $watermark_id)
         ?>
-        <img src="<?php echo esc_url(ULTIMATE_WATERMARK_URI) ?>/assets/images/preview-placeholder.png"
+        <img src="<?php echo esc_url($ajax_url); ?>"
              style="width:100%; max-width:100%;"/>
         <?php
 

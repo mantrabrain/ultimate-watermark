@@ -9,6 +9,19 @@ class Ajax
     public function __construct()
     {
         add_action('wp_ajax_ulwm_watermark_bulk_action', array($this, 'watermark_action_ajax'));
+        add_action('wp_ajax_ultimate_watermark_preview_placeholder', array($this, 'watermark_preview'));
+
+    }
+
+    public function watermark_preview()
+    {
+        $watermark_id = isset($_GET['watermark_id']) ? absint($_GET['watermark_id']) : 0;
+
+        $image_url = esc_url(ULTIMATE_WATERMARK_DIR) . 'assets/images/preview-placeholder.png';
+
+        ultimate_watermark_print_image($image_url);
+
+        exit;
 
     }
 
