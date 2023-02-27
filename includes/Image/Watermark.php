@@ -4,6 +4,10 @@ namespace Ultimate_Watermark\Image;
 
 class Watermark
 {
+    public function get_class()
+    {
+        return ImageWatermark::instance();
+    }
 
     public function apply_watermark($data, $attachment_id, $method = '')
     {
@@ -317,7 +321,7 @@ class Watermark
 
                 if ($image !== false) {
                     // save watermarked image
-                    $this->save_image_file($image, $mime['type'], $image_path, ultimate_watermark_image_quality());
+                    $this->get_class()->save_image_file($image, $mime['type'], $image_path, ultimate_watermark_image_quality());
 
                     // clear watermark memory
                     imagedestroy($image);
@@ -347,7 +351,7 @@ class Watermark
                 wp_mkdir_p($this->get_image_backup_folder_location($data['file']));
 
                 // save backup image
-                $this->save_image_file($image, $mime['type'], $backup_filepath, ultimate_watermark_backup_image_quality());
+                $this->get_class()->save_image_file($image, $mime['type'], $backup_filepath, ultimate_watermark_backup_image_quality());
 
                 // clear backup memory
                 imagedestroy($image);
@@ -445,15 +449,7 @@ class Watermark
         return $image;
     }
 
-    /**
-     * Calculate watermark dimensions.
-     *
-     * @param $image_width Image width
-     * @param $image_height Image height
-     * @param $watermark_width Watermark width
-     * @param $watermark_height    Watermark height
-     * @return array Watermark new dimensions
-     */
+
     private function calculate_watermark_dimensions($image_width, $image_height, $watermark_width, $watermark_height)
     {
         // custom
@@ -481,15 +477,7 @@ class Watermark
         return array($width, $height);
     }
 
-    /**
-     * Calculate image coordinates for watermark.
-     *
-     * @param $image_width Image width
-     * @param $image_height    Image height
-     * @param $watermark_width Watermark width
-     * @param $watermark_height    Watermark height
-     * @return array Image coordinates
-     */
+
     private function calculate_image_coordinates($image_width, $image_height, $watermark_width, $watermark_height)
     {
         switch (ultimate_watermark_watermark_alignment()) {
@@ -594,7 +582,7 @@ class Watermark
         list($dest_x, $dest_y) = $this->calculate_image_coordinates($image_width, $image_height, $w, $h);
 
         // combine two images together
-        $this->imagecopymerge_alpha($image, $this->resize($watermark, $w, $h, $watermark_file_info), $dest_x, $dest_y, 0, 0, $w, $h, ultimate_watermark_image_transparent());
+        $this->get_class()->imagecopymerge_alpha($image, $this->get_class()->resize($watermark, $w, $h, $watermark_file_info), $dest_x, $dest_y, 0, 0, $w, $h, ultimate_watermark_image_transparent());
 
         if (ultimate_watermark_image_format() === 'progressive')
             imageinterlace($image, true);
@@ -602,82 +590,5 @@ class Watermark
         return $image;
     }
 
-    /**
-     * Create a new image function.
-     *
-     * @param resource $dst_im
-     * @param resource $src_im
-     * @param int $dst_x
-     * @param int $dst_y
-     * @param int $src_x
-     * @param int $src_y
-     * @param int $src_w
-     * @param int $src_h
-     * @param int $pct
-     */
-    private function imagecopymerge_alpha($dst_im, $src_im, $dst_x, $dst_y, $src_x, $src_y, $src_w, $src_h, $pct)
-    {
-        // create a cut resource
-        $cut = imagecreatetruecolor($src_w, $src_h);
 
-        // copy relevant section from background to the cut resource
-        imagecopy($cut, $dst_im, 0, 0, $dst_x, $dst_y, $src_w, $src_h);
-
-        // copy relevant section from watermark to the cut resource
-        imagecopy($cut, $src_im, 0, 0, $src_x, $src_y, $src_w, $src_h);
-
-        // insert cut resource to destination image
-        imagecopymerge($dst_im, $cut, $dst_x, $dst_y, 0, 0, $src_w, $src_h, $pct);
-    }
-
-    /**
-     * Resize image.
-     *
-     * @param resource $image Image resource
-     * @param int $width Image width
-     * @param int $height Image height
-     * @param array $info Image data
-     * @return resource    Resized image
-     */
-    private function resize($image, $width, $height, $info)
-    {
-        $new_image = imagecreatetruecolor($width, $height);
-
-        // check if this image is PNG, then set if transparent
-        if ($info[2] === 3) {
-            imagealphablending($new_image, false);
-            imagesavealpha($new_image, true);
-            imagefilledrectangle($new_image, 0, 0, $width, $height, imagecolorallocatealpha($new_image, 255, 255, 255, 127));
-        }
-
-        imagecopyresampled($new_image, $image, 0, 0, 0, 0, $width, $height, $info[0], $info[1]);
-
-        return $new_image;
-    }
-
-    /**
-     * Save image from image resource.
-     *
-     * @param resource $image Image resource
-     * @param string $mime_type Image mime type
-     * @param string $filepath Path where image should be saved
-     * @return void
-     */
-    private function save_image_file($image, $mime_type, $filepath, $quality)
-    {
-
-        switch ($mime_type) {
-            case 'image/jpeg':
-            case 'image/pjpeg':
-                imagejpeg($image, $filepath, $quality);
-
-                break;
-
-            case 'image/png':
-                imagepng($image, $filepath, (int)round(9 - (9 * $quality / 100), 0));
-                header('Content-Type: image/png');
-
-                break;
-        }
-    }
 }
