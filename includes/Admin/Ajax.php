@@ -10,7 +10,29 @@ class Ajax
     {
         add_action('wp_ajax_ulwm_watermark_bulk_action', array($this, 'watermark_action_ajax'));
         add_action('wp_ajax_ultimate_watermark_preview_placeholder', array($this, 'watermark_preview'));
+        add_action('wp_ajax_ultimate_watermark_status_change', array($this, 'status_change'));
 
+    }
+
+    public function status_change()
+    {
+        $watermark_id = isset($_POST['watermark_id']) ? absint($_POST['watermark_id']) : 0;
+
+        $status = isset($_POST['status']) && (boolean)$_POST['status'];
+
+        $status = $status ? 1 : 0;
+
+        $nonce = $_POST['nonce'] ?? '';
+
+        if (!wp_verify_nonce($nonce, 'ultimate_watermark_status_change_nonce')) {
+            wp_send_json_error();
+        }
+        if (!current_user_can('manage_options') || $watermark_id < 1) {
+            wp_send_json_error();
+        }
+        update_post_meta($watermark_id, 'ultimate_watermark_enable_this_watermark', $status);
+
+        wp_send_json_success();
     }
 
     public function watermark_preview()

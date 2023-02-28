@@ -1,6 +1,6 @@
 // @var geoMapsAdminParams
 (function ($) {
-    var GeoMapsAdmin = {
+    var UltimateWatermarkAdmin = {
         init: function () {
             this.settings = {};//(geoMapsAdminParams.options.settings);
             this.bindEvents();
@@ -373,6 +373,6 @@
     };
 
     $(document).ready(function () {
-        GeoMapsAdmin.init();
+        UltimateWatermarkAdmin.init();
     });
 }(jQuery));

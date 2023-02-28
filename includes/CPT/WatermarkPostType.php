@@ -74,7 +74,7 @@ class WatermarkPostType
 
     public function coupons_manage_columns($column_name, $watermark_id)
     {
-        echo '<span class="ultimate-watermark-column-' . esc_attr($column_name) . '">';
+        echo '<div class="ultimate-watermark-column column-' . esc_attr($column_name) . '" data-watermark-id="' . esc_attr($watermark_id) . '">';
         switch ($column_name) {
             case "watermark_status":
                 ultimate_watermark_html(

@@ -125,6 +125,13 @@ class WatermarkMeta
 
         if ($screen_id === 'edit-ultimate-watermark') {
             wp_enqueue_style('ultimate-watermark-html-style');
+            wp_enqueue_script('ultimate-watermark-list-table-script');
+
+            wp_localize_script('ultimate-watermark-list-table-script', 'ultimateWatermarkListTable', array(
+                'ajax_url' => admin_url('admin-ajax.php'),
+                'status_change_nonce' => wp_create_nonce('ultimate_watermark_status_change_nonce'),
+                'status_change_action' => 'ultimate_watermark_status_change',
+            ));
         }
 
 

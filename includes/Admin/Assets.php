@@ -27,6 +27,8 @@ class Assets
         // HTML Style
         wp_register_style('ultimate-watermark-html-style', ULTIMATE_WATERMARK_URI . '/assets/admin/css/html.css', array(), ULTIMATE_WATERMARK_VERSION);
 
+        wp_register_script('ultimate-watermark-list-table-script', ULTIMATE_WATERMARK_URI . '/assets/admin/js/list-table.js', array('jquery'), ULTIMATE_WATERMARK_VERSION, true);
+
     }
 
     public function admin_enqueue_scripts($page)
