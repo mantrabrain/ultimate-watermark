@@ -172,6 +172,7 @@ final class Init
         include_once ULTIMATE_WATERMARK_ABSPATH . 'includes/Helpers/general-functions.php';
         include_once ULTIMATE_WATERMARK_ABSPATH . 'includes/Helpers/settings-functions.php';
         include_once ULTIMATE_WATERMARK_ABSPATH . 'includes/Helpers/template-functions.php';
+        include_once ULTIMATE_WATERMARK_ABSPATH . 'includes/Helpers/html-functions.php';
 
         new Assets();
         new \Ultimate_Watermark\Assets();

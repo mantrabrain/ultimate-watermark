@@ -38,6 +38,10 @@ class WatermarkMeta
             return;
         }
 
+        $general_fields = new WatermarkGeneralFields();
+        $general_fields->save($_POST, $post_id);
+
+
         $active_tab = isset($_POST['ultimate_watermark_meta_active_tab']) ? sanitize_text_field($_POST['ultimate_watermark_meta_active_tab']) : 'watermark_general_options';
 
 
