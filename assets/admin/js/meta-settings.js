@@ -278,7 +278,8 @@
                 imageField.find('.image-wrapper').attr('data-url', '');
                 imageField.find('.image-container, .field-container').addClass('ultimate-watermark-hide');
                 imageField.find('.ultimate-watermark-image-field-add').removeClass('ultimate-watermark-hide');
-                imageField.find('.ultimate-watermark-marker-image-id').val(0).trigger('change');
+                imageField.find('.image-field').val(0).trigger('change');
+                imageField.find('p.label').remove();
 
             });
         },
@@ -317,7 +318,7 @@
                     wrapper.find('.ultimate-watermark-image-field-add').addClass('ultimate-watermark-hide');
                     selected_list_node.find('.image-wrapper').remove();
                     selected_list_node.append(imageHtml);
-                    wrapper.find('.field-container').find('.ultimate-watermark-marker-image-id').val(attachment_id).trigger('change');
+                    wrapper.find('.image-field').val(attachment_id).trigger('change');
 
 
                 }
