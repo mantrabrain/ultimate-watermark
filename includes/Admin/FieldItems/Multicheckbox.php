@@ -19,7 +19,7 @@ class Multicheckbox
 
             $option_id = $option['id'] ?? '';
 
-            $multi_checkbox_option_value = is_array($value) && $value[$option_id] ?? '';
+            $multi_checkbox_option_value = is_array($value) && isset($value[$option_id]) ? $value[$option_id] : '';
 
             $option_label = $option['title'] ?? '';
 
@@ -29,10 +29,10 @@ class Multicheckbox
             <div class="ultimate-watermark-fieldset">
                 <label for="<?php echo esc_attr($option_field_name); ?>">
                     <input name="<?php echo esc_attr($option_field_name); ?>"
-                        <?php checked($multi_checkbox_option_value, 1); ?>
+                        <?php checked(1, $multi_checkbox_option_value); ?>
                            id="<?php echo esc_attr($option_field_name); ?>" type="checkbox"
                            class="<?php echo esc_attr($class); ?>" value="1">
-                    <?php echo wp_kses($option_label, array('strong' => array(), 'span' => array('style'=>array()), 'a' => array('target'=>array(), 'href'=>array()))) ?>
+                    <?php echo wp_kses($option_label, array('strong' => array(), 'span' => array('style' => array()), 'a' => array('target' => array(), 'href' => array()))) ?>
                 </label>
                 <?php echo wp_kses($after, array(
                     'a' => array('href' => array(), 'class' => array(), 'target' => array()),
@@ -47,8 +47,19 @@ class Multicheckbox
 
     public static function sanitize($field, $raw_value, $field_id)
     {
+        $options = $field['options'] ?? array();
 
-        return absint($raw_value) === 1 ? 1 : 0;
+        $final_value = array();
+
+        foreach ($options as $option) {
+
+            $id = isset($option['id']) ? sanitize_text_field($option['id']) : '';
+
+            if (is_array($raw_value) && isset($raw_value[$id])) {
+                $final_value[$id] = (boolean)$raw_value[$id];
+            }
+        }
+        return $final_value;
     }
 
 }
