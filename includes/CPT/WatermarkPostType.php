@@ -61,7 +61,7 @@ class WatermarkPostType
     public function columns($columns)
     {
         $columns['title'] = __('Watermark Title', 'yatra');
-        $columns['watermark_status'] = __('Status', 'ultimate-watermark');
+        $columns['watermark_status'] = __('Enabled', 'ultimate-watermark');
         $columns['watermark_type'] = __('Type', 'ultimate-watermark');
         $columns['watermark_for'] = __('For', 'ultimate-watermark');
         $columns['watermark_content'] = __('Watermark Content', 'ultimate-watermark');

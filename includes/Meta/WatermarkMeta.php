@@ -2,11 +2,7 @@
 
 namespace Ultimate_Watermark\Meta;
 
-use Ultimate_Watermark\Admin\Fields\GeneralSettings;
-use Ultimate_Watermark\Admin\Fields\MapTypeFields;
-use Ultimate_Watermark\Admin\Fields\MarkerFields;
-use Ultimate_Watermark\Admin\Fields\OSMProviderFields;
-use Ultimate_Watermark\Admin\Fields\WatermarkApplyConditions;
+use Ultimate_Watermark\Admin\Fields\WatermarkApplyConditionFields;
 use Ultimate_Watermark\Admin\Fields\WatermarkGeneralFields;
 use Ultimate_Watermark\Admin\Fields\WatermarkImageFields;
 use Ultimate_Watermark\Admin\Fields\WatermarkPositionFields;
@@ -40,6 +36,15 @@ class WatermarkMeta
 
         $general_fields = new WatermarkGeneralFields();
         $general_fields->save($_POST, $post_id);
+
+        $image_fields = new WatermarkImageFields();
+        $image_fields->save($_POST, $post_id);
+
+        $watermark_position = new WatermarkPositionFields();
+        $watermark_position->save($_POST, $post_id);
+
+        $apply_conditions = new WatermarkApplyConditionFields();
+        $apply_conditions->save($_POST, $post_id);
 
 
         $active_tab = isset($_POST['ultimate_watermark_meta_active_tab']) ? sanitize_text_field($_POST['ultimate_watermark_meta_active_tab']) : 'watermark_general_options';
@@ -111,7 +116,7 @@ class WatermarkMeta
 
     public function condition_option_template()
     {
-        $apply_conditions = new WatermarkApplyConditions();
+        $apply_conditions = new WatermarkApplyConditionFields();
 
         $apply_conditions->render();
 

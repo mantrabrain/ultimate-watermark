@@ -2,7 +2,7 @@
 
 namespace Ultimate_Watermark\Admin\Fields;
 
-class WatermarkApplyConditions extends Base
+class WatermarkApplyConditionFields extends Base
 {
     public function get_settings()
     {
