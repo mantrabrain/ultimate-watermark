@@ -55,7 +55,7 @@ class WatermarkPostType
 
     public function get_value($meta_id, $watermark_id)
     {
-        return get_post_meta($watermark_id,$meta_id, true);
+        return get_post_meta($watermark_id, $meta_id, true);
     }
 
     public function columns($columns)
@@ -77,7 +77,14 @@ class WatermarkPostType
         echo '<span class="ultimate-watermark-column-' . esc_attr($column_name) . '">';
         switch ($column_name) {
             case "watermark_status":
-                echo '<strong>' . esc_html($this->get_value('ultimate_watermark_enable_this_watermark', $watermark_id)) . '</strong>';
+                ultimate_watermark_html(
+                    [
+                        'value' => $this->get_value('ultimate_watermark_enable_this_watermark', $watermark_id),
+                        'name' => 'ultimate_watermark_enable_this_watermark',
+                        'type' => 'switch',
+                    ]
+                );
+
                 break;
             case "coupon_type":
                 echo esc_html(ucwords($this->get_value('yatra_coupon_type', $watermark_id, 'percentage')));

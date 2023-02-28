@@ -6,8 +6,26 @@ class Assets
 {
     public function __construct()
     {
+        add_action('admin_enqueue_scripts', array($this, 'register'));
         add_action('admin_enqueue_scripts', array($this, 'admin_enqueue_scripts'));
         add_action('admin_print_scripts', array($this, 'admin_print_scripts'), 20);
+
+    }
+
+    public function register($page)
+    {
+        wp_register_style('ultimate-watermark-jquery-ui', ULTIMATE_WATERMARK_URI . '/assets/lib/jquery-ui/jquery-ui.css', array(), ULTIMATE_WATERMARK_VERSION);
+
+        wp_register_style('ultimate-watermark-setting-style', ULTIMATE_WATERMARK_URI . '/assets/css/settings.css', array('ultimate-watermark-jquery-ui'), ULTIMATE_WATERMARK_VERSION);
+
+        wp_register_script('ultimate-watermark-setting-script', ULTIMATE_WATERMARK_URI . '/assets/js/settings.js', array('jquery', 'jquery-ui-core', 'jquery-ui-slider'), ULTIMATE_WATERMARK_VERSION);
+
+        wp_register_style('ultimate-watermark-admin-meta-style', ULTIMATE_WATERMARK_URI . '/assets/admin/css/meta-settings.css', array(), ULTIMATE_WATERMARK_VERSION);
+
+        wp_register_script('ultimate-watermark-admin-meta-script', ULTIMATE_WATERMARK_URI . '/assets/admin/js/meta-settings.js', array(), ULTIMATE_WATERMARK_VERSION, true);
+
+        // HTML Style
+        wp_register_style('ultimate-watermark-html-style', ULTIMATE_WATERMARK_URI . '/assets/admin/css/html.css', array(), ULTIMATE_WATERMARK_VERSION);
 
     }
 
@@ -15,12 +33,6 @@ class Assets
     {
         global $pagenow;
 
-        wp_register_style('ultimate-watermark-jquery-ui', ULTIMATE_WATERMARK_URI . '/assets/lib/jquery-ui/jquery-ui.css', array(), ULTIMATE_WATERMARK_VERSION);
-
-        wp_register_style('ultimate-watermark-setting-style', ULTIMATE_WATERMARK_URI . '/assets/css/settings.css', array('ultimate-watermark-jquery-ui'), ULTIMATE_WATERMARK_VERSION);
-
-
-        wp_register_script('ultimate-watermark-setting-script', ULTIMATE_WATERMARK_URI . '/assets/js/settings.js', array('jquery', 'jquery-ui-core', 'jquery-ui-slider'), ULTIMATE_WATERMARK_VERSION);
 
         if ($page === 'toplevel_page_ultimate_watermark_settings') {
             wp_enqueue_media();
@@ -61,7 +73,7 @@ class Assets
                     '__removed_multi' => __('Watermark was succesfully removed from %s images.', 'ultimate-watermark'),
                     '__skipped' => __('Skipped files', 'ultimate-watermark'),
                     '__running' => __('Bulk action is currently running, please wait.', 'ultimate-watermark'),
-                    '__dismiss' => __('Dismiss this notice.','ultimate-watermark'), // Wordpress default string
+                    '__dismiss' => __('Dismiss this notice.', 'ultimate-watermark'), // Wordpress default string
                 )
             );
         }

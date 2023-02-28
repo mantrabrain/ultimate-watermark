@@ -17,9 +17,9 @@ function ultimate_watermark_html($option)
             ?>
             <div class="ultimate-watermark-switch-control-wrap">
                 <label class="ultimate-watermark-switch-control">
-                    <input class="widefat" id="<?php echo esc_attr($name) ?>"
+                    <input id="<?php echo esc_attr($name) ?>"
                            name="<?php echo esc_attr($name) ?>"
-                           type="checkbox" value="1" <?php checked(1, $value); ?>
+                           type="checkbox" value="1" <?php checked(1, $value); ?>/>
                     <span class="slider round" data-on="<?php echo esc_attr($on_string); ?>"
                           data-off="<?php echo esc_attr($off_string) ?>"></span>
                 </label>

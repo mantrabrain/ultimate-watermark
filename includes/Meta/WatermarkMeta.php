@@ -123,12 +123,18 @@ class WatermarkMeta
 
         $screen_id = $screen->id ?? '';
 
+        if ($screen_id === 'edit-ultimate-watermark') {
+            wp_enqueue_style('ultimate-watermark-html-style');
+        }
+
+
         if ($screen_id != 'ultimate-watermark') {
             return;
         }
+
         wp_enqueue_media();
-        wp_enqueue_style('ultimate-watermark-admin-meta-style', ULTIMATE_WATERMARK_URI . '/assets/admin/css/meta-settings.css', array(), ULTIMATE_WATERMARK_VERSION);
-        wp_enqueue_script('ultimate-watermark-admin-meta-script', ULTIMATE_WATERMARK_URI . '/assets/admin/js/meta-settings.js', array(), ULTIMATE_WATERMARK_VERSION, true);
+        wp_enqueue_style('ultimate-watermark-admin-meta-style');
+        wp_enqueue_script('ultimate-watermark-admin-meta-script');
         wp_localize_script('ultimate-watermark-admin-script', 'geoMapsAdminParams', array(
             'options' => [],
             'default_marker' => [],
