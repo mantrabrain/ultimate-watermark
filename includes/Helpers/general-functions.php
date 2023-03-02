@@ -101,3 +101,19 @@ function ultimate_watermark_print_image($file_path)
     header("Content-type: image/$outputType");
     readfile($file_path);
 }
+
+function ultimate_watermark_get_all_watermark_ids()
+{
+    $all_post_ids = get_posts(array(
+        'fields' => 'ids',
+        'posts_per_page' => -1,
+        'post_type' => 'ultimate-watermark'
+    ));
+    return is_wp_error($all_post_ids) ? [] : $all_post_ids;
+}
+
+
+function ultimate_watermark_get_watermark($watermark_id)
+{
+    return new \Ultimate_Watermark\Watermark_Test($watermark_id);
+}

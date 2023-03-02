@@ -2,11 +2,13 @@
 
 namespace Ultimate_Watermark\Image;
 
+use Ultimate_Watermark\Processor\ImageProcessor;
+
 class Watermark
 {
     public function get_class()
     {
-        return ImageWatermark::instance();
+        return ImageProcessor::instance();
     }
 
     public function apply_watermark($data, $attachment_id, $method = '')
@@ -45,7 +47,7 @@ class Watermark
 
         // is this really an image?
         if (getimagesize($original_file, $original_image_info) !== false) {
-            $metadata = $this->get_image_metadata($original_image_info);
+            $metadata = $this->get_class()->get_image_metadata($original_image_info);
 
             // remove the watermark if this image was already watermarked
             if ((int)get_post_meta($attachment_id, 'ulwm-is-watermarked', true) === 1)
@@ -77,7 +79,7 @@ class Watermark
                     $this->do_watermark($attachment_id, $filepath, $image_size, $upload_dir, $metadata);
 
                     // save metadata
-                    $this->save_image_metadata($metadata, $filepath);
+                    $this->get_class()->save_image_metadata($metadata, $filepath);
 
                     do_action('ulwm_after_apply_watermark', $attachment_id, $image_size);
                 }
@@ -91,159 +93,8 @@ class Watermark
         return $data;
     }
 
-    public function get_image_metadata($imageinfo)
-    {
-        $metadata = array(
-            'exif' => null,
-            'iptc' => null
-        );
 
-        if (is_array($imageinfo)) {
-            // prepare EXIF data bytes from source file
-            $exifdata = key_exists('APP1', $imageinfo) ? $imageinfo['APP1'] : null;
 
-            if ($exifdata) {
-                $exiflength = strlen($exifdata) + 2;
-
-                // construct EXIF segment
-                if ($exiflength > 0xFFFF) {
-                    return $metadata;
-                } else
-                    $metadata['exif'] = chr(0xFF) . chr(0xE1) . chr(($exiflength >> 8) & 0xFF) . chr($exiflength & 0xFF) . $exifdata;
-            }
-
-            // prepare IPTC data bytes from source file
-            $iptcdata = key_exists('APP13', $imageinfo) ? $imageinfo['APP13'] : null;
-
-            if ($iptcdata) {
-                $iptclength = strlen($iptcdata) + 2;
-
-                // construct IPTC segment
-                if ($iptclength > 0xFFFF) {
-                    return $metadata;
-                } else
-                    $metadata['iptc'] = chr(0xFF) . chr(0xED) . chr(($iptclength >> 8) & 0xFF) . chr($iptclength & 0xFF) . $iptcdata;
-            }
-        }
-
-        return $metadata;
-    }
-
-    /**
-     *
-     */
-
-    /**
-     * Save EXIF and IPTC metadata from one image to another.
-     *
-     * @param array @metadata
-     * @param string @destination_file
-     * @return false|int
-     */
-    public function save_image_metadata($metadata, $file)
-    {
-        try {
-            $mime = wp_check_filetype($file);
-
-            if (file_exists($file) && $mime['type'] !== 'image/png') {
-                $exifdata = $metadata['exif'];
-                $iptcdata = $metadata['iptc'];
-
-                $destfilecontent = @file_get_contents($file);
-
-                if (!$destfilecontent) {
-                    return false;
-                }
-
-                if (strlen($destfilecontent) < 1) {
-                    return false;
-                }
-
-                if (strlen($destfilecontent) > 0) {
-                    $destfilecontent = substr($destfilecontent, 2);
-
-                    // variable accumulates new & original IPTC application segments
-                    $portiontoadd = chr(0xFF) . chr(0xD8);
-
-                    $exifadded = !$exifdata;
-                    $iptcadded = !$iptcdata;
-
-                    if (is_string(substr($destfilecontent, 0, 2))) {
-                        return false;
-                    }
-                    while (@(substr($destfilecontent, 0, 2) & 0xFFF0) === 0xFFE0) {
-                        $segmentlen = (substr($destfilecontent, 2, 2) & 0xFFFF);
-
-                        // last 4 bits of second byte is IPTC segment
-                        $iptcsegmentnumber = (substr($destfilecontent, 1, 1) & 0x0F);
-
-                        if ($segmentlen <= 2)
-                            return false;
-
-                        $thisexistingsegment = substr($destfilecontent, 0, $segmentlen + 2);
-
-                        if (($iptcsegmentnumber >= 1) && (!$exifadded)) {
-                            $portiontoadd .= $exifdata;
-                            $exifadded = true;
-
-                            if ($iptcsegmentnumber === 1)
-                                $thisexistingsegment = '';
-                        }
-
-                        if (($iptcsegmentnumber >= 13) && (!$iptcadded)) {
-                            $portiontoadd .= $iptcdata;
-                            $iptcadded = true;
-
-                            if ($iptcsegmentnumber === 13)
-                                $thisexistingsegment = '';
-                        }
-
-                        $portiontoadd .= $thisexistingsegment;
-                        $destfilecontent = substr($destfilecontent, $segmentlen + 2);
-
-                        if (is_string(substr($destfilecontent, 0, 2))) {
-                            return false;
-                        }
-                    }
-
-                    // add EXIF data if not added already
-                    if (!$exifadded) {
-                        $portiontoadd .= $exifdata;
-                    }
-
-                    // add IPTC data if not added already
-                    if (!$iptcadded) {
-                        $portiontoadd .= $iptcdata;
-                    }
-
-                    $outputfile = fopen($file, 'w');
-
-                    if ($outputfile) {
-                        return fwrite($outputfile, $portiontoadd . $destfilecontent);
-                    } else {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        } catch (\Exception $e) {
-            return false;
-        }
-    }
-
-    /**
-     * Apply watermark to image.
-     *
-     * @param int $attachment_id Attachment ID
-     * @param string $image_path Path to the file
-     * @param string $image_size Image size
-     * @param array $upload_dir Upload media data
-     * @param array $metadata EXIF and ITPC metadata
-     * @return void
-     */
     public function do_watermark($attachment_id, $image_path, $image_size, $upload_dir, $metadata = array())
     {
 
@@ -313,7 +164,7 @@ class Watermark
             // gd extension
         } else {
             // get image resource
-            $image = $this->get_image_resource($image_path, $mime['type']);
+            $image = $this->get_class()->get_image_resource($image_path, $mime['type']);
 
             if ($image !== false) {
                 // add watermark image to image
@@ -345,7 +196,7 @@ class Watermark
             $mime = wp_check_filetype($filepath);
 
 
-            $image = $this->get_image_resource($filepath, $mime['type']);
+            $image = $this->get_class()->get_image_resource($filepath, $mime['type']);
             if (false !== $image) {
 
                 wp_mkdir_p($this->get_image_backup_folder_location($data['file']));
@@ -424,31 +275,6 @@ class Watermark
 
         return false;
     }
-
-    private function get_image_resource($filepath, $mime_type)
-    {
-        switch ($mime_type) {
-            case 'image/jpeg':
-            case 'image/pjpeg':
-                $image = imagecreatefromjpeg($filepath);
-                break;
-
-            case 'image/png':
-                $image = imagecreatefrompng($filepath);
-                break;
-
-            default:
-                $image = false;
-        }
-
-        if (is_resource($image)) {
-            imagealphablending($image, false);
-            imagesavealpha($image, true);
-        }
-
-        return $image;
-    }
-
 
     private function calculate_watermark_dimensions($image_width, $image_height, $watermark_width, $watermark_height)
     {
@@ -540,13 +366,6 @@ class Watermark
         return array($dest_x, $dest_y);
     }
 
-    /**
-     * Add watermark image to an image.
-     *
-     * @param resource $image Image resource
-     * @param array $upload_dir WP upload dir data
-     * @return resource    Watermarked image
-     */
     private function add_watermark_image($image, $upload_dir)
     {
         $watermark_file = wp_get_attachment_metadata(ultimate_watermark_watermark_image(), true);
