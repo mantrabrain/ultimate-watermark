@@ -5,6 +5,7 @@ namespace Ultimate_Watermark\Handler;
 use Ultimate_Watermark\Processor\ImageProcessor;
 use Ultimate_Watermark\Watermark\WatermarkConditions;
 use Ultimate_Watermark\Watermark\WatermarkImage;
+use Ultimate_Watermark\Watermark\WatermarkPosition;
 
 class ImageWatermarkHandler
 {
@@ -15,6 +16,9 @@ class ImageWatermarkHandler
 
     /** @var WatermarkImage */
     private $watermark_image;
+
+    /** @var WatermarkPosition */
+    private $watermark_position;
 
     /**
      * apply watermark
@@ -27,6 +31,7 @@ class ImageWatermarkHandler
         $this->attachment_id = $attachment_id;
         $this->watermark_conditions = $watermark->get_conditions();
         $this->watermark_image = $watermark->get_watermark_image();
+        $this->watermark_position = $watermark->get_watermark_position();
     }
 
     /**
@@ -46,7 +51,7 @@ class ImageWatermarkHandler
 
         $post_id = (!empty($post) ? (int)$post->post_parent : 0);
 
-        if ($this->attachment_id == ultimate_watermark_watermark_image()) {
+        if ($this->attachment_id == $this->watermark_image->get_watermark_image()) {
             // this is the current watermark, do not apply
             return array('error' => __('Watermark prevented, this is your selected watermark image', 'ultimate-watermark'));
         }
@@ -183,15 +188,14 @@ class ImageWatermarkHandler
 
     public function do_watermark($attachment_id, $image_path, $image_size, $upload_dir, $metadata = array())
     {
-        echo 'Hello World' . "\n" . $image_size;
-        return;
+        /* echo 'Hello World' . "\n" . $image_size;
+         return;*/
 
-        $image = $this->watermark->get_watermark_image();
         // get image mime type
         $mime = wp_check_filetype($image_path);
 
         // get watermark path
-        $watermark_file = wp_get_attachment_metadata($image->get_watermark_image(), true);
+        $watermark_file = wp_get_attachment_metadata($this->watermark_image->get_watermark_image(), true);
         $watermark_path = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . $watermark_file['file'];
 
         // imagick extension
@@ -204,20 +208,20 @@ class ImageWatermarkHandler
 
             // alpha channel exists?
             if ($watermark->getImageAlphaChannel() > 0)
-                $watermark->evaluateImage(\Imagick::EVALUATE_MULTIPLY, round((float)(ultimate_watermark_image_transparent() / 100), 2), \Imagick::CHANNEL_ALPHA);
+                $watermark->evaluateImage(\Imagick::EVALUATE_MULTIPLY, round((float)($this->watermark_image->get_watermark_opacity() / 100), 2), \Imagick::CHANNEL_ALPHA);
             // no alpha channel
             else
-                $watermark->setImageOpacity(round((float)(ultimate_watermark_image_transparent() / 100), 2));
+                $watermark->setImageOpacity(round((float)($this->watermark_image->get_watermark_opacity() / 100), 2));
 
             // set compression quality
             if ($mime['type'] === 'image/jpeg') {
-                $image->setImageCompressionQuality(ultimate_watermark_image_quality());
+                $image->setImageCompressionQuality($this->watermark_image->get_watermark_image_quality());
                 $image->setImageCompression(\Imagick::COMPRESSION_JPEG);
             } else
-                $image->setImageCompressionQuality(ultimate_watermark_image_quality());
+                $image->setImageCompressionQuality($this->watermark_image->get_watermark_image_quality());
 
             // set image output to progressive
-            if (ultimate_watermark_image_format() === 'progressive')
+            if ($this->watermark_image->get_watermark_image_format() === 'progressive')
                 $image->setImageInterlaceScheme(\Imagick::INTERLACE_PLANE);
 
             // get image dimensions
@@ -261,7 +265,7 @@ class ImageWatermarkHandler
 
                 if ($image !== false) {
                     // save watermarked image
-                    $this->get_class()->save_image_file($image, $mime['type'], $image_path, ultimate_watermark_image_quality());
+                    $this->get_class()->save_image_file($image, $mime['type'], $image_path, $this->watermark_image->get_watermark_image_quality());
 
                     // clear watermark memory
                     imagedestroy($image);
@@ -317,12 +321,12 @@ class ImageWatermarkHandler
     private function calculate_watermark_dimensions($image_width, $image_height, $watermark_width, $watermark_height)
     {
         // custom
-        if (ultimate_watermark_watermark_size_type() === 'custom') {
-            $width = ultimate_watermark_absolute_width();
-            $height = ultimate_watermark_absolute_height();
+        if ($this->watermark_image->get_watermark_image_size_type() === 'custom') {
+            $width = $this->watermark_image->get_watermark_image_absolute_width();
+            $height = $this->watermark_image->get_watermark_image_absolute_height();
             // scale
-        } elseif (ultimate_watermark_watermark_size_type() === 'scaled') {
-            $ratio = $image_width * ultimate_watermark_scaled_image_width() / 100 / $watermark_width;
+        } elseif ($this->watermark_image->get_watermark_image_size_type() === 'scaled') {
+            $ratio = $image_width * ($this->watermark_image->get_watermark_image_scale_image_width()) / 100 / $watermark_width;
 
             $width = (int)($watermark_width * $ratio);
             $height = (int)($watermark_height * $ratio);
@@ -344,7 +348,7 @@ class ImageWatermarkHandler
 
     private function calculate_image_coordinates($image_width, $image_height, $watermark_width, $watermark_height)
     {
-        switch (ultimate_watermark_watermark_alignment()) {
+        switch ($this->watermark_position->get_watermark_alignment()) {
             case 'top_left':
                 $dest_x = $dest_y = 0;
                 break;
@@ -390,10 +394,10 @@ class ImageWatermarkHandler
                 $dest_y = ($image_height / 2) - ($watermark_height / 2);
         }
 
-        $offset_width = ultimate_watermark_offset_width();
-        $offset_height = ultimate_watermark_offset_height();
+        $offset_width = $this->watermark_position->get_watermark_offset_width();
+        $offset_height = $this->watermark_position->get_watermark_offset_height();
 
-        if (ultimate_watermark_watermark_offset_unit() === 'pixels') {
+        if ($this->watermark_position->get_watermark_offset_unit() === 'pixels') {
             $dest_x += $offset_width;
             $dest_y += $offset_height;
         } else {
@@ -406,9 +410,8 @@ class ImageWatermarkHandler
 
     private function add_watermark_image($image, $upload_dir)
     {
-        $watermark_image = $this->watermark->get_watermark_image();
 
-        $watermark_file = wp_get_attachment_metadata($watermark_image->get_watermark_image(), true);
+        $watermark_file = wp_get_attachment_metadata($this->watermark_image->get_watermark_image(), true);
 
         $url = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . $watermark_file['file'];
         $watermark_file_info = getimagesize($url);
@@ -442,10 +445,11 @@ class ImageWatermarkHandler
         list($dest_x, $dest_y) = $this->calculate_image_coordinates($image_width, $image_height, $w, $h);
 
         // combine two images together
-        $this->get_class()->imagecopymerge_alpha($image, $this->get_class()->resize($watermark, $w, $h, $watermark_file_info), $dest_x, $dest_y, 0, 0, $w, $h, ultimate_watermark_image_transparent());
+        $this->get_class()->imagecopymerge_alpha($image, $this->get_class()->resize($watermark, $w, $h, $watermark_file_info), $dest_x, $dest_y, 0, 0, $w, $h, $this->watermark_image->get_watermark_opacity());
 
-        //if (ultimate_watermark_image_format() === 'progressive')
-        imageinterlace($image, true);
+        if ($this->watermark_image->get_watermark_image_format() === 'progressive') {
+            imageinterlace($image, true);
+        }
 
         return $image;
     }

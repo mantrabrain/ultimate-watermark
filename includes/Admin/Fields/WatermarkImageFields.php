@@ -14,7 +14,7 @@ class WatermarkImageFields extends Base
                 'class' => 'ultimate-watermark-marker-image',
                 'desc' => __("You can choose watermark image for your files. This image will be applied as a watermark on the files.", 'ultimate-watermark'),
             ],
-            'ultimate_watermark_watermark_size' => [
+            'ultimate_watermark_watermark_size_type' => [
                 'title' => __('Watermark Size', 'ultimate-watermark'),
                 'desc' => __("Watermark size.", 'ultimate-watermark'),
                 'type' => 'select',
@@ -25,13 +25,13 @@ class WatermarkImageFields extends Base
                     'scaled' => __('Scaled', 'ultimate-watermark'),
                 ),
             ],
-            'ultimate_watermark_watermark_size_x' => [
+            'ultimate_watermark_watermark_absolute_width' => [
                 'type' => 'number',
                 'title' => __('Watermark custom size [X]', 'ultimate-watermark'),
                 'class' => 'ultimate-watermark-size-x',
                 'desc' => __("Watermark custom size  [X] - Width", 'ultimate-watermark')
             ],
-            'ultimate_watermark_watermark_size_y' => [
+            'ultimate_watermark_watermark_absolute_height' => [
                 'type' => 'number',
                 'title' => __('Watermark custom size [Y]', 'ultimate-watermark'),
                 'class' => 'ultimate-watermark-size-y',

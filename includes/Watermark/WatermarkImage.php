@@ -16,36 +16,36 @@ class WatermarkImage
         return absint(get_post_meta($this->watermark_id, 'ultimate_watermark_watermark_image', true));
     }
 
-    public function get_watermark_image_size()
+    public function get_watermark_image_size_type()
     {
-        return get_post_meta($this->watermark_id, 'ultimate_watermark_watermark_size', true);
+        return get_post_meta($this->watermark_id, 'ultimate_watermark_watermark_size_type', true);
     }
 
-    public function get_watermark_image_size_x()
+    public function get_watermark_image_absolute_width()
     {
-        return get_post_meta($this->watermark_id, 'ultimate_watermark_watermark_size_x', true);
+        return absint(get_post_meta($this->watermark_id, 'ultimate_watermark_watermark_absolute_width', true));
     }
 
-    public function get_watermark_image_size_y()
+    public function get_watermark_image_absolute_height()
     {
-        return get_post_meta($this->watermark_id, 'ultimate_watermark_watermark_size_y', true);
+        return absint(get_post_meta($this->watermark_id, 'ultimate_watermark_watermark_absolute_height', true));
 
     }
 
-    public function get_watermark_image_scale()
+    public function get_watermark_image_scale_image_width()
     {
-        return get_post_meta($this->watermark_id, 'ultimate_watermark_watermark_scale_image_width', true);
+        return absint(get_post_meta($this->watermark_id, 'ultimate_watermark_watermark_scale_image_width', true));
     }
 
     public function get_watermark_opacity()
     {
-        return get_post_meta($this->watermark_id, 'ultimate_watermark_watermark_image_transparent', true);
+        return absint(get_post_meta($this->watermark_id, 'ultimate_watermark_watermark_image_transparent', true));
 
     }
 
     public function get_watermark_image_quality()
     {
-        return get_post_meta($this->watermark_id, 'ultimate_watermark_watermark_image_quality', true);
+        return absint(get_post_meta($this->watermark_id, 'ultimate_watermark_watermark_image_quality', true));
     }
 
     public function get_watermark_image_format()
