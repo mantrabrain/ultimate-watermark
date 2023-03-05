@@ -4,7 +4,7 @@ namespace Ultimate_Watermark\Admin;
 
 use Ultimate_Watermark\Video\Watermark;
 
-class Ajax
+class Ajax_Old
 {
     public function __construct()
     {

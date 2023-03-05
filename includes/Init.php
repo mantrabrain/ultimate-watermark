@@ -179,7 +179,6 @@ final class Init
         new Hooks();
         new Ajax();
         $this->utils = new Utils();
-        $this->watermark = new Watermark();
         PostTypes::init();
         WatermarkMeta::init();
 
@@ -307,7 +306,7 @@ final class Init
 
     public function admin_notices()
     {
-        
+
     }
 
     function folder_writable_admin_notice()

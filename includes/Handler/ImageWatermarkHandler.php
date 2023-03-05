@@ -1,39 +1,126 @@
 <?php
 
-namespace Ultimate_Watermark\Image;
+namespace Ultimate_Watermark\Handler;
 
 use Ultimate_Watermark\Processor\ImageProcessor;
+use Ultimate_Watermark\Watermark\WatermarkConditions;
+use Ultimate_Watermark\Watermark\WatermarkImage;
 
-class Watermark
+class ImageWatermarkHandler
 {
+    private $attachment_id;
+
+    /** @var WatermarkConditions */
+    private $watermark_conditions;
+
+    /** @var WatermarkImage */
+    private $watermark_image;
+
+    /**
+     * apply watermark
+     *
+     * @param int $attachment_id Attachment ID.
+     * @param \Ultimate_Watermark\Watermark_Test $watermark Watermark.
+     */
+    public function __construct($attachment_id, $watermark)
+    {
+        $this->attachment_id = $attachment_id;
+        $this->watermark_conditions = $watermark->get_conditions();
+        $this->watermark_image = $watermark->get_watermark_image();
+    }
+
+    /**
+     * @return ImageProcessor
+     */
     public function get_class()
     {
         return ImageProcessor::instance();
     }
 
-    public function apply_watermark($data, $attachment_id, $method = '')
+
+    public function apply_the_watermark()
+    {
+        $data = wp_get_attachment_metadata($this->attachment_id, false);
+
+        $post = get_post((int)$this->attachment_id);
+
+        $post_id = (!empty($post) ? (int)$post->post_parent : 0);
+
+        if ($this->attachment_id == ultimate_watermark_watermark_image()) {
+            // this is the current watermark, do not apply
+            return array('error' => __('Watermark prevented, this is your selected watermark image', 'ultimate-watermark'));
+        }
+
+        if (apply_filters('ulwm_watermark_display', $this->attachment_id) === false) {
+            return $data;
+        }
+
+        // get upload dir data
+        $upload_dir = wp_upload_dir();
+
+        // assign original (full) file
+        $original_file = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . $data['file'];
+
+        // is this really an image?
+        if (getimagesize($original_file, $original_image_info) !== false) {
+            $metadata = $this->get_class()->get_image_metadata($original_image_info);
+
+            // remove the watermark if this image was already watermarked
+            /*if ((int)get_post_meta($this->attachment_id, 'ulwm-is-watermarked', true) === 1) {
+                $this->remove_watermark($data, $this->attachment_id, 'manual');
+            }*/
+            // create a backup if this is enabled
+            /* if (ultimate_watermark_backup_image()) {
+                 $this->do_backup($data, $upload_dir, $this->attachment_id);
+             }*/
+
+            // loop through active image sizes
+            foreach ($this->watermark_conditions->get_image_sizes() as $image_size => $active_size) {
+                if ((boolean)$active_size) {
+                    switch ($image_size) {
+                        case 'full':
+                            $filepath = $original_file;
+                            break;
+
+                        default:
+                            if (!empty($data['sizes']) && array_key_exists($image_size, $data['sizes']))
+                                $filepath = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . dirname($data['file']) . DIRECTORY_SEPARATOR . $data['sizes'][$image_size]['file'];
+                            else
+                                // early getaway
+                                continue 2;
+                    }
+
+                    do_action('ulwm_before_apply_watermark', $this->attachment_id, $image_size);
+
+                    // apply watermark
+                    $this->do_watermark($this->attachment_id, $filepath, $image_size, $upload_dir, $metadata);
+
+                    // save metadata
+                    $this->get_class()->save_image_metadata($metadata, $filepath);
+
+                    do_action('ulwm_after_apply_watermark', $this->attachment_id, $image_size);
+                }
+            }
+
+            // update watermark status
+            update_post_meta($this->attachment_id, 'ulwm-is-watermarked', 1);
+        }
+
+        // pass forward attachment metadata
+        return $data;
+    }
+
+    public function apply_watermark($data, $attachment_id)
     {
         $post = get_post((int)$attachment_id);
 
         $post_id = (!empty($post) ? (int)$post->post_parent : 0);
 
-        if ($attachment_id == ultimate_watermark_watermark_image()) {
+        $image = $this->watermark->get_watermark_image();
+
+        if ($attachment_id == $image->get_watermark_image()) {
             // this is the current watermark, do not apply
             return array('error' => __('Watermark prevented, this is your selected watermark image', 'ultimate-watermark'));
-        }
-
-        if ($method !== 'manual') {
-
-            if (is_admin()) {
-
-                if (
-                    !((ultimate_watermark_watermark_on() === 'everywhere') ||
-                        ($post_id > 0 && ultimate_watermark_watermark_on() === 'selected_custom_post_types' && in_array(get_post_type($post_id), array_keys(ultimate_watermark_watermark_on_custom_post_type())))
-                    )) {
-                    return $data;
-                }
-            }
-
         }
 
         if (apply_filters('ulwm_watermark_display', $attachment_id) === false)
@@ -94,15 +181,17 @@ class Watermark
     }
 
 
-
     public function do_watermark($attachment_id, $image_path, $image_size, $upload_dir, $metadata = array())
     {
+        echo 'Hello World' . "\n" . $image_size;
+        return;
 
+        $image = $this->watermark->get_watermark_image();
         // get image mime type
         $mime = wp_check_filetype($image_path);
 
         // get watermark path
-        $watermark_file = wp_get_attachment_metadata(ultimate_watermark_watermark_image(), true);
+        $watermark_file = wp_get_attachment_metadata($image->get_watermark_image(), true);
         $watermark_path = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . $watermark_file['file'];
 
         // imagick extension
@@ -183,57 +272,6 @@ class Watermark
         }
     }
 
-
-    private function do_backup($data, $upload_dir, $attachment_id)
-    {
-        // get the filepath for the backup image we're creating
-        $backup_filepath = ultimate_watermark()->utils->get_image_backup_filepath($data['file']);
-
-        // make sure the backup isn't created yet
-        if (!file_exists($backup_filepath)) {
-            // the original (full size) image
-            $filepath = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . $data['file'];
-            $mime = wp_check_filetype($filepath);
-
-
-            $image = $this->get_class()->get_image_resource($filepath, $mime['type']);
-            if (false !== $image) {
-
-                wp_mkdir_p($this->get_image_backup_folder_location($data['file']));
-
-                // save backup image
-                $this->get_class()->save_image_file($image, $mime['type'], $backup_filepath, ultimate_watermark_backup_image_quality());
-
-                // clear backup memory
-                imagedestroy($image);
-                $image = null;
-            }
-        }
-    }
-
-    private function get_image_backup_folder_location($filepath)
-    {
-
-
-        $path = explode('/', $filepath);
-
-        if (count($path) < 2) {
-
-            $path = explode(DIRECTORY_SEPARATOR, $filepath);
-        }
-
-        array_pop($path);
-
-
-        $path = implode(DIRECTORY_SEPARATOR, $path);
-
-        // Multisite?
-        /* if ( is_multisite() && ! is_main_site() ) {
-          $path = 'sites' . DIRECTORY_SEPARATOR . get_current_blog_id() . DIRECTORY_SEPARATOR . $path;
-          } */
-
-        return ultimate_watermark()->get_backup_dir() . $path;
-    }
 
     public function remove_watermark($data, $attachment_id, $method = '')
     {
@@ -368,7 +406,10 @@ class Watermark
 
     private function add_watermark_image($image, $upload_dir)
     {
-        $watermark_file = wp_get_attachment_metadata(ultimate_watermark_watermark_image(), true);
+        $watermark_image = $this->watermark->get_watermark_image();
+
+        $watermark_file = wp_get_attachment_metadata($watermark_image->get_watermark_image(), true);
+
         $url = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . $watermark_file['file'];
         $watermark_file_info = getimagesize($url);
 
@@ -403,8 +444,8 @@ class Watermark
         // combine two images together
         $this->get_class()->imagecopymerge_alpha($image, $this->get_class()->resize($watermark, $w, $h, $watermark_file_info), $dest_x, $dest_y, 0, 0, $w, $h, ultimate_watermark_image_transparent());
 
-        if (ultimate_watermark_image_format() === 'progressive')
-            imageinterlace($image, true);
+        //if (ultimate_watermark_image_format() === 'progressive')
+        imageinterlace($image, true);
 
         return $image;
     }

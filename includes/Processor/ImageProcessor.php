@@ -82,6 +82,7 @@ final class ImageProcessor
         // insert cut resource to destination image
         imagecopymerge($dst_im, $cut, $dst_x, $dst_y, 0, 0, $src_w, $src_h, $pct);
     }
+
     public function get_image_metadata($imageinfo)
     {
         $metadata = array(
@@ -236,5 +237,13 @@ final class ImageProcessor
         }
 
         return $image;
+    }
+
+    public function is_valid_image($image_file_path)
+    {
+        if (getimagesize($image_file_path, $original_image_info) !== false) {
+            return true;
+        }
+        return false;
     }
 }

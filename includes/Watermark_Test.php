@@ -3,6 +3,7 @@
 namespace Ultimate_Watermark;
 
 use Ultimate_Watermark\Watermark\WatermarkConditions;
+use Ultimate_Watermark\Watermark\WatermarkImage;
 
 class Watermark_Test
 {
@@ -16,6 +17,11 @@ class Watermark_Test
     public function get_conditions()
     {
         return new WatermarkConditions($this->watermark_id);
+    }
+
+    public function get_watermark_image()
+    {
+        return new WatermarkImage($this->watermark_id);
     }
 
     public function get_watermark_type()
