@@ -12,6 +12,9 @@ class HTML
 
         $class = 'ultimate-watermark-field ultimate-watermark-field-' . esc_attr($type);
 
+        var_dump($display_condition);
+
+
         $class .= !$display_condition ? ' ultimate-watermark-hide' : '';
 
         $title = $field['title'] ?? '';
