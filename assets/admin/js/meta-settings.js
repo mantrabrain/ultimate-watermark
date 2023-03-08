@@ -8,6 +8,7 @@
             this.image_upload_frame = '';
             this.initMediaUploader();
             this.initSlider();
+            this.displayConditions();
         },
         bindEvents: function () {
             var _that = this;
@@ -399,6 +400,38 @@
             });
 
 
+        },
+        displayConditions: function () {
+             $('body').on('change', '#ultimate_watermark_watermark_on', function () {
+                 var value = $(this).val();
+                  var post_type_el = $('#ultimate_watermark_watermark_on_custom_post_type_wrap');
+                 if (value === 'selected_custom_post_types') {
+                     post_type_el.removeClass('ultimate-watermark-hide');
+                 } else {
+                     post_type_el.addClass('ultimate-watermark-hide');
+                 }
+             });
+
+            $('body').on('change', '#ultimate_watermark_watermark_size_type', function () {
+                var value = $(this).val();
+                console.log("Value is " + value);
+                var absWidthTr = $('#ultimate_watermark_watermark_absolute_width_wrap');
+                var absHeightTr = $('#ultimate_watermark_watermark_absolute_height_wrap');
+                var scaledTr = $('#ultimate_watermark_watermark_scale_image_width_wrap');
+                if (value === 'custom') {
+                    absWidthTr.removeClass('ultimate-watermark-hide');
+                    absHeightTr.removeClass('ultimate-watermark-hide');
+                    scaledTr.addClass('ultimate-watermark-hide');
+                } else if (value === 'scaled') {
+                    absWidthTr.addClass('ultimate-watermark-hide');
+                    absHeightTr.addClass('ultimate-watermark-hide');
+                    scaledTr.removeClass('ultimate-watermark-hide');
+                } else {
+                    absWidthTr.addClass('ultimate-watermark-hide');
+                    absHeightTr.addClass('ultimate-watermark-hide');
+                    scaledTr.addClass('ultimate-watermark-hide');
+                }
+            });
         }
 
     };

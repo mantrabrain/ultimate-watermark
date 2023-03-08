@@ -29,13 +29,27 @@ class WatermarkImageFields extends Base
                 'type' => 'number',
                 'title' => __('Watermark custom size [X]', 'ultimate-watermark'),
                 'class' => 'ultimate-watermark-size-x',
-                'desc' => __("Watermark custom size  [X] - Width", 'ultimate-watermark')
+                'desc' => __("Watermark custom size  [X] - Width", 'ultimate-watermark'),
+                'display_conditions' => array(
+                    array(
+                        'field' => 'ultimate_watermark_watermark_size_type',
+                        'compare' => '=',
+                        'value' => 'custom'
+                    )
+                )
             ],
             'ultimate_watermark_watermark_absolute_height' => [
                 'type' => 'number',
                 'title' => __('Watermark custom size [Y]', 'ultimate-watermark'),
                 'class' => 'ultimate-watermark-size-y',
-                'desc' => __("Watermark custom size  [Y] - Height", 'ultimate-watermark')
+                'desc' => __("Watermark custom size  [Y] - Height", 'ultimate-watermark'),
+                'display_conditions' => array(
+                    array(
+                        'field' => 'ultimate_watermark_watermark_size_type',
+                        'compare' => '=',
+                        'value' => 'custom'
+                    )
+                )
             ],
             'ultimate_watermark_watermark_scale_image_width' => [
                 'title' => __('Watermark scale', 'ultimate-watermark'),

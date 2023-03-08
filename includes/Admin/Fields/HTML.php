@@ -8,13 +8,17 @@ class HTML
     {
         $type = $field['type'] ?? '';
 
+        $display_condition = self::display_condition($field, $value);
+
         $class = 'ultimate-watermark-field ultimate-watermark-field-' . esc_attr($type);
+
+        $class .= !$display_condition ? ' ultimate-watermark-hide' : '';
 
         $title = $field['title'] ?? '';
 
         $desc = $field['desc'] ?? '';
 
-        echo '<div class="' . esc_attr($class) . '" id="' . esc_attr($field_id) . '">';
+        echo '<div class="' . esc_attr($class) . '" id="' . esc_attr($field_id) . '_wrap">';
 
         echo '<div class="ultimate-watermark-title">';
 
@@ -38,6 +42,46 @@ class HTML
         echo '<div class="clear"></div>';
 
         echo '</div>';
+    }
+
+    public static function display_condition($field_item, $field_value)
+    {
+
+        $display_conditions = $field_item['display_conditions'] ?? array();
+
+        if (count($display_conditions) < 1) {
+            return true;
+        }
+        $display = false;
+
+        foreach ($display_conditions as $condition) {
+
+            $display_status = false;
+
+            $field = isset($condition['field']) ? sanitize_text_field($condition['field']) : '';
+
+            $compare = isset($condition['compare']) ? sanitize_text_field($condition['compare']) : '';
+
+            $value = isset($condition['value']) ? sanitize_text_field($condition['value']) : '';
+
+            if ($field != '' && $compare != '') {
+
+                switch ($compare) {
+                    case "=":
+                        $display_status = $field_value === $value;
+                        break;
+                }
+            }
+            $display = $display_status;
+
+            if (!$display_status) {
+                break;
+            }
+
+
+        }
+
+        return $display;
     }
 
     public static function render($fields, $group_id = null)
