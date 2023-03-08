@@ -413,3 +413,31 @@ select.ultimate-watermark-osm-map-provider {
 .ultimate-watermark-field.ultimate-watermark-field-multicheckbox .ultimate-watermark-fieldset label {
     line-height: 2.5;
 }
+
+/* SLider */
+
+.ultimate-watermark-fieldset .slider-wrap {
+    width: 250px;
+    margin-bottom: 10px
+}
+
+.ultimate-watermark-fieldset .ultimate-watermark-range-slider .handle {
+    text-align: center;
+    padding: 0 5px;
+    width: auto;
+    background: #2771b1;
+    color: #fff;
+    border-color: #2771b1;
+    cursor: pointer
+}
+
+.ultimate-watermark-fieldset .ui-widget-header {
+    background: #c3e3ff;
+    color: #333;
+    font-weight: 700
+}
+
+.ultimate-watermark-fieldset .ui-widget.ui-widget-content {
+    border: 1px solid #2771b1;
+    border-radius: 0
+}

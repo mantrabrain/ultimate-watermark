@@ -20,9 +20,9 @@ class Assets
 
         wp_register_script('ultimate-watermark-setting-script', ULTIMATE_WATERMARK_URI . '/assets/js/settings.js', array('jquery', 'jquery-ui-core', 'jquery-ui-slider'), ULTIMATE_WATERMARK_VERSION);
 
-        wp_register_style('ultimate-watermark-admin-meta-style', ULTIMATE_WATERMARK_URI . '/assets/admin/css/meta-settings.css', array(), ULTIMATE_WATERMARK_VERSION);
+        wp_register_style('ultimate-watermark-admin-meta-style', ULTIMATE_WATERMARK_URI . '/assets/admin/css/meta-settings.css', array('ultimate-watermark-jquery-ui'), ULTIMATE_WATERMARK_VERSION);
 
-        wp_register_script('ultimate-watermark-admin-meta-script', ULTIMATE_WATERMARK_URI . '/assets/admin/js/meta-settings.js', array(), ULTIMATE_WATERMARK_VERSION, true);
+        wp_register_script('ultimate-watermark-admin-meta-script', ULTIMATE_WATERMARK_URI . '/assets/admin/js/meta-settings.js', array('jquery', 'jquery-ui-core', 'jquery-ui-slider'), ULTIMATE_WATERMARK_VERSION, true);
 
         // HTML Style
         wp_register_style('ultimate-watermark-html-style', ULTIMATE_WATERMARK_URI . '/assets/admin/css/html.css', array(), ULTIMATE_WATERMARK_VERSION);

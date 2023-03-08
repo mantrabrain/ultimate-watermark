@@ -7,6 +7,7 @@
             this.renderWatermarkPreview();
             this.image_upload_frame = '';
             this.initMediaUploader();
+            this.initSlider();
         },
         bindEvents: function () {
             var _that = this;
@@ -368,6 +369,35 @@
             new_item.customIconHeight = height < 1 ? 40 : height;
 
             return new_item;
+
+        },
+        initSlider: function () {
+            var slider = $('.ultimate-watermark-range-slider');
+
+            slider.each(function () {
+                var slider_item = $(this);
+                var handle = slider_item.find('.handle');
+                var max = slider_item.data("max");
+                var min = slider_item.data('min');
+                var value = slider_item.data('value');
+                var step = slider_item.data('step');
+                slider_item.slider({
+                    min: min,
+                    max: max,
+                    value: value,
+                    step: step,
+                    range: "min",
+                    create: function () {
+                        slider_item.closest('.slider-wrap').find('input').val($(this).slider("value"));
+                        handle.text($(this).slider("value"));
+                    },
+                    slide: function (event, ui) {
+                        handle.text(ui.value);
+                        slider_item.closest('.slider-wrap').find('input').val(ui.value);
+                    }
+                });
+            });
+
 
         }
 
