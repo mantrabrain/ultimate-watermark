@@ -8,12 +8,9 @@ class HTML
     {
         $type = $field['type'] ?? '';
 
-        $display_condition = self::display_condition($field, $value);
+        $display_condition = self::display_condition($field);
 
         $class = 'ultimate-watermark-field ultimate-watermark-field-' . esc_attr($type);
-
-        var_dump($display_condition);
-
 
         $class .= !$display_condition ? ' ultimate-watermark-hide' : '';
 
@@ -47,7 +44,7 @@ class HTML
         echo '</div>';
     }
 
-    public static function display_condition($field_item, $field_value)
+    public static function display_condition($field_item)
     {
 
         $display_conditions = $field_item['display_conditions'] ?? array();
@@ -61,13 +58,16 @@ class HTML
 
             $display_status = false;
 
-            $field = isset($condition['field']) ? sanitize_text_field($condition['field']) : '';
+            $field = $condition['field'] ?? '';
 
-            $compare = isset($condition['compare']) ? sanitize_text_field($condition['compare']) : '';
+            $compare = $condition['compare'] ?? '';
 
-            $value = isset($condition['value']) ? sanitize_text_field($condition['value']) : '';
+            $value = isset($condition['value']) ? ($condition['value']) : '';
 
             if ($field != '' && $compare != '') {
+
+                $field_value = get_post_meta(get_the_ID(), $field, true);
+
 
                 switch ($compare) {
                     case "=":
