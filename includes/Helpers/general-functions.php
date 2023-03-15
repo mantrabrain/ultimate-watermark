@@ -99,6 +99,7 @@ function ultimate_watermark_print_image($file_path)
 
     // header() is used to send a raw HTTP  header. See the » HTTP/1.1 specification  for more information on HTTP headers.
     header("Content-type: image/$outputType");
+
     readfile($file_path);
 }
 
