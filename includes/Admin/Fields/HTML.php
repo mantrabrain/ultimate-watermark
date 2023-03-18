@@ -73,6 +73,9 @@ class HTML
                     case "=":
                         $display_status = $field_value === $value;
                         break;
+                    case "!=":
+                        $display_status = $field_value != $value;
+                        break;
                 }
             }
             $display = $display_status;

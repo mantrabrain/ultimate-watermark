@@ -34,20 +34,27 @@ final class ImageProcessor
         self::$_instance = new self;
     }
 
-    public function save_image_file($image, $mime_type, $filepath, $quality)
+    public function save_image_file($image, $mime_type, $filepath, $filter)
     {
 
         switch ($mime_type) {
             case 'image/jpeg':
             case 'image/pjpeg':
-                imagejpeg($image, $filepath, $quality);
+                imagejpeg($image, $filepath, $filter);
 
                 break;
 
             case 'image/png':
-                imagepng($image, $filepath, (int)round(9 - (9 * $quality / 100), 0));
-                header('Content-Type: image/png');
-
+                $filter = (int)round(9 - (9 * $filter / 100), 0);
+                if ($filepath == null) {
+                    header('Content-Type: image/png');
+                }
+                imagepng($image, $filepath, $filter);
+                if ($filepath != null) {
+                    header('Content-Type: image/png');
+                }
+                //
+                exit;
                 break;
         }
     }

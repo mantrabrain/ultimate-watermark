@@ -22,6 +22,8 @@ class WatermarkPositionFields extends Base
                     'bottom_left' => __('Bottom Left', 'ultimate-watermark'),
                     'bottom_center' => __('Bottom Center', 'ultimate-watermark'),
                     'bottom_right' => __('Bottom Right', 'ultimate-watermark'),
+                    'repeat' => __('Repeat', 'ultimate-watermark'),
+
                 ),
                 'type' => 'select',
                 'default' => 'bottom_right'
@@ -30,9 +32,15 @@ class WatermarkPositionFields extends Base
                 'title' => __('Watermark offset [X]', 'ultimate-watermark'),
                 'desc' => __('Enter watermark offset value for X ( ie offset width).', 'ultimate-watermark'),
                 'desc_tip' => false,
-
                 'default' => 0,
                 'type' => 'number',
+                'display_conditions' => array(
+                    array(
+                        'field' => 'ultimate_watermark_watermark_alignment',
+                        'compare' => '!=',
+                        'value' => 'repeat'
+                    )
+                )
             ]
             ,
             'ultimate_watermark_watermark_offset_height' => [
@@ -41,6 +49,13 @@ class WatermarkPositionFields extends Base
                 'desc_tip' => false,
                 'default' => 0,
                 'type' => 'number',
+                'display_conditions' => array(
+                    array(
+                        'field' => 'ultimate_watermark_watermark_alignment',
+                        'compare' => '!=',
+                        'value' => 'repeat'
+                    )
+                )
             ]
             ,
             'ultimate_watermark_watermark_offset_unit' => [
@@ -52,6 +67,13 @@ class WatermarkPositionFields extends Base
                     'percentages' => __('Percentages', 'ultimate-watermark'),
                 ),
                 'type' => 'select',
+                'display_conditions' => array(
+                    array(
+                        'field' => 'ultimate_watermark_watermark_alignment',
+                        'compare' => '!=',
+                        'value' => 'repeat'
+                    )
+                )
             ],
 
         ];

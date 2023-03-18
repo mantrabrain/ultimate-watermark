@@ -402,15 +402,33 @@
 
         },
         displayConditions: function () {
-             $('body').on('change', '#ultimate_watermark_watermark_on', function () {
-                 var value = $(this).val();
-                  var post_type_el = $('#ultimate_watermark_watermark_on_custom_post_type_wrap');
-                 if (value === 'selected_custom_post_types') {
-                     post_type_el.removeClass('ultimate-watermark-hide');
-                 } else {
-                     post_type_el.addClass('ultimate-watermark-hide');
-                 }
-             });
+            $('body').on('change', '#ultimate_watermark_watermark_on', function () {
+                var value = $(this).val();
+                var post_type_el = $('#ultimate_watermark_watermark_on_custom_post_type_wrap');
+                if (value === 'selected_custom_post_types') {
+                    post_type_el.removeClass('ultimate-watermark-hide');
+                } else {
+                    post_type_el.addClass('ultimate-watermark-hide');
+                }
+            });
+
+            $('body').on('change', '#ultimate_watermark_watermark_alignment', function () {
+                var offset_width = $('#ultimate_watermark_watermark_offset_width_wrap');
+                var offset_height = $('#ultimate_watermark_watermark_offset_height_wrap');
+                var offset_unit = $('#ultimate_watermark_watermark_offset_unit_wrap');
+                
+                if ($(this).val() == "repeat") {
+                    offset_width.addClass('ultimate-watermark-hide');
+                    offset_height.addClass('ultimate-watermark-hide');
+                    offset_unit.addClass('ultimate-watermark-hide');
+
+                } else {
+                    offset_width.removeClass('ultimate-watermark-hide');
+                    offset_height.removeClass('ultimate-watermark-hide');
+                    offset_unit.removeClass('ultimate-watermark-hide');
+
+                }
+            });
 
             $('body').on('change', '#ultimate_watermark_watermark_size_type', function () {
                 var value = $(this).val();

@@ -98,10 +98,11 @@ class ImageWatermarkHandler
                     do_action('ulwm_before_apply_watermark', $this->attachment_id, $image_size);
 
                     // apply watermark
-                    $this->do_watermark($this->attachment_id, $filepath, $image_size, $upload_dir, $metadata);
+                    $watermark_file = wp_get_attachment_metadata($this->watermark_image->get_watermark_image(), true);
 
-                    // save metadata
-                    $this->get_class()->save_image_metadata($metadata, $filepath);
+                    $watermark_path = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . $watermark_file['file'];
+                    // apply watermark
+                    $this->do_watermark($filepath, $watermark_path, $metadata);
 
                     do_action('ulwm_after_apply_watermark', $this->attachment_id, $image_size);
                 }
@@ -115,78 +116,8 @@ class ImageWatermarkHandler
         return $data;
     }
 
-    public function apply_watermark($data, $attachment_id)
-    {
-        $post = get_post((int)$attachment_id);
 
-        $post_id = (!empty($post) ? (int)$post->post_parent : 0);
-
-        $image = $this->watermark->get_watermark_image();
-
-        if ($attachment_id == $image->get_watermark_image()) {
-            // this is the current watermark, do not apply
-            return array('error' => __('Watermark prevented, this is your selected watermark image', 'ultimate-watermark'));
-        }
-
-        if (apply_filters('ulwm_watermark_display', $attachment_id) === false)
-            return $data;
-
-        // get upload dir data
-        $upload_dir = wp_upload_dir();
-
-        // assign original (full) file
-        $original_file = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . $data['file'];
-
-        // is this really an image?
-        if (getimagesize($original_file, $original_image_info) !== false) {
-            $metadata = $this->get_class()->get_image_metadata($original_image_info);
-
-            // remove the watermark if this image was already watermarked
-            if ((int)get_post_meta($attachment_id, 'ulwm-is-watermarked', true) === 1)
-                $this->remove_watermark($data, $attachment_id, 'manual');
-
-            // create a backup if this is enabled
-            if (ultimate_watermark_backup_image())
-                $this->do_backup($data, $upload_dir, $attachment_id);
-
-            // loop through active image sizes
-            foreach (ultimate_watermark_watermark_on_image_size() as $image_size => $active_size) {
-                if ($active_size === 'yes') {
-                    switch ($image_size) {
-                        case 'full':
-                            $filepath = $original_file;
-                            break;
-
-                        default:
-                            if (!empty($data['sizes']) && array_key_exists($image_size, $data['sizes']))
-                                $filepath = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . dirname($data['file']) . DIRECTORY_SEPARATOR . $data['sizes'][$image_size]['file'];
-                            else
-                                // early getaway
-                                continue 2;
-                    }
-
-                    do_action('ulwm_before_apply_watermark', $attachment_id, $image_size);
-
-                    // apply watermark
-                    $this->do_watermark($attachment_id, $filepath, $image_size, $upload_dir, $metadata);
-
-                    // save metadata
-                    $this->get_class()->save_image_metadata($metadata, $filepath);
-
-                    do_action('ulwm_after_apply_watermark', $attachment_id, $image_size);
-                }
-            }
-
-            // update watermark status
-            update_post_meta($attachment_id, 'ulwm-is-watermarked', 1);
-        }
-
-        // pass forward attachment metadata
-        return $data;
-    }
-
-
-    public function do_watermark($attachment_id, $image_path, $image_size, $upload_dir, $metadata = array())
+    public function do_watermark($image_path, $watermark_path, $metadata = array(), $write_on_image = true)
     {
         /* echo 'Hello World' . "\n" . $image_size;
          return;*/
@@ -194,9 +125,6 @@ class ImageWatermarkHandler
         // get image mime type
         $mime = wp_check_filetype($image_path);
 
-        // get watermark path
-        $watermark_file = wp_get_attachment_metadata($this->watermark_image->get_watermark_image(), true);
-        $watermark_path = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . $watermark_file['file'];
 
         // imagick extension
         if (ultimate_watermark()->utils->get_extension() === 'imagick') {
@@ -256,15 +184,17 @@ class ImageWatermarkHandler
             $watermark = null;
             // gd extension
         } else {
+
             // get image resource
             $image = $this->get_class()->get_image_resource($image_path, $mime['type']);
 
             if ($image !== false) {
                 // add watermark image to image
-                $image = $this->add_watermark_image($image, $upload_dir);
+                $image = $this->add_watermark_image($image);
 
                 if ($image !== false) {
                     // save watermarked image
+                    $image_path = !$write_on_image ? null : $image_path;
                     $this->get_class()->save_image_file($image, $mime['type'], $image_path, $this->watermark_image->get_watermark_image_quality());
 
                     // clear watermark memory
@@ -273,6 +203,10 @@ class ImageWatermarkHandler
                     $image = null;
                 }
             }
+        }
+        // save metadata
+        if ($write_on_image) {
+            $this->get_class()->save_image_metadata($metadata, $image_path);
         }
     }
 
@@ -408,8 +342,10 @@ class ImageWatermarkHandler
         return array($dest_x, $dest_y);
     }
 
-    private function add_watermark_image($image, $upload_dir)
+    private function add_watermark_image($image)
     {
+
+        $upload_dir = wp_upload_dir();
 
         $watermark_file = wp_get_attachment_metadata($this->watermark_image->get_watermark_image(), true);
 
@@ -437,16 +373,32 @@ class ImageWatermarkHandler
         // get image dimensions
         $image_width = imagesx($image);
         $image_height = imagesy($image);
+        $xLogoPosition = 0;
+        $yLogoPosition = 0;
 
         // calculate watermark new dimensions
         list($w, $h) = $this->calculate_watermark_dimensions($image_width, $image_height, imagesx($watermark), imagesy($watermark));
 
-        // calculate image coordinates
-        list($dest_x, $dest_y) = $this->calculate_image_coordinates($image_width, $image_height, $w, $h);
+        if ($this->watermark_position->get_watermark_alignment() === "repeat") {
 
-        // combine two images together
-        $this->get_class()->imagecopymerge_alpha($image, $this->get_class()->resize($watermark, $w, $h, $watermark_file_info), $dest_x, $dest_y, 0, 0, $w, $h, $this->watermark_image->get_watermark_opacity());
+            $__xRepeat = ceil($image_width / $w);
+            for ($i = 0; $i <= $__xRepeat; $i++) {
 
+                $this->get_class()->imagecopymerge_alpha($image, $this->get_class()->resize($watermark, $w, $h, $watermark_file_info), ($xLogoPosition + $w * $i), 0, 0, 0, $w, $h, $this->watermark_image->get_watermark_opacity());
+
+                // y line
+                $__yRepeat = ceil($image_height / $h);
+                for ($ii = 1; $ii <= $__yRepeat; $ii++) {
+                    $this->get_class()->imagecopymerge_alpha($image, $this->get_class()->resize($watermark, $w, $h, $watermark_file_info), ($xLogoPosition + $w * $i), ($yLogoPosition + $w * $ii), 0, 0, $w, $h, $this->watermark_image->get_watermark_opacity());
+                }
+            }
+        } else {
+            // calculate image coordinates
+            list($dest_x, $dest_y) = $this->calculate_image_coordinates($image_width, $image_height, $w, $h);
+
+            // combine two images together
+            $this->get_class()->imagecopymerge_alpha($image, $this->get_class()->resize($watermark, $w, $h, $watermark_file_info), $dest_x, $dest_y, 0, 0, $w, $h, $this->watermark_image->get_watermark_opacity());
+        }
         if ($this->watermark_image->get_watermark_image_format() === 'progressive') {
             imageinterlace($image, true);
         }

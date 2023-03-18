@@ -403,6 +403,8 @@ select.ultimate-watermark-osm-map-provider {
 #ultimate-watermark-watermark-preview .inside {
     margin: 0;
     background: #ddd;
+    padding: 0;
+    line-height: 0;
 }
 
 #poststuff #post-body .postbox-container {
