@@ -64,20 +64,24 @@ class Utils
     private function check_imagick()
     {
         // check Imagick's extension and classes
-        if (!extension_loaded('imagick') || !class_exists('Imagick', false) || !class_exists('ImagickPixel', false))
+        if (!extension_loaded('imagick') || !class_exists('Imagick', false) || !class_exists('ImagickPixel', false)) {
             return false;
+        }
 
         // check version
-        if (version_compare(phpversion('imagick'), '2.2.0', '<'))
+        if (version_compare(phpversion('imagick'), '2.2.0', '<')) {
             return false;
+        }
 
         // check for deep requirements within Imagick
-        if (!defined('Imagick::COMPRESSION_JPEG') || !defined('Imagick::COMPOSITE_OVERLAY') || !defined('Imagick::INTERLACE_PLANE') || !defined('Imagick::FILTER_CATROM') || !defined('Imagick::CHANNEL_ALL'))
+        if (!defined('Imagick::COMPRESSION_JPEG') || !defined('Imagick::COMPOSITE_OVERLAY') || !defined('Imagick::INTERLACE_PLANE') || !defined('Imagick::FILTER_CATROM') || !defined('Imagick::CHANNEL_ALL')) {
             return false;
+        }
 
-        // check methods
-        if (array_diff(array('clear', 'destroy', 'valid', 'getimage', 'writeimage', 'getimagegeometry', 'getimageformat', 'setimageformat', 'setimagecompression', 'setimagecompressionquality', 'scaleimage'), get_class_methods('Imagick')))
+
+        if (array_diff(array('clear', 'destroy', 'valid', 'getImage', 'writeImage', 'getImageGeometry', 'getImageFormat', 'setImageFormat', 'setImageCompression', 'setImageCompressionQuality', 'scaleImage'), get_class_methods('Imagick'))) {
             return false;
+        }
 
         return true;
     }

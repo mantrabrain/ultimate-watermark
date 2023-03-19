@@ -50,11 +50,12 @@ final class ImageProcessor
                     header('Content-Type: image/png');
                 }
                 imagepng($image, $filepath, $filter);
+                if ($filepath == null) {
+                    exit;
+                }
                 if ($filepath != null) {
                     header('Content-Type: image/png');
                 }
-                //
-                exit;
                 break;
         }
     }

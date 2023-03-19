@@ -128,18 +128,30 @@ class ImageWatermarkHandler
 
         // imagick extension
         if (ultimate_watermark()->utils->get_extension() === 'imagick') {
+
             // create image resource
             $image = new \Imagick($image_path);
 
             // create watermark resource
             $watermark = new \Imagick($watermark_path);
 
+            $reflectionClass = new \ReflectionClass($watermark);
+
+            $reflectionMethod = $reflectionClass->getMethod('setImageOpacity');
+
             // alpha channel exists?
-            if ($watermark->getImageAlphaChannel() > 0)
+            if ($watermark->getImageAlphaChannel() > 0) {
                 $watermark->evaluateImage(\Imagick::EVALUATE_MULTIPLY, round((float)($this->watermark_image->get_watermark_opacity() / 100), 2), \Imagick::CHANNEL_ALPHA);
-            // no alpha channel
-            else
-                $watermark->setImageOpacity(round((float)($this->watermark_image->get_watermark_opacity() / 100), 2));
+                // no alpha channel
+            } else {
+                if ($reflectionMethod->isDeprecated()) {
+                    $watermark->setImageAlphaChannel(\Imagick::ALPHACHANNEL_SET);
+                    $watermark->evaluateImage(\Imagick::EVALUATE_MULTIPLY, round((float)($this->watermark_image->get_watermark_opacity() / 100), 2), \Imagick::CHANNEL_ALPHA);
+
+                } else {
+                    $watermark->setImageOpacity(round((float)($this->watermark_image->get_watermark_opacity() / 100), 2));
+                }
+            }
 
             // set compression quality
             if ($mime['type'] === 'image/jpeg') {
@@ -161,14 +173,42 @@ class ImageWatermarkHandler
             // calculate watermark new dimensions
             list($width, $height) = $this->calculate_watermark_dimensions($image_dim['width'], $image_dim['height'], $watermark_dim['width'], $watermark_dim['height']);
 
+
             // resize watermark
             $watermark->resizeImage($width, $height, \Imagick::FILTER_CATROM, 1);
 
-            // calculate image coordinates
-            list($dest_x, $dest_y) = $this->calculate_image_coordinates($image_dim['width'], $image_dim['height'], $width, $height);
+            $xLogoPosition = 0;
 
-            // combine two images together
-            $image->compositeImage($watermark, \Imagick::COMPOSITE_DEFAULT, $dest_x, $dest_y, \Imagick::CHANNEL_ALL);
+            $yLogoPosition = 0;
+
+            if ($this->watermark_position->get_watermark_alignment() === "repeat") {
+
+                $__xRepeat = ceil($image->getImageWidth() / $width);
+                for ($i = 0; $i <= $__xRepeat; $i++) {
+
+                    $image->compositeImage($watermark, \Imagick::COMPOSITE_DEFAULT, ($xLogoPosition + $width * $i), 0, \Imagick::CHANNEL_ALL);
+
+                    // y line
+                    $__yRepeat = ceil($image->getImageHeight() / $height);
+                    for ($ii = 1; $ii <= $__yRepeat; $ii++) {
+                        $image->compositeImage($watermark, \Imagick::COMPOSITE_DEFAULT, ($xLogoPosition + $width * $i), ($yLogoPosition + $width * $ii), \Imagick::CHANNEL_ALL);
+                    }
+                }
+            } else {
+
+
+                // calculate image coordinates
+                list($dest_x, $dest_y) = $this->calculate_image_coordinates($image_dim['width'], $image_dim['height'], $width, $height);
+
+                // combine two images together
+                $image->compositeImage($watermark, \Imagick::COMPOSITE_DEFAULT, $dest_x, $dest_y, \Imagick::CHANNEL_ALL);
+            }
+
+            if (!$write_on_image) {
+                header('Content-Type: image/' . $image->getImageFormat());
+                echo $image;
+                exit;
+            }
 
             // save watermarked image
             $image->writeImage($image_path);

@@ -37,6 +37,7 @@ use Ultimate_Watermark\Init;
 
 function ultimate_watermark()
 {
+
     static $instance;
 
     // first call to instance() initializes the plugin
