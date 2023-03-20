@@ -40,7 +40,7 @@ class WatermarkPostType
             'public' => false,
             'publicly_queryable' => false,
             'show_ui' => true,
-            'show_in_menu' => false,// YATRA_ADMIN_MENU_SLUG,
+            'show_in_menu' => false,
             'query_var' => true,
             'has_archive' => false,
             'hierarchical' => false,

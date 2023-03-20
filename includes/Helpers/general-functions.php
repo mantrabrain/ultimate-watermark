@@ -118,3 +118,10 @@ function ultimate_watermark_get_watermark($watermark_id)
 {
     return new \Ultimate_Watermark\Watermark_Test($watermark_id);
 }
+
+function ultimate_watermark_get_watermark_types()
+{
+    return apply_filters('ultimate_watermark_watermark_types', [
+        'image' => __('Image Watermark', 'ultimate-watermark'),
+    ]);
+}

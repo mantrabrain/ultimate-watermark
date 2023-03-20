@@ -18,9 +18,7 @@ class WatermarkGeneralFields extends Base
                 'desc' => __("You can select watermark type from here.", 'ultimate-watermark'),
                 'type' => 'select',
                 'class' => 'ultimate-watermark-watermark-type',
-                'options' => array(
-                    'image' => __('Image Watermark', 'ultimate-watermark'),
-                ),
+                'options' => ultimate_watermark_get_watermark_types(),
             ],
 
         ];
