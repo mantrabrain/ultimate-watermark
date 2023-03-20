@@ -91,27 +91,18 @@ class WatermarkPostType
                 );
 
                 break;
-            case "coupon_type":
-                echo esc_html(ucwords($this->get_value('yatra_coupon_type', $watermark_id, 'percentage')));
+            case "watermark_type":
+                $watermark_type = $this->get_value('ultimate_watermark_watermark_type', $watermark_id);
+                $all_types = ultimate_watermark_get_watermark_types();
+                echo isset($all_types[$watermark_type]) ? esc_html($all_types[$watermark_type]) : 'N/A/';
                 break;
-            case "discount_value":
+            case "watermark_for":
                 echo esc_html($this->get_value('yatra_coupon_value', $watermark_id));
                 break;
-            case "usage_count":
-                $usage_limit = ($this->get_value('yatra_coupon_using_limit', $watermark_id));
-                $usage_count_array = ($this->get_value('yatra_coupon_usages_bookings', $watermark_id));
-                $usage_count_array = is_array($usage_count_array) ? $usage_count_array : array();
-                $usage_count = count($usage_count_array);
-                printf(
-                /* translators: 1: count 2: limit */
-                    __('%1$s / %2$s', 'yatra'),
-                    esc_html($usage_count),
-                    $usage_limit ? esc_html($usage_limit) : '&infin;'
-                );
+            case "watermark_content":
+                
                 break;
-            case "expire_date":
-                echo esc_html($this->get_value('yatra_coupon_expiry_date', $watermark_id));
-                break;
+
         }
         echo '</span>';
     }
