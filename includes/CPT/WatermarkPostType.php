@@ -48,8 +48,13 @@ class WatermarkPostType
             'supports' => array('title'),
             'menu_icon' => 'dashicons-location',
             'with_front' => true,
+            'capability_type' => 'post',
+            'capabilities' => array(
+                'create_posts' => 'do_not_allow',
+            ),
+            'map_meta_cap' => true, //  With this set to true, users will still be able to edit & delete posts
         );
-        register_post_type(self::$slug, $args);
+        register_post_type(self::$slug, apply_filters('ultimate_watermark_custom_post_type_' . self::$slug, $args));
 
     }
 
@@ -124,9 +129,9 @@ class WatermarkPostType
     {
         if (get_post_type($post_id) === self::$slug) {
             $count_posts = wp_count_posts(self::$slug)->publish;
-                if ($count_posts < 2 || !defined('ULTIMATE_WATERMARK_PRO_VERSION')) {
-                    wp_die(__('The watermark you were trying to delete is protected.', 'ultimate-watermark'));
-                }
+            if ($count_posts < 2 || !defined('ULTIMATE_WATERMARK_PRO_VERSION')) {
+                wp_die(__('Cannot delete watermark. Need more than one published watermark.', 'ultimate-watermark'));
+            }
         }
     }
 
