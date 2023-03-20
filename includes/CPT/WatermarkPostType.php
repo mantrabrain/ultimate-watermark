@@ -111,6 +111,24 @@ class WatermarkPostType
         echo '</span>';
     }
 
+    function remove_row_actions_post($actions, $post)
+    {
+        if ($post->post_type === self::$slug) {
+            unset($actions['clone']);
+            unset($actions['trash']);
+        }
+        return $actions;
+    }
+
+    function restrict_post_deletion($post_id)
+    {
+        if (get_post_type($post_id) === self::$slug) {
+            $count_posts = wp_count_posts(self::$slug)->publish;
+                if ($count_posts < 2 || !defined('ULTIMATE_WATERMARK_PRO_VERSION')) {
+                    wp_die(__('The watermark you were trying to delete is protected.', 'ultimate-watermark'));
+                }
+        }
+    }
 
     public function __construct()
     {
@@ -118,7 +136,10 @@ class WatermarkPostType
         add_filter('manage_edit-ultimate-watermark_columns', array($this, 'columns'));
         add_action('manage_ultimate-watermark_posts_custom_column', array($this, 'coupons_manage_columns'), 10, 2);
 
-
+        if (!defined('ULTIMATE_WATERMARK_PRO_VERSION')) {
+            add_filter('post_row_actions', array($this, 'remove_row_actions_post'), 10, 2);
+        }
+        add_action('wp_trash_post', array($this, 'restrict_post_deletion'));
     }
 
 }
