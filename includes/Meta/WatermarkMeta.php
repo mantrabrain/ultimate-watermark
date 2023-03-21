@@ -71,13 +71,13 @@ class WatermarkMeta
             return;
         }
 
-        $setting_tabs = array(
+        $setting_tabs = apply_filters('ultimate_watermark_watermark_setting_tabs', array(
             'watermark_general_options' => __('General Settings', 'ultimate-watermark'),
             'watermark_image_options' => __('Watermark Image', 'ultimate-watermark'),
             'watermark_position_options' => __('Watermark Position', 'ultimate-watermark'),
             'watermark_condition_options' => __('Apply Conditions', 'ultimate-watermark'),
 
-        );
+        ));
         $active_tab = get_post_meta($post->ID, 'ultimate_watermark_meta_active_tab', true);
 
         $active_tab = isset($setting_tabs[$active_tab]) ? $active_tab : 'watermark_general_options';
