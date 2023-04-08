@@ -26,7 +26,9 @@ class Ajax
 
         $watermark_image = $watermark->get_watermark_image();
 
-        if ($watermark_image->get_watermark_image() > 0) {
+        $watermark_general = $watermark->get_general();
+
+        if ($watermark_image->get_watermark_image() > 0 && $watermark_general->is_enabled()) {
 
             $watermark_file = wp_get_attachment_metadata($watermark_image->get_watermark_image(), true);
 

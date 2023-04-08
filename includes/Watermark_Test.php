@@ -3,6 +3,7 @@
 namespace Ultimate_Watermark;
 
 use Ultimate_Watermark\Watermark\WatermarkConditions;
+use Ultimate_Watermark\Watermark\WatermarkGeneral;
 use Ultimate_Watermark\Watermark\WatermarkImage;
 use Ultimate_Watermark\Watermark\WatermarkPosition;
 
@@ -13,6 +14,11 @@ class Watermark_Test
     public function __construct($watermark_id)
     {
         $this->watermark_id = $watermark_id;
+    }
+
+    public function get_general()
+    {
+        return new WatermarkGeneral($this->watermark_id);
     }
 
     public function get_conditions()
