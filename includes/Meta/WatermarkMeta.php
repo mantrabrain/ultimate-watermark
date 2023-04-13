@@ -49,8 +49,9 @@ class WatermarkMeta
 
         $active_tab = isset($_POST['ultimate_watermark_meta_active_tab']) ? sanitize_text_field($_POST['ultimate_watermark_meta_active_tab']) : 'watermark_general_options';
 
-
         update_post_meta($post_id, 'ultimate_watermark_meta_active_tab', $active_tab);
+
+        do_action('ultimate_watermark_after_save_watermark', $post_id);
 
     }
 
