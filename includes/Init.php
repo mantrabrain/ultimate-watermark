@@ -6,6 +6,7 @@ namespace Ultimate_Watermark;
 use Ultimate_Watermark\Admin\Ajax;
 use Ultimate_Watermark\Admin\Assets;
 use Ultimate_Watermark\Admin\Menu;
+use Ultimate_Watermark\Admin\Preview;
 use Ultimate_Watermark\Admin\Utils;
 use Ultimate_Watermark\Image\Watermark;
 use Ultimate_Watermark\Meta\WatermarkMeta;
@@ -185,6 +186,7 @@ final class Init
 
         if (is_admin()) {
             new Menu();
+            Preview::init();
         }
     }
 

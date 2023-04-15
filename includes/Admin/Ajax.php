@@ -10,38 +10,17 @@ class Ajax
     public function __construct()
     {
         add_action('wp_ajax_ulwm_watermark_bulk_action', array($this, 'watermark_action_ajax'));
-        add_action('wp_ajax_ultimate_watermark_preview_placeholder', array($this, 'watermark_preview'));
+        add_action('wp_ajax_ultimate_watermark_preview_placeholder', array($this, 'placeholder_preview'));
         add_action('wp_ajax_ultimate_watermark_status_change', array($this, 'status_change'));
 
 
     }
 
-    public function watermark_preview()
+    public function placeholder_preview()
     {
         $watermark_id = isset($_GET['watermark_id']) ? absint($_GET['watermark_id']) : 0;
 
-        $image_url = esc_url(ULTIMATE_WATERMARK_DIR) . 'assets/images/preview-placeholder.png';
-
-        $watermark = ultimate_watermark_get_watermark($watermark_id);
-
-        $watermark_image = $watermark->get_watermark_image();
-
-        $watermark_general = $watermark->get_general();
-
-        if ($watermark_image->get_watermark_image() > 0 && $watermark_general->is_enabled()) {
-
-            $watermark_file = wp_get_attachment_metadata($watermark_image->get_watermark_image(), true);
-
-            $upload_dir = wp_upload_dir();
-
-            $watermark_path = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . $watermark_file['file'];
-
-            $watermark_handler = new ImageWatermarkHandler(0, $watermark);
-
-            $watermark_handler->do_watermark($image_url, $watermark_path, [], false);
-        }
-
-        ultimate_watermark_print_image($image_url);
+        do_action('ultimate_watermark_placeholder_preview', $watermark_id);
 
         exit;
 
