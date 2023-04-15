@@ -19,6 +19,7 @@ class Preview
 
         $image_url = (ULTIMATE_WATERMARK_DIR) . 'assets/images/preview-placeholder.png';
 
+
         $watermark = ultimate_watermark_get_watermark($watermark_id);
 
         $watermark_image = $watermark->get_watermark_image();
