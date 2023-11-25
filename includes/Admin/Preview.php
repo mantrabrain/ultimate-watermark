@@ -17,7 +17,8 @@ class Preview
     public function preview_image_placeholder($watermark_id)
     {
 
-        $image_url = esc_url(ULTIMATE_WATERMARK_DIR) . 'assets/images/preview-placeholder.png';
+        $image_url = (ULTIMATE_WATERMARK_DIR) . 'assets/images/preview-placeholder.png';
+
 
         $watermark = ultimate_watermark_get_watermark($watermark_id);
 
