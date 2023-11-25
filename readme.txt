@@ -1,10 +1,10 @@
 === Image Watermark Plugin for WordPress, WordPress Watermark Plugin, Add Watermark on WordPress - Ultimate Watermark ===
-Contributors: mantrabrain
+Contributors: MantraBrain
 Donate link: https://mantrabrain.com
 Tags: image, watermark, media, photo, picture
 Requires at least: 5.0
-Tested up to: 6.1.1
-Stable tag: 1.0.10
+Tested up to: 6.4
+Stable tag: 1.0.11
 License: MIT License
 License URI: http://opensource.org/licenses/MIT
 
@@ -51,7 +51,5 @@ You just finished the minimal setup for Ultimate Watermark plugin. There are mor
 
 == Changelog ==
 
-= 1.0.10 - 2023/02/04 =
-* Fixed - Frontend watermark issue
-* Fixed - Watermark offset y not working issue fixed
-* Added - Negative offset option added
+= 1.0.11 - 2023/11/25 =
+* Fixed - WordPress 6.4 tested

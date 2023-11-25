@@ -1,3 +1,8 @@
+= 1.0.10 - 2023/02/04 =
+* Fixed - Frontend watermark issue
+* Fixed - Watermark offset y not working issue fixed
+* Added - Negative offset option added
+
 = 1.0.9 - 2022/12/13 =
 * Fixed - WordPress 6.1 compatibility issue fixed
 * Fixed - User Reported issue solved
