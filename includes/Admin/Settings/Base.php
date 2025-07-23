@@ -96,23 +96,9 @@ abstract class Base
      */
     public function output_sections()
     {
-        global $current_section;
-
-        $sections = $this->get_sections();
-
-        if (empty($sections) || 1 === sizeof($sections)) {
-            return;
-        }
-
-        echo '<ul class="subsubsub">';
-
-        $array_keys = array_keys($sections);
-
-        foreach ($sections as $id => $label) {
-            echo '<li><a href="' . admin_url('admin.php?page=ultimate-watermark&tab=' . $this->id . '&section=' . sanitize_title($id)) . '" class="' . ($current_section == $id ? 'current' : '') . '">' . $label . '</a> ' . (end($array_keys) == $id ? '' : '|') . ' </li>';
-        }
-
-        echo '</ul><br class="clear" />';
+        // Modern sub-navigation is now handled in the main settings template
+        // This method is kept for backward compatibility but no longer outputs the old subsubsub navigation
+        return;
     }
 
     /**

@@ -227,14 +227,16 @@ class Settings_Main {
 					// Section Titles.
 					case 'title':
 						if ( ! empty( $value['title'] ) ) {
-							echo '<h2>' . esc_html( $value['title'] ) . '</h2>';
-						}
-						if ( ! empty( $value['desc'] ) ) {
-							echo '<div id="' . esc_attr( sanitize_title( $value['id'] ) ) . '-description">';
-							echo wp_kses_post( wpautop( wptexturize( $value['desc'] ) ) );
+							echo '<div class="ultimate-watermark-section-header">';
+							echo '<h2 class="ultimate-watermark-section-title">' . esc_html( $value['title'] ) . '</h2>';
+							if ( ! empty( $value['desc'] ) ) {
+								echo '<div class="ultimate-watermark-section-description" id="' . esc_attr( sanitize_title( $value['id'] ) ) . '-description">';
+								echo wp_kses_post( wpautop( wptexturize( $value['desc'] ) ) );
+								echo '</div>';
+							}
 							echo '</div>';
 						}
-						echo '<table class="form-table">' . "\n\n";
+						echo '<div class="ultimate-watermark-settings-grid">';
 						if ( ! empty( $value['id'] ) ) {
 							do_action( 'ultimate_watermark_settings_' . sanitize_title( $value['id'] ) );
 						}
@@ -245,7 +247,7 @@ class Settings_Main {
 						if ( ! empty( $value['id'] ) ) {
 							do_action( 'ultimate_watermark_settings_' . sanitize_title( $value['id'] ) . '_end' );
 						}
-						echo '</table>';
+						echo '</div>';
 						if ( ! empty( $value['id'] ) ) {
 							do_action( 'ultimate_watermark_settings_' . sanitize_title( $value['id'] ) . '_after' );
 						}
@@ -471,54 +473,36 @@ class Settings_Main {
 						}
 
 						if ( ! isset( $value['checkboxgroup'] ) || 'start' === $value['checkboxgroup'] ) {
-                            $tr_class.=' '.implode( ' ', $visibility_class );
-							?>
-							<tr valign="top" class="<?php echo esc_attr($tr_class) ?>">
-									<th scope="row" class="titledesc"><?php echo esc_html( $value['title'] ); ?></th>
-									<td class="forminp forminp-checkbox">
-										<fieldset>
-							<?php
-						} else {
-							?>
-								<fieldset class="<?php echo esc_attr( implode( ' ', $visibility_class ) ); ?>">
-							<?php
+                            $tr_class .= ' ' . implode( ' ', $visibility_class );
 						}
-
-						if ( ! empty( $value['title'] ) ) {
-							?>
-								<legend class="screen-reader-text"><span><?php echo esc_html( $value['title'] ); ?></span></legend>
-							<?php
-						}
-
 						?>
-							<label for="<?php echo esc_attr( $value['id'] ); ?>">
-								<input
-									name="<?php echo esc_attr( $value['id'] ); ?>"
-									id="<?php echo esc_attr( $value['id'] ); ?>"
-									type="checkbox"
-									class="<?php echo esc_attr( isset( $value['class'] ) ? $value['class'] : '' ); ?>"
-									value="1"
-									<?php checked( $option_value, 'yes' ); ?>
-									<?php echo implode( ' ', $custom_attributes ); // WPCS: XSS ok. ?>
-								/> <?php echo $description; // WPCS: XSS ok. ?>
-							</label> <?php echo $tooltip_html; // WPCS: XSS ok. ?>
+						<div class="ultimate-watermark-setting-card <?php echo esc_attr($tr_class); ?>">
+							<div class="ultimate-watermark-setting-header">
+								<h3 class="ultimate-watermark-setting-title"><?php echo esc_html( $value['title'] ); ?></h3>
+								<?php echo $tooltip_html; // WPCS: XSS ok. ?>
+							</div>
+							<div class="ultimate-watermark-setting-content">
+								<div class="ultimate-watermark-checkbox-wrapper">
+									<label for="<?php echo esc_attr( $value['id'] ); ?>" class="ultimate-watermark-checkbox-label">
+										<input
+											name="<?php echo esc_attr( $value['id'] ); ?>"
+											id="<?php echo esc_attr( $value['id'] ); ?>"
+											type="checkbox"
+											class="<?php echo esc_attr( isset( $value['class'] ) ? $value['class'] : '' ); ?>"
+											value="1"
+											<?php checked( $option_value, 'yes' ); ?>
+											<?php echo implode( ' ', $custom_attributes ); // WPCS: XSS ok. ?>
+										/>
+										<span class="ultimate-watermark-checkbox-text"><?php echo $description; // WPCS: XSS ok. ?></span>
+									</label>
+								</div>
+							</div>
+						</div>
 						<?php
-
-						if ( ! isset( $value['checkboxgroup'] ) || 'end' === $value['checkboxgroup'] ) {
-										?>
-										</fieldset>
-									</td>
-								</tr>
-							<?php
-						} else {
-							?>
-								</fieldset>
-							<?php
-						}
 						break;
 
 
-					// Checkbox input.
+					// Multicheckbox input.
 					case 'multicheckbox':
 						$option_value     = self::get_option( $value['id'], $value['default'] );
 						$visibility_class = array();
@@ -538,65 +522,48 @@ class Settings_Main {
 						if ( 'option' === $value['show_if_checked'] ) {
 							$visibility_class[] = 'show_options_if_checked';
 						}
-                        $tr_class.= ' '.implode( ' ', $visibility_class );
- 							?>
- 							    <tr valign="top" class="<?php echo esc_attr($tr_class) ?>">
-									<th scope="row" class="titledesc"><?php echo esc_html( $value['title'] ); ?>
-									<?php echo $tooltip_html; // WPCS: XSS ok. ?></th>
-									<td class="forminp forminp-checkbox">
-
-                            <?php $checkbox_options = isset($value['options']) ? $value['options']: array();
-
-                            foreach($checkbox_options as  $checkbox_option_values){
-
-                                $main_id = $value['id'];
-
-                                $multi_checkbox_id = isset($checkbox_option_values['id']) ? $checkbox_option_values['id']: '';
-
-                                $multi_checkbox_title = isset($checkbox_option_values['title']) ? $checkbox_option_values['title']: '';
-
-                                 $multi_checkbox_option_value = isset($option_value[$multi_checkbox_id]) ? $option_value[$multi_checkbox_id]:'';
-
-                                if(!empty($multi_checkbox_id )){
-
-                                    $multi_checkbox_id=$main_id.'['.$multi_checkbox_id.']';
-                                }
-                             ?>
-
-										<fieldset>
-							<?php
-
-
-						if ( ! empty( $value['title'] ) ) {
-							?>
-								<legend class="screen-reader-text"><span><?php echo esc_html( $value['title'] ); ?></span></legend>
-							<?php
-						}
-
+						$tr_class .= ' ' . implode( ' ', $visibility_class );
 						?>
-							<label for="<?php echo esc_attr( $multi_checkbox_id ); ?>">
-								<input
-									name="<?php echo esc_attr( $multi_checkbox_id ); ?>"
-									id="<?php echo esc_attr( $multi_checkbox_id ); ?>"
-									type="checkbox"
-									class="<?php echo esc_attr( isset( $value['class'] ) ? $value['class'] : '' ); ?>"
-									value="1"
-									<?php checked( $multi_checkbox_option_value, 'yes' ); ?>
-									<?php echo implode( ' ', $custom_attributes ); // WPCS: XSS ok. ?>
-								/> <?php echo $multi_checkbox_title; // WPCS: XSS ok. ?>
-							</label>
+						<div class="ultimate-watermark-setting-card <?php echo esc_attr($tr_class); ?>">
+							<div class="ultimate-watermark-setting-header">
+								<h3 class="ultimate-watermark-setting-title"><?php echo esc_html( $value['title'] ); ?></h3>
+								<?php echo $tooltip_html; // WPCS: XSS ok. ?>
+							</div>
+							<div class="ultimate-watermark-setting-content">
+								<div class="ultimate-watermark-multicheckbox-wrapper">
+									<?php 
+									$checkbox_options = isset($value['options']) ? $value['options']: array();
+
+									foreach($checkbox_options as $checkbox_option_values){
+										$main_id = $value['id'];
+										$multi_checkbox_id = isset($checkbox_option_values['id']) ? $checkbox_option_values['id']: '';
+										$multi_checkbox_title = isset($checkbox_option_values['title']) ? $checkbox_option_values['title']: '';
+										$multi_checkbox_option_value = isset($option_value[$multi_checkbox_id]) ? $option_value[$multi_checkbox_id]:'';
+
+										if(!empty($multi_checkbox_id)){
+											$multi_checkbox_id = $main_id.'['.$multi_checkbox_id.']';
+										}
+									?>
+									<label for="<?php echo esc_attr( $multi_checkbox_id ); ?>" class="ultimate-watermark-multicheckbox-label">
+										<input
+											name="<?php echo esc_attr( $multi_checkbox_id ); ?>"
+											id="<?php echo esc_attr( $multi_checkbox_id ); ?>"
+											type="checkbox"
+											class="<?php echo esc_attr( isset( $value['class'] ) ? $value['class'] : '' ); ?>"
+											value="1"
+											<?php checked( $multi_checkbox_option_value, 'yes' ); ?>
+											<?php echo implode( ' ', $custom_attributes ); // WPCS: XSS ok. ?>
+										/> 
+										<span class="ultimate-watermark-multicheckbox-text"><?php echo $multi_checkbox_title; // WPCS: XSS ok. ?></span>
+									</label>
+									<?php } ?>
+								</div>
+								<div class="ultimate-watermark-setting-description">
+									<?php echo ($field_description['description']); ?>
+								</div>
+							</div>
+						</div>
 						<?php
-
-  										?>
-										</fieldset>
-										<?php } ?>
-										<small><?php
-								            echo ($field_description['description']);
-										 ?></small>
-									</td>
-								</tr>
-							<?php
-
 						break;
 
 					// Single page selects.
@@ -634,11 +601,12 @@ class Settings_Main {
                             $attachment_url = (absint($option_value)>0) ?wp_get_attachment_url($option_value): '';
                             $image_attributes = wp_get_attachment_image_src( $option_value, 'full' );
                             ?>
-                            <tr valign="top" class="<?php echo esc_attr($tr_class) ?>">
-                                <th scope="row" class="titledesc">
-                                    <label for="<?php echo esc_attr( $value['id'] ); ?>"><?php echo esc_html( $value['title'] ); ?> <?php echo $tooltip_html; // WPCS: XSS ok. ?></label>
-                                </th>
-                                <td class="forminp forminp-<?php echo esc_attr( sanitize_title( $value['type'] ) ); ?>">
+                            <div class="ultimate-watermark-setting-card <?php echo esc_attr($tr_class); ?>">
+                                <div class="ultimate-watermark-setting-header">
+                                    <h3 class="ultimate-watermark-setting-title"><?php echo esc_html( $value['title'] ); ?></h3>
+                                    <?php echo $tooltip_html; // WPCS: XSS ok. ?>
+                                </div>
+                                <div class="ultimate-watermark-setting-content">
                                     <input
                                         name="<?php echo esc_attr( $value['id'] ); ?>"
                                         id="<?php echo esc_attr( $value['id'] ); ?>"
@@ -648,11 +616,11 @@ class Settings_Main {
                                         class="attachment_id <?php echo esc_attr( $value['class'] ); ?>"
                                         placeholder="<?php echo esc_attr( $value['placeholder'] ); ?>"
                                         <?php echo implode( ' ', $custom_attributes ); // WPCS: XSS ok. ?>
-                                        /><?php echo esc_html( $value['suffix'] ); ?> <?php echo $description; // WPCS: XSS ok. ?>
+                                        /><?php echo esc_html( $value['suffix'] ); ?>
 
                                     <div class="image-buttons">
-                                        <input id="ultimate_watermark_upload_image_button" type="button" class="ultimate_watermark_upload_image_button button button-secondary" value="Select image">
-                                        <input id="ultimate_watermark_remove_image_button" type="button" class="ultimate_watermark_remove_image_button button-secondary" value="Remove image">
+                                        <input id="ultimate_watermark_upload_image_button_<?php echo esc_attr( $value['id'] ); ?>" type="button" class="ultimate_watermark_upload_image_button button button-secondary" value="Select image">
+                                        <input id="ultimate_watermark_remove_image_button_<?php echo esc_attr( $value['id'] ); ?>" type="button" class="ultimate_watermark_remove_image_button button-secondary" value="Remove image">
                                     </div>
                                     <div class="preview-image <?php echo  $attachment_url==='' ? 'ultimate-watermark-hide': '';?>">
                                         <img  src="<?php echo esc_attr($attachment_url) ?>" alt="" width="300">
@@ -663,8 +631,11 @@ class Settings_Main {
                                             }?>
                                        </p>
                                     </div>
-                                </td>
-                            </tr>
+                                    <div class="ultimate-watermark-setting-description">
+                                        <?php echo $description; // WPCS: XSS ok. ?>
+                                    </div>
+                                </div>
+                            </div>
                             <?php
 						    break;
 						    case "slider":

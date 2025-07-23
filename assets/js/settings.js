@@ -22,30 +22,36 @@ jQuery(document).ready(function ($) {
         select: function () {
             var _that = this;
             var attachment = this.frame.state().get('selection').first();
+            console.log('Image selected:', attachment.attributes);
 
-            var elementTd = $(selectedElement).closest('td');
+            var elementCard = $(selectedElement).closest('.ultimate-watermark-setting-card');
+            console.log('Element card found:', elementCard.length);
             selectedElement = null;
             if ($.inArray(attachment.attributes.mime, ['image/gif', 'image/jpg', 'image/jpeg', 'image/png']) !== -1) {
 
-                elementTd.find('input.attachment_id').val(attachment.attributes.id);
+                elementCard.find('input.attachment_id').val(attachment.attributes.id);
+                console.log('Set attachment ID:', attachment.attributes.id);
 
-                elementTd.find('.preview-image').find('img').attr('src', attachment.attributes.url);
+                elementCard.find('.preview-image').find('img').attr('src', attachment.attributes.url);
+                console.log('Set image src:', attachment.attributes.url);
 
-                elementTd.find('.preview-image').show();
+                elementCard.find('.preview-image').show();
+                console.log('Show preview image');
 
-                elementTd.find('.ultimate_watermark_remove_image_button').removeAttr('disabled');
+                elementCard.find('.ultimate_watermark_remove_image_button').removeAttr('disabled');
                 var img = new Image();
                 img.src = attachment.attributes.url;
                 img.onload = function () {
-                    elementTd.find('.preview-image').find('p').html(ultimateWatermarkSettings.originalSize + ': ' + this.width + ' ' + ultimateWatermarkSettings.px + ' / ' + this.height + ' ' + ultimateWatermarkSettings.px);
+                    elementCard.find('.preview-image').find('p').html(ultimateWatermarkSettings.originalSize + ': ' + this.width + ' ' + ultimateWatermarkSettings.px + ' / ' + this.height + ' ' + ultimateWatermarkSettings.px);
+                    console.log('Image loaded, dimensions:', this.width + 'x' + this.height);
                 }
 
             } else {
 
-                elementTd.find('.ultimate_watermark_remove_image_button').attr('disabled', 'true');
-                elementTd.find('input.attachment_id').val(0);
-                elementTd.find('.preview-image').hide();
-                elementTd.find('.preview-image').find('p').html('<strong>' + ultimateWatermarkSettings.notAllowedImg + '</strong>');
+                elementCard.find('.ultimate_watermark_remove_image_button').attr('disabled', 'true');
+                elementCard.find('input.attachment_id').val(0);
+                elementCard.find('.preview-image').hide();
+                elementCard.find('.preview-image').find('p').html('<strong>' + ultimateWatermarkSettings.notAllowedImg + '</strong>');
 
             }
         },
@@ -54,6 +60,7 @@ jQuery(document).ready(function ($) {
             $('body').on('click', '.ultimate_watermark_upload_image_button', function (e) {
                 e.preventDefault();
                 selectedElement = $(this);
+                console.log('Upload button clicked:', selectedElement);
                 _that.frame().open();
             });
             _that.initSlider();
@@ -126,8 +133,8 @@ jQuery(document).ready(function ($) {
 
     $(document).on('click', '.ultimate_watermark_remove_image_button', function (event) {
         $(this).attr('disabled', 'true');
-        $(this).closest('td').find('input.attachment_id').val(0);
-        $(this).closest('td').find('.preview-image').hide();
+        $(this).closest('.ultimate-watermark-setting-card').find('input.attachment_id').val(0);
+        $(this).closest('.ultimate-watermark-setting-card').find('.preview-image').hide();
     });
 
 });
