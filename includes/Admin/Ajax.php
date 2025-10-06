@@ -14,6 +14,9 @@ class Ajax
 
     public function watermark_action_ajax()
     {
+        if ( ! current_user_can( 'edit_posts' ) ) {
+            wp_die( __( 'Unauthorized user', 'ultimate-watermark' ) );
+        }
         //Need to modify the code before go to live
         if ($_POST['ulwm-action'] === "apply_video_watermark") {
 

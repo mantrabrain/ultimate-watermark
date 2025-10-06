@@ -3,6 +3,13 @@
 namespace Ultimate_Watermark;
 class Hooks
 {
+    /**
+     * Whether the current request is from admin area
+     * 
+     * @var bool
+     */
+    private $is_admin;
+
     public function __construct()
     {
         add_filter('wp_handle_upload', array($this, 'handle_upload_files'));

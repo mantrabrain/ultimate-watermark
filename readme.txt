@@ -4,7 +4,7 @@ Donate link: https://mantrabrain.com
 Tags: image, watermark, media, photo, protection
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.1
+Stable tag: 1.1.1
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Requires PHP: 7.4
@@ -226,7 +226,9 @@ Built with both GD and ImageMagick support, Ultimate Watermark offers enterprise
 
 
 == Changelog ==
-
+= 1.1.1- 2025/10/06 =
+* Fixed - capability check issue fixed
+* Fixed - PHP Deprication warning fixed
 = 1.1 - 2025/07/23 =
 * Fixed - WordPress 6.9 compatibility verified
 * Enhanced - Improved setting page design
