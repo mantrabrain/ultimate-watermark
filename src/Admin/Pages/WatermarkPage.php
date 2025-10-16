@@ -6,6 +6,7 @@ use MantraBrain\UltimateWatermark\Core\Traits\SingletonTrait;
 use MantraBrain\UltimateWatermark\Admin\Components\Layout;
 use MantraBrain\UltimateWatermark\Admin\Components\ConfirmationModal;
 use MantraBrain\UltimateWatermark\PostTypes\WatermarkPostType;
+use MantraBrain\UltimateWatermark\Utils\WatermarkUsageTracker;
 
 /**
  * Watermark Page Class
@@ -266,7 +267,35 @@ class WatermarkPage
             </td>
             <td class="preview-column">
                 <div class="watermark-preview">
-                    <img src="<?php echo esc_url($watermark['preview_url']); ?>" alt="<?php echo esc_attr($watermark['name']); ?>" class="preview-thumbnail">
+                    <?php if ($watermark['type'] === 'text'): ?>
+                        <div class="text-watermark-preview">
+                            <span class="watermark-text" style="
+                                color: <?php echo esc_attr($watermark['watermark_color']); ?>;
+                                font-size: <?php echo esc_attr($watermark['watermark_font_size']); ?>px;
+                                font-family: <?php echo esc_attr($watermark['watermark_font_family']); ?>;
+                                font-weight: <?php echo esc_attr($watermark['watermark_font_weight']); ?>;
+                                font-style: <?php echo esc_attr($watermark['watermark_font_style']); ?>;
+                                text-decoration: <?php echo esc_attr($watermark['watermark_text_decoration']); ?>;
+                                display: inline-block;
+                                max-width: 100%;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                                white-space: nowrap;
+                            ">
+                                <?php echo esc_html($watermark['watermark_text']); ?>
+                            </span>
+                        </div>
+                    <?php else: ?>
+                        <div class="image-watermark-preview">
+                            <?php 
+                            if ($watermark['watermark_image_id'] && !empty($watermark['image_url'])) {
+                                echo '<img src="' . esc_url($watermark['image_url']) . '" alt="' . esc_attr($watermark['name']) . '" class="watermark-image-preview">';
+                            } else {
+                                echo '<div class="no-image">' . esc_html__('No image set', 'ultimate-watermark') . '</div>';
+                            }
+                            ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </td>
             <td class="behavior-column">
@@ -306,8 +335,15 @@ class WatermarkPage
             </td>
             <td class="usage-column">
                 <div class="usage-stats">
-                    <span class="usage-count"><?php echo esc_html($watermark['usage_count']); ?></span>
-                    <span class="usage-label"><?php esc_html_e('times used', 'ultimate-watermark'); ?></span>
+                    <div class="usage-count-display">
+                        <span class="usage-count"><?php echo esc_html($watermark['usage_count']); ?></span>
+                        <span class="usage-label"><?php esc_html_e('times used', 'ultimate-watermark'); ?></span>
+                    </div>
+                    <?php if ($watermark['usage_count'] > 0): ?>
+                        <div class="usage-details">
+                            <span class="unique-images"><?php echo esc_html($watermark['unique_images']); ?> <?php esc_html_e('images', 'ultimate-watermark'); ?></span>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </td>
             <td class="status-column">
@@ -327,33 +363,116 @@ class WatermarkPage
      */
     private function getWatermarks(): array
     {
-        $watermarks = [];
+        // Check if we already have cached watermarks for this request
+        static $cached_watermarks = null;
+        if ($cached_watermarks !== null) {
+            return $cached_watermarks;
+        }
         
-        // Query watermarks from database
+        global $wpdb;
+        
+        // Get all watermark IDs first
+        $watermark_ids = $wpdb->get_col($wpdb->prepare("
+            SELECT ID FROM {$wpdb->posts} 
+            WHERE post_type = %s AND post_status = 'publish' 
+            ORDER BY post_date DESC
+        ", WatermarkPostType::POST_TYPE));
+        
+        if (empty($watermark_ids)) {
+            return [];
+        }
+        
+        // Create placeholders for the IN clause
+        $placeholders = implode(',', array_fill(0, count($watermark_ids), '%d'));
+        
+        // Get all meta data in one query
+        $meta_data = $wpdb->get_results($wpdb->prepare("
+            SELECT post_id, meta_key, meta_value 
+            FROM {$wpdb->postmeta} 
+            WHERE post_id IN ($placeholders)
+            AND meta_key IN (
+                'watermark_type', 'watermark_position', 'watermark_opacity', 'watermark_image_id',
+                'automatic_watermarking', 'manual_watermarking', 'frontend_watermarking',
+                'watermark_on', 'watermark_post_types', 'watermark_sizes',
+                'watermark_text', 'watermark_color', 'watermark_font_size', 'watermark_font_family',
+                'watermark_font_weight', 'watermark_font_style', 'watermark_text_decoration',
+                'active', 'watermark_usage_count', 'watermark_used_images'
+            )
+        ", $watermark_ids));
+        
+        // Get usage data in one query
+        $usage_data = $wpdb->get_results($wpdb->prepare("
+            SELECT post_id, meta_value 
+            FROM {$wpdb->postmeta} 
+            WHERE post_id IN ($placeholders)
+            AND meta_key = 'watermark_usage_count'
+        ", $watermark_ids));
+        
+        // Get used images data in one query
+        $used_images_data = $wpdb->get_results($wpdb->prepare("
+            SELECT post_id, meta_value 
+            FROM {$wpdb->postmeta} 
+            WHERE post_id IN ($placeholders)
+            AND meta_key = 'watermark_used_images'
+        ", $watermark_ids));
+        
+        // Organize meta data by post ID
+        $meta_by_post = [];
+        foreach ($meta_data as $meta) {
+            $meta_by_post[$meta->post_id][$meta->meta_key] = $meta->meta_value;
+        }
+        
+        // Organize usage data by post ID
+        $usage_by_post = [];
+        foreach ($usage_data as $usage) {
+            $usage_by_post[$usage->post_id] = intval($usage->meta_value);
+        }
+        
+        // Organize used images data by post ID
+        $used_images_by_post = [];
+        foreach ($used_images_data as $used_images) {
+            $images = maybe_unserialize($used_images->meta_value);
+            $used_images_by_post[$used_images->post_id] = is_array($images) ? $images : [];
+        }
+        
+        // Get posts data
         $posts = get_posts([
             'post_type' => WatermarkPostType::POST_TYPE,
             'post_status' => 'publish',
             'numberposts' => -1,
             'orderby' => 'date',
-            'order' => 'DESC'
+            'order' => 'DESC',
+            'post__in' => $watermark_ids
         ]);
         
+        $watermarks = [];
         foreach ($posts as $post) {
-            $watermark_type = get_post_meta($post->ID, 'watermark_type', true) ?: 'text';
-            $watermark_position = get_post_meta($post->ID, 'watermark_position', true) ?: 'bottom-right';
-            $watermark_opacity = get_post_meta($post->ID, 'watermark_opacity', true) ?: 50;
-            $watermark_image_id = get_post_meta($post->ID, 'watermark_image_id', true);
-            $watermark_image_id = $watermark_image_id ? intval($watermark_image_id) : 0;
+            $post_meta = $meta_by_post[$post->ID] ?? [];
+            
+            // Extract meta values with defaults
+            $watermark_type = $post_meta['watermark_type'] ?? 'text';
+            $watermark_position = $post_meta['watermark_position'] ?? 'bottom-right';
+            $watermark_opacity = $post_meta['watermark_opacity'] ?? 50;
+            $watermark_image_id = isset($post_meta['watermark_image_id']) ? intval($post_meta['watermark_image_id']) : 0;
             
             // Get behavior settings
-            $automatic_watermarking = get_post_meta($post->ID, 'automatic_watermarking', true) ?: '0';
-            $manual_watermarking = get_post_meta($post->ID, 'manual_watermarking', true) ?: '0';
-            $frontend_watermarking = get_post_meta($post->ID, 'frontend_watermarking', true) ?: '0';
+            $automatic_watermarking = $post_meta['automatic_watermarking'] ?? '0';
+            $manual_watermarking = $post_meta['manual_watermarking'] ?? '0';
+            $frontend_watermarking = $post_meta['frontend_watermarking'] ?? '0';
             
             // Get rules settings
-            $watermark_on = get_post_meta($post->ID, 'watermark_on', true) ?: 'everywhere';
-            $watermark_post_types = get_post_meta($post->ID, 'watermark_post_types', true) ?: [];
-            $watermark_sizes = get_post_meta($post->ID, 'watermark_sizes', true) ?: [];
+            $watermark_on = $post_meta['watermark_on'] ?? 'everywhere';
+            $watermark_post_types = $post_meta['watermark_post_types'] ?? [];
+            $watermark_sizes = $post_meta['watermark_sizes'] ?? [];
+            
+            // Get text watermark settings for preview
+            $watermark_text = $post_meta['watermark_text'] ?? 'Watermark';
+            $watermark_color = $post_meta['watermark_color'] ?? '#000000';
+            $watermark_font_size = $post_meta['watermark_font_size'] ?? 24;
+            $watermark_font_family = $post_meta['watermark_font_family'] ?? 'Arial';
+            $watermark_font_weight = $post_meta['watermark_font_weight'] ?? 'normal';
+            $watermark_font_style = $post_meta['watermark_font_style'] ?? 'normal';
+            $watermark_text_decoration = $post_meta['watermark_text_decoration'] ?? 'none';
             
             // Ensure arrays are properly formatted
             if (is_string($watermark_post_types)) {
@@ -363,14 +482,27 @@ class WatermarkPage
                 $watermark_sizes = maybe_unserialize($watermark_sizes) ?: [];
             }
             
-            // Get preview URL
+            // Get preview URL (simplified - no database calls)
             $preview_url = $this->getWatermarkPreviewUrl($post->ID, $watermark_type, $watermark_image_id);
             
-            // Get usage count (placeholder for now)
-            $usage_count = get_post_meta($post->ID, 'usage_count', true) ?: 0;
+            // Pre-generate image URL for image watermarks to avoid additional queries
+            $image_url = '';
+            if ($watermark_type === 'image' && $watermark_image_id > 0) {
+                $image_url = wp_get_attachment_image_url($watermark_image_id, 'thumbnail');
+            }
+            
+            // Get usage count from pre-fetched data
+            $usage_count = $usage_by_post[$post->ID] ?? 0;
+            
+            // Get unique images count from pre-fetched data
+            $unique_images = 0;
+            if ($usage_count > 0) {
+                $used_images = $used_images_by_post[$post->ID] ?? [];
+                $unique_images = count($used_images);
+            }
             
             // Check if watermark is active
-            $active_meta = get_post_meta($post->ID, 'active', true);
+            $active_meta = $post_meta['active'] ?? false;
             $active = ($active_meta === '1' || $active_meta === 'true' || $active_meta === true);
             
             // Debug logging
@@ -385,6 +517,7 @@ class WatermarkPage
                 'opacity' => $watermark_opacity,
                 'active' => $active,
                 'usage_count' => $usage_count,
+                'unique_images' => $unique_images,
                 'preview_url' => $preview_url,
                 'created_at' => $post->post_date,
                 'automatic_watermarking' => $automatic_watermarking,
@@ -392,11 +525,34 @@ class WatermarkPage
                 'frontend_watermarking' => $frontend_watermarking,
                 'watermark_on' => $watermark_on,
                 'watermark_post_types' => $watermark_post_types,
-                'watermark_sizes' => $watermark_sizes
+                'watermark_sizes' => $watermark_sizes,
+                // Preview data
+                'watermark_text' => $watermark_text,
+                'watermark_color' => $watermark_color,
+                'watermark_font_size' => $watermark_font_size,
+                'watermark_font_family' => $watermark_font_family,
+                'watermark_font_weight' => $watermark_font_weight,
+                'watermark_font_style' => $watermark_font_style,
+                'watermark_text_decoration' => $watermark_text_decoration,
+                'watermark_image_id' => $watermark_image_id,
+                'image_url' => $image_url
             ];
         }
         
+        // Cache the results for this request
+        $cached_watermarks = $watermarks;
+        
         return $watermarks;
+    }
+
+    /**
+     * Clear watermarks cache
+     * Call this when watermarks are modified
+     */
+    public static function clearWatermarksCache(): void
+    {
+        // The static cache will be automatically cleared on the next page load
+        // For immediate clearing, we could use WordPress transients, but static cache is sufficient for this use case
     }
 
     /**
@@ -404,67 +560,25 @@ class WatermarkPage
      */
     public static function getActiveWatermarks(): array
     {
-        $watermarks = [];
+        // Use the cached watermarks and filter for active ones
+        $instance = self::getInstance();
+        $all_watermarks = $instance->getWatermarks();
         
-        // Query only active watermarks from database
-        $posts = get_posts([
-            'post_type' => WatermarkPostType::POST_TYPE,
-            'post_status' => 'publish',
-            'numberposts' => -1,
-            'orderby' => 'date',
-            'order' => 'DESC',
-            'meta_query' => [
-                [
-                    'key' => 'active',
-                    'value' => '1',
-                    'compare' => '='
-                ]
-            ]
-        ]);
-        
-        foreach ($posts as $post) {
-            $watermark_type = get_post_meta($post->ID, 'watermark_type', true) ?: 'text';
-            $watermark_position = get_post_meta($post->ID, 'watermark_position', true) ?: 'bottom-right';
-            $watermark_opacity = get_post_meta($post->ID, 'watermark_opacity', true) ?: 50;
-            $watermark_image_id = get_post_meta($post->ID, 'watermark_image_id', true);
-            $watermark_image_id = $watermark_image_id ? intval($watermark_image_id) : 0;
-            
-            // Get behavior settings
-            $automatic_watermarking = get_post_meta($post->ID, 'automatic_watermarking', true) ?: '0';
-            $manual_watermarking = get_post_meta($post->ID, 'manual_watermarking', true) ?: '0';
-            $frontend_watermarking = get_post_meta($post->ID, 'frontend_watermarking', true) ?: '0';
-            
-            // Get rules settings
-            $watermark_on = get_post_meta($post->ID, 'watermark_on', true) ?: 'everywhere';
-            $watermark_post_types = get_post_meta($post->ID, 'watermark_post_types', true) ?: [];
-            $watermark_sizes = get_post_meta($post->ID, 'watermark_sizes', true) ?: [];
-            
-            // Ensure arrays are properly formatted
-            if (is_string($watermark_post_types)) {
-                $watermark_post_types = maybe_unserialize($watermark_post_types) ?: [];
+        // Filter for active watermarks only
+        $active_watermarks = [];
+        foreach ($all_watermarks as $watermark) {
+            if ($watermark['active']) {
+                $active_watermarks[] = [
+                    'id' => $watermark['id'],
+                    'name' => $watermark['name'],
+                    'type' => $watermark['type'],
+                    'position' => $watermark['position'],
+                    'opacity' => $watermark['opacity']
+                ];
             }
-            if (is_string($watermark_sizes)) {
-                $watermark_sizes = maybe_unserialize($watermark_sizes) ?: [];
-            }
-            
-            $watermarks[] = [
-                'id' => $post->ID,
-                'name' => $post->post_title,
-                'description' => $post->post_content,
-                'type' => $watermark_type,
-                'position' => $watermark_position,
-                'opacity' => $watermark_opacity,
-                'active' => true, // All watermarks returned by this method are active
-                'automatic_watermarking' => $automatic_watermarking,
-                'manual_watermarking' => $manual_watermarking,
-                'frontend_watermarking' => $frontend_watermarking,
-                'watermark_on' => $watermark_on,
-                'watermark_post_types' => $watermark_post_types,
-                'watermark_sizes' => $watermark_sizes
-            ];
         }
         
-        return $watermarks;
+        return $active_watermarks;
     }
 
     /**

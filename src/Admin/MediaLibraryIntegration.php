@@ -38,6 +38,10 @@ class MediaLibraryIntegration
         // Add confirmation modal to media library
         add_action('admin_footer', [$this, 'addConfirmationModal']);
         
+        // Add cleanup hooks for usage tracking
+        add_action('delete_post', [$this, 'cleanupWatermarkUsage']);
+        add_action('delete_attachment', [$this, 'cleanupImageUsage']);
+        
         // MediaLibraryIntegration hooks registered
     }
 
@@ -171,6 +175,9 @@ class MediaLibraryIntegration
             return false;
         }
 
+        // Get applied watermarks before removal
+        $applied_watermarks = WatermarkUsageTracker::getAppliedWatermarks($attachment_id);
+        
         // Check if backup exists
         $backup_path = $this->getBackupPath($file_path);
         if (!$backup_path || !file_exists($backup_path)) {
@@ -183,6 +190,12 @@ class MediaLibraryIntegration
             if (copy($backup_path, $file_path)) {
                 // Update attachment metadata
                 wp_generate_attachment_metadata($attachment_id, $file_path);
+                
+                // Track watermark usage removal for all applied watermarks
+                foreach ($applied_watermarks as $watermark_id) {
+                    WatermarkUsageTracker::decrementUsage($watermark_id, $attachment_id);
+                }
+                
                 return true;
             }
         } catch (\Exception $e) {
@@ -258,6 +271,9 @@ class MediaLibraryIntegration
                 
                 // Update attachment metadata
                 wp_generate_attachment_metadata($attachment_id, $original_path);
+                
+                // Track watermark usage
+                WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id);
                 
                 return true;
             }
@@ -1075,5 +1091,26 @@ class MediaLibraryIntegration
         }
         </style>
         <?php
+    }
+
+    /**
+     * Clean up watermark usage when watermark is deleted
+     */
+    public function cleanupWatermarkUsage(int $post_id): void
+    {
+        $post = get_post($post_id);
+        if (!$post || $post->post_type !== 'ultimate_watermark') {
+            return;
+        }
+
+        WatermarkUsageTracker::cleanupWatermarkUsage($post_id);
+    }
+
+    /**
+     * Clean up image usage when image is deleted
+     */
+    public function cleanupImageUsage(int $attachment_id): void
+    {
+        WatermarkUsageTracker::cleanupImageUsage($attachment_id);
     }
 }
