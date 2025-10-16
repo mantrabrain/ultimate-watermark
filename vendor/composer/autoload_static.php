@@ -4,32 +4,63 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit372d8162393dc556292027e5cef285cd
+class ComposerStaticInit7109dc1c1296832f9aef75d99326f298
 {
     public static $prefixLengthsPsr4 = array (
-        'U' => 
+        'M' => 
         array (
-            'Ultimate_Watermark\\' => 19,
+            'MantraBrain\\UltimateWatermark\\Tests\\' => 36,
+            'MantraBrain\\UltimateWatermark\\' => 30,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'Ultimate_Watermark\\' => 
+        'MantraBrain\\UltimateWatermark\\Tests\\' => 
         array (
-            0 => __DIR__ . '/../..' . '/includes',
+            0 => __DIR__ . '/../..' . '/tests',
+        ),
+        'MantraBrain\\UltimateWatermark\\' => 
+        array (
+            0 => __DIR__ . '/../..' . '/src',
         ),
     );
 
     public static $classMap = array (
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
+        'MantraBrain\\UltimateWatermark\\Admin\\AdminManager' => __DIR__ . '/../..' . '/src/Admin/AdminManager.php',
+        'MantraBrain\\UltimateWatermark\\Admin\\Components\\ConfirmationModal' => __DIR__ . '/../..' . '/src/Admin/Components/ConfirmationModal.php',
+        'MantraBrain\\UltimateWatermark\\Admin\\Components\\Footer' => __DIR__ . '/../..' . '/src/Admin/Components/Footer.php',
+        'MantraBrain\\UltimateWatermark\\Admin\\Components\\Header' => __DIR__ . '/../..' . '/src/Admin/Components/Header.php',
+        'MantraBrain\\UltimateWatermark\\Admin\\Components\\Layout' => __DIR__ . '/../..' . '/src/Admin/Components/Layout.php',
+        'MantraBrain\\UltimateWatermark\\Admin\\Pages\\AddWatermarkPage' => __DIR__ . '/../..' . '/src/Admin/Pages/AddWatermarkPage.php',
+        'MantraBrain\\UltimateWatermark\\Admin\\Pages\\DashboardPage' => __DIR__ . '/../..' . '/src/Admin/Pages/DashboardPage.php',
+        'MantraBrain\\UltimateWatermark\\Admin\\Pages\\SettingsPage' => __DIR__ . '/../..' . '/src/Admin/Pages/SettingsPage.php',
+        'MantraBrain\\UltimateWatermark\\Admin\\Pages\\WatermarkPage' => __DIR__ . '/../..' . '/src/Admin/Pages/WatermarkPage.php',
+        'MantraBrain\\UltimateWatermark\\Admin\\Templates\\WatermarkModal' => __DIR__ . '/../..' . '/src/Admin/Templates/WatermarkModal.php',
+        'MantraBrain\\UltimateWatermark\\Ajax\\WatermarkActionsHandler' => __DIR__ . '/../..' . '/src/Ajax/WatermarkActionsHandler.php',
+        'MantraBrain\\UltimateWatermark\\Ajax\\WatermarkAjaxHandler' => __DIR__ . '/../..' . '/src/Ajax/WatermarkAjaxHandler.php',
+        'MantraBrain\\UltimateWatermark\\Ajax\\WatermarkPreviewHandler' => __DIR__ . '/../..' . '/src/Ajax/WatermarkPreviewHandler.php',
+        'MantraBrain\\UltimateWatermark\\Assets\\AssetManager' => __DIR__ . '/../..' . '/src/Assets/AssetManager.php',
+        'MantraBrain\\UltimateWatermark\\Components\\Toast' => __DIR__ . '/../..' . '/src/Components/Toast.php',
+        'MantraBrain\\UltimateWatermark\\Core\\Activator' => __DIR__ . '/../..' . '/src/Core/Activator.php',
+        'MantraBrain\\UltimateWatermark\\Core\\Deactivator' => __DIR__ . '/../..' . '/src/Core/Deactivator.php',
+        'MantraBrain\\UltimateWatermark\\Core\\Interfaces\\PluginInterface' => __DIR__ . '/../..' . '/src/Core/Interfaces/PluginInterface.php',
+        'MantraBrain\\UltimateWatermark\\Core\\Plugin' => __DIR__ . '/../..' . '/src/Core/Plugin.php',
+        'MantraBrain\\UltimateWatermark\\Core\\Traits\\SingletonTrait' => __DIR__ . '/../..' . '/src/Core/Traits/SingletonTrait.php',
+        'MantraBrain\\UltimateWatermark\\PostTypes\\WatermarkPostType' => __DIR__ . '/../..' . '/src/PostTypes/WatermarkPostType.php',
+        'MantraBrain\\UltimateWatermark\\Watermark\\LibraryDetector' => __DIR__ . '/../..' . '/src/Watermark/LibraryDetector.php',
+        'MantraBrain\\UltimateWatermark\\Watermark\\Processors\\GDWatermarkProcessor' => __DIR__ . '/../..' . '/src/Watermark/Processors/GDWatermarkProcessor.php',
+        'MantraBrain\\UltimateWatermark\\Watermark\\Processors\\ImagickWatermarkProcessor' => __DIR__ . '/../..' . '/src/Watermark/Processors/ImagickWatermarkProcessor.php',
+        'MantraBrain\\UltimateWatermark\\Watermark\\WatermarkManager' => __DIR__ . '/../..' . '/src/Watermark/WatermarkManager.php',
+        'MantraBrain\\UltimateWatermark\\Watermark\\WatermarkProcessorInterface' => __DIR__ . '/../..' . '/src/Watermark/WatermarkProcessorInterface.php',
     );
 
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit372d8162393dc556292027e5cef285cd::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit372d8162393dc556292027e5cef285cd::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInit372d8162393dc556292027e5cef285cd::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit7109dc1c1296832f9aef75d99326f298::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit7109dc1c1296832f9aef75d99326f298::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInit7109dc1c1296832f9aef75d99326f298::$classMap;
 
         }, null, ClassLoader::class);
     }

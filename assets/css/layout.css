@@ -1,0 +1,364 @@
+/* Ultimate Watermark - Layout Styles */
+
+/* Layout Container */
+.ultimate-watermark-layout {
+    min-height: 100vh;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header Styles */
+.ultimate-watermark-header {
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.header-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+}
+
+.header-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.brand-logo {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+}
+
+.brand-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.brand-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a202c;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.brand-version {
+    font-size: 12px;
+    color: #718096;
+    background: #f7fafc;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.header-nav {
+    display: flex;
+    gap: 8px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #4a5568;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    font-size: 14px;
+}
+
+.nav-item:hover {
+    background: #f7fafc;
+    color: #2d3748;
+    text-decoration: none;
+}
+
+.nav-item .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.header-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: #f7fafc;
+    border-radius: 8px;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.user-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #2d3748;
+    line-height: 1.2;
+}
+
+.user-role {
+    font-size: 12px;
+    color: #718096;
+    text-transform: capitalize;
+}
+
+.user-avatar img {
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+}
+
+/* Content Styles */
+.ultimate-watermark-content {
+    flex: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+    width: 100%;
+}
+
+.content-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.content-title h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1a202c;
+    margin: 0 0 8px 0;
+    line-height: 1.2;
+}
+
+.content-subtitle {
+    font-size: 16px;
+    color: #718096;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.content-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+    color: white;
+    text-decoration: none;
+}
+
+.btn-secondary {
+    background: #ffffff;
+    color: #4a5568;
+    border: 1px solid #e2e8f0;
+}
+
+.btn-secondary:hover {
+    background: #f7fafc;
+    color: #2d3748;
+    text-decoration: none;
+}
+
+/* Footer Styles */
+.ultimate-watermark-footer {
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    margin-top: auto;
+}
+
+.footer-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.footer-content {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #4a5568;
+    font-weight: 500;
+}
+
+.footer-brand .dashicons {
+    color: #667eea;
+    font-size: 16px;
+}
+
+.version-badge {
+    background: #e2e8f0;
+    color: #4a5568;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.footer-links {
+    display: flex;
+    gap: 16px;
+}
+
+.footer-link {
+    color: #718096;
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.2s ease;
+}
+
+.footer-link:hover {
+    color: #4a5568;
+    text-decoration: none;
+}
+
+.footer-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: right;
+}
+
+.copyright {
+    font-size: 12px;
+    color: #a0aec0;
+}
+
+.powered-by {
+    font-size: 12px;
+    color: #a0aec0;
+}
+
+.footer-stats {
+    display: flex;
+    gap: 16px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: right;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #a0aec0;
+}
+
+.stat-value {
+    font-size: 14px;
+    color: #4a5568;
+    font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .header-container {
+        padding: 0 16px;
+        flex-direction: column;
+        height: auto;
+        padding-top: 16px;
+        padding-bottom: 16px;
+        gap: 16px;
+    }
+    
+    .header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .header-nav {
+        flex-wrap: wrap;
+    }
+    
+    .ultimate-watermark-content {
+        padding: 16px;
+    }
+    
+    .content-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+    
+    .footer-container {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+    }
+    
+    .footer-content {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .footer-stats {
+        justify-content: center;
+    }
+}

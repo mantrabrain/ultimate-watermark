@@ -1,0 +1,106 @@
+/**
+ * Ultimate Watermark Frontend Styles
+ * 
+ * Frontend styles for image protection features
+ *
+ * @package UltimateWatermark
+ * @since 2.0.0
+ */
+
+/* Image Protection Styles */
+.ultimate-watermark-protected {
+    position: relative;
+    display: inline-block;
+}
+
+.ultimate-watermark-protected img {
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.ultimate-watermark-protected::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: transparent;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* Disable right-click context menu */
+.ultimate-watermark-no-context {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Disable drag and drop */
+.ultimate-watermark-no-drag {
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+    user-drag: none;
+}
+
+/* Watermark overlay styles */
+.ultimate-watermark-overlay {
+    position: absolute;
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* Loading states */
+.ultimate-watermark-loading {
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+}
+
+.ultimate-watermark-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #0073aa;
+    border-radius: 50%;
+    animation: ultimate-watermark-spin 1s linear infinite;
+}
+
+@keyframes ultimate-watermark-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive watermarks */
+@media (max-width: 768px) {
+    .ultimate-watermark-overlay {
+        font-size: 0.8em;
+    }
+}
+
+@media (max-width: 480px) {
+    .ultimate-watermark-overlay {
+        font-size: 0.6em;
+    }
+}
+
+/* Print styles */
+@media print {
+    .ultimate-watermark-protected {
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+    }
+}

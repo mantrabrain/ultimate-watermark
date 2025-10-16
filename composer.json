@@ -1,18 +1,44 @@
 {
-  "name": "mantrabrain/ultimate-watermark",
-  "description": "Ultimate Watermark Plugin for WordPress",
-  "type": "project",
-  "license": "MIT",
-  "authors": [
-    {
-      "name": "mantrabrain",
-      "email": "mantrabrain@gmail.com"
-    }
-  ],
-  "require": {},
-  "autoload": {
-    "psr-4": {
-      "Ultimate_Watermark\\": "includes/"
-    }
-  }
+    "name": "mantrabrain/ultimate-watermark",
+    "description": "Advanced WordPress Image Watermarking Plugin",
+    "type": "wordpress-plugin",
+    "license": "GPL-3.0-or-later",
+    "authors": [
+        {
+            "name": "MantraBrain",
+            "email": "info@mantrabrain.com",
+            "homepage": "https://mantrabrain.com"
+        }
+    ],
+    "keywords": [
+        "wordpress",
+        "plugin",
+        "watermark",
+        "image",
+        "protection"
+    ],
+    "homepage": "https://mantrabrain.com",
+    "support": {
+        "issues": "https://github.com/mantrabrain/ultimate-watermark/issues",
+        "source": "https://github.com/mantrabrain/ultimate-watermark"
+    },
+    "require": {
+        "php": ">=7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "MantraBrain\\UltimateWatermark\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MantraBrain\\UltimateWatermark\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
 }

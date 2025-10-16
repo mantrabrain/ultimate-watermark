@@ -1,940 +1,257 @@
-/* Ultimate Watermark Settings Page Styles */
+/**
+ * Ultimate Watermark - Settings Page Styles
+ * 
+ * Styles for the plugin settings page
+ *
+ * @package UltimateWatermark
+ * @since 2.0.0
+ */
 
-/* Reset and Base Styles */
-.ultimate-watermark-admin-setting-page-wrap {
-    margin: 0;
-    padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-}
-
-/* Header Section */
-.ultimate-watermark-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 30px 0;
-    margin-bottom: 30px;
-    margin-left:-20px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.ultimate-watermark-header-content {
+.ultimate-watermark-settings {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 20px;
-    text-align: center;
 }
 
-.ultimate-watermark-title {
-    font-size: 2.5em;
-    font-weight: 300;
-    margin: 0 0 10px 0;
+.settings-layout {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 15px;
-}
-
-.ultimate-watermark-title .dashicons {
-    font-size: 1.2em;
-    color: #fff;
-}
-
-.ultimate-watermark-subtitle {
-    font-size: 1.1em;
-    margin: 0;
-    opacity: 0.9;
-    font-weight: 300;
-}
-
-/* Main Content */
-.ultimate-watermark-content {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
-}
-
-/* Navigation Tabs */
-.ultimate-watermark-nav-container {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    gap: 30px;
     margin-bottom: 30px;
-    overflow: hidden;
-    border: 1px solid #e1e5e9;
 }
 
-.ultimate-watermark-nav-tabs {
-    display: flex;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    padding: 8px;
-    gap: 8px;
-}
-
-.ultimate-watermark-nav-tab {
-    padding: 16px 24px;
-    text-decoration: none;
-    color: #6c757d;
-    font-weight: 600;
-    font-size: 14px;
-    border: none;
-    background: transparent;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
+.settings-content {
     flex: 1;
-    text-align: center;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 48px;
-}
-
-.ultimate-watermark-nav-tab::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, #0073aa 0%, #005a87 100%);
-    border-radius: 8px;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    z-index: 1;
-}
-
-.ultimate-watermark-nav-tab span {
-    position: relative;
-    z-index: 2;
-}
-
-.ultimate-watermark-nav-tab:hover {
-    color: #0073aa;
-    text-decoration: none;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 115, 170, 0.15);
-}
-
-.ultimate-watermark-nav-tab:hover::before {
-    opacity: 0.1;
-}
-
-.ultimate-watermark-nav-tab-active {
-    color: #fff;
-    background: linear-gradient(135deg, #0073aa 0%, #005a87 100%);
-    box-shadow: 0 4px 12px rgba(0, 115, 170, 0.3);
-    transform: translateY(-2px);
-}
-
-.ultimate-watermark-nav-tab-active::before {
-    opacity: 1;
-}
-
-.ultimate-watermark-nav-tab-active:hover {
-    color: #fff;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 115, 170, 0.4);
-}
-
-/* Add icons to tabs */
-.ultimate-watermark-nav-tab[href*="image-watermark"] span::before {
-    content: '🖼️';
-    margin-right: 8px;
-    font-size: 16px;
-}
-
-.ultimate-watermark-nav-tab[href*="watermark-image"] span::before {
-    content: '📷';
-    margin-right: 8px;
-    font-size: 16px;
-}
-
-.ultimate-watermark-nav-tab[href*="watermark-position"] span::before {
-    content: '📍';
-    margin-right: 8px;
-    font-size: 16px;
-}
-
-.ultimate-watermark-nav-tab[href*="image-protection"] span::before {
-    content: '🛡️';
-    margin-right: 8px;
-    font-size: 16px;
-}
-
-/* Tab counter badges */
-.ultimate-watermark-nav-tab {
-    position: relative;
-}
-
-.ultimate-watermark-nav-tab::after {
-    content: '';
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 6px;
-    height: 6px;
-    background: #28a745;
-    border-radius: 50%;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.ultimate-watermark-nav-tab-active::after {
-    opacity: 1;
     background: #fff;
-}
-
-/* Settings Container */
-.ultimate-watermark-settings-container {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    margin-bottom: 30px;
-    overflow: hidden;
-    border: 1px solid #e1e5e9;
-}
-
-.ultimate-watermark-settings-content {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     padding: 30px;
 }
 
-/* Sub Navigation */
-.ultimate-watermark-sub-nav {
-    margin-bottom: 30px;
-    
+.settings-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
 }
 
-.ultimate-watermark-sub-nav-tabs {
-    display: flex;
-    gap: 0;
-    background: #f8f9fa;
+.settings-section {
+    border: 1px solid #e1e5e9;
     border-radius: 8px;
-    padding: 4px;
-    border: 1px solid #e1e5e9;
+    padding: 25px;
+    background: #fafbfc;
 }
 
-.ultimate-watermark-sub-nav-tab {
-    padding: 12px 20px;
-    text-decoration: none;
-    color: #6c757d;
-    font-weight: 500;
-    font-size: 14px;
-    border-radius: 6px;
-    transition: all 0.3s ease;
-    position: relative;
-    flex: 1;
-    text-align: center;
-    background: transparent;
-}
-
-.ultimate-watermark-sub-nav-tab:hover {
-    color: #0073aa;
-    background: #fff;
-    text-decoration: none;
-    box-shadow: 0 2px 4px rgba(0, 115, 170, 0.1);
-}
-
-.ultimate-watermark-sub-nav-active {
-    color: #fff;
-    background: linear-gradient(135deg, #0073aa 0%, #005a87 100%);
-    box-shadow: 0 2px 4px rgba(0, 115, 170, 0.2);
-}
-
-/* Settings Grid */
-.ultimate-watermark-settings-grid {
-    display: grid;
-    gap: 24px;
-    grid-template-columns: 1fr;
-}
-
-/* Setting Cards */
-.ultimate-watermark-setting-card {
-    background: #fff;
-    border: 1px solid #e1e5e9;
-    border-radius: 12px;
-    padding: 24px;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.ultimate-watermark-setting-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(135deg, #0073aa 0%, #005a87 100%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.ultimate-watermark-setting-card:hover {
-    border-color: #0073aa;
-    box-shadow: 0 4px 12px rgba(0, 115, 170, 0.1);
-    transform: translateY(-2px);
-}
-
-.ultimate-watermark-setting-card:hover::before {
-    opacity: 1;
-}
-
-.ultimate-watermark-setting-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #f0f0f1;
-}
-
-.ultimate-watermark-setting-title {
+.settings-section h3 {
+    margin: 0 0 20px 0;
     font-size: 18px;
     font-weight: 600;
-    color: #23282d;
-    margin: 0;
+    color: #1d2327;
+    border-bottom: 2px solid #2271b1;
+    padding-bottom: 10px;
+}
+
+.form-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.form-column {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-row {
+    display: flex;
+    flex-direction: column;
     gap: 8px;
 }
 
-.ultimate-watermark-setting-title::before {
-    content: '';
-    width: 3px;
-    height: 18px;
-    background: linear-gradient(135deg, #0073aa 0%, #005a87 100%);
-    border-radius: 2px;
-}
-
-.ultimate-watermark-setting-content {
-    position: relative;
-}
-
-.ultimate-watermark-setting-description {
-    margin-top: 12px;
-    padding: 12px 16px;
-    background: #f8f9fa;
-    border-radius: 6px;
-    border-left: 3px solid #0073aa;
-    font-size: 13px;
-    color: #666;
-    line-height: 1.5;
-}
-
-/* Enhanced form table styles for better appearance */
-.ultimate-watermark-settings-content .form-table {
-    background: #fff;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    border: 1px solid #e1e5e9;
-}
-
-.ultimate-watermark-settings-content .form-table tr {
-    border-bottom: 1px solid #f0f0f1;
-    transition: background-color 0.3s ease;
-}
-
-.ultimate-watermark-settings-content .form-table tr:hover {
-    background-color: #f8f9fa;
-}
-
-.ultimate-watermark-settings-content .form-table tr:last-child {
-    border-bottom: none;
-}
-
-/* Form Table Styles */
-.ultimate-watermark-settings-content .form-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 0;
-}
-
-.ultimate-watermark-settings-content .form-table th {
-    width: 300px;
-    padding: 20px 20px 20px 0;
-    text-align: left;
-    vertical-align: top;
-    font-weight: 600;
-    color: #23282d;
-    border-bottom: 1px solid #f0f0f1;
-}
-
-.ultimate-watermark-settings-content .form-table td {
-    padding: 20px 0;
-    vertical-align: top;
-    border-bottom: 1px solid #f0f0f1;
-}
-
-.ultimate-watermark-settings-content .form-table tr:last-child th,
-.ultimate-watermark-settings-content .form-table tr:last-child td {
-    border-bottom: none;
-}
-
-/* Form Elements */
-.ultimate-watermark-settings-content input[type="text"],
-.ultimate-watermark-settings-content input[type="number"],
-.ultimate-watermark-settings-content input[type="email"],
-.ultimate-watermark-settings-content input[type="url"],
-.ultimate-watermark-settings-content input[type="password"],
-.ultimate-watermark-settings-content select,
-.ultimate-watermark-settings-content textarea {
-    width: 100%;
-    max-width: 400px;
-    padding: 12px 15px;
-    border: 2px solid #e1e5e9;
-    border-radius: 6px;
-    font-size: 14px;
-    transition: all 0.3s ease;
-    background: #fff;
-}
-
-.ultimate-watermark-settings-content input[type="text"]:focus,
-.ultimate-watermark-settings-content input[type="number"]:focus,
-.ultimate-watermark-settings-content input[type="email"]:focus,
-.ultimate-watermark-settings-content input[type="url"]:focus,
-.ultimate-watermark-settings-content input[type="password"]:focus,
-.ultimate-watermark-settings-content select:focus,
-.ultimate-watermark-settings-content textarea:focus {
-    outline: none;
-    border-color: #0073aa;
-    box-shadow: 0 0 0 3px rgba(0, 115, 170, 0.1);
-}
-
-/* Checkbox Styles */
-.ultimate-watermark-checkbox-wrapper {
-    margin: 10px 0;
-}
-
-.ultimate-watermark-checkbox-label {
+.form-row label {
+    font-weight: 500;
+    color: #1d2327;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     cursor: pointer;
-    padding: 10px;
-    border-radius: 6px;
-    transition: background-color 0.3s ease;
 }
 
-.ultimate-watermark-checkbox-label:hover {
-    background-color: #f8f9fa;
+.form-row input[type="checkbox"] {
+    margin: 0;
+    width: 16px;
+    height: 16px;
 }
 
-.ultimate-watermark-settings-content input[type="checkbox"] {
+.form-row input[type="number"],
+.form-row select {
+    padding: 8px 12px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    font-size: 14px;
+    background: #fff;
+    transition: border-color 0.2s ease;
+}
+
+.form-row input[type="number"]:focus,
+.form-row select:focus {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+    outline: none;
+}
+
+.range-input {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.range-input input[type="range"] {
+    flex: 1;
+    height: 6px;
+    background: #ddd;
+    border-radius: 3px;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.range-input input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
     width: 20px;
     height: 20px;
-    margin: 0;
-    accent-color: #0073aa;
-    flex-shrink: 0;
-    position: relative;
-    top: 0;
+    background: #2271b1;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.ultimate-watermark-checkbox-text {
-    font-size: 14px;
-    line-height: 1.5;
-    color: #23282d;
-    flex: 1;
+.range-input input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: #2271b1;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-
-
-.ultimate-watermark-section-title {
-    font-size: 1.8em;
+.range-value {
     font-weight: 600;
-    color: #23282d;
-    margin: 0 0 15px 0;
+    color: #2271b1;
+    min-width: 40px;
+    text-align: center;
+    background: #f0f6fc;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.checkbox-group label {
+    font-weight: 400;
+    color: #50575e;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    cursor: pointer;
 }
 
-.ultimate-watermark-section-title::before {
-    content: '';
-    width: 4px;
-    height: 24px;
-    background: linear-gradient(135deg, #0073aa 0%, #005a87 100%);
-    border-radius: 2px;
-}
-
-.ultimate-watermark-section-description {
-    color: #666;
-    font-size: 14px;
-    line-height: 1.6;
+.checkbox-group input[type="checkbox"] {
     margin: 0;
+    width: 16px;
+    height: 16px;
 }
 
-.ultimate-watermark-settings-content h2 {
-    font-size: 1.5em;
-    font-weight: 600;
-    color: #23282d;
-    margin: 0 0 20px 0;
-    padding: 0 0 15px 0;
-    border-bottom: 2px solid #f0f0f1;
-}
-
-/* Description Text */
-.ultimate-watermark-settings-content .description {
-    color: #666;
+.description {
     font-size: 13px;
-    margin-top: 8px;
+    color: #646970;
+    margin: 5px 0 0 0;
     line-height: 1.4;
 }
 
-/* Slider Styles - Clean and Simple */
-.ultimate-watermark-settings-content .slider-wrap {
-    margin: 15px 0;
-}
-
-.ultimate-watermark-settings-content .ui-slider {
-    background: #e1e5e9;
-    border: none;
-    border-radius: 6px;
-    height: 6px;
-    margin: 10px 0;
-}
-
-.ultimate-watermark-settings-content .ui-slider .ui-slider-handle {
-    background: #0073aa;
-    border: 2px solid #fff;
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    top: -16px;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    color: #fff;
-    text-align: center;
-    align-items: center;
+.form-actions {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    border-top: 1px solid #e1e5e9;
+    margin-top: 30px;
 }
 
-.ultimate-watermark-settings-content .ui-slider .ui-slider-handle:hover {
-    background: #005a87;
+.actions-left,
+.actions-right {
+    display: flex;
+    gap: 15px;
+    align-items: center;
 }
 
-.ultimate-watermark-settings-content .ui-slider .ui-slider-range {
-    background: #0073aa;
-    border-radius: 6px;
-}
-
-/* Image Upload Styles */
-.ultimate-watermark-settings-content .image-buttons {
-    padding: 15px 0;
-}
-
-.ultimate-watermark-settings-content .preview-image {
-    margin: 20px 0;
-    padding: 25px;
-    border: 2px dashed #0073aa;
-    border-radius: 8px;
-    text-align: center;
-    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-    transition: all 0.3s ease;
-}
-
-.ultimate-watermark-settings-content .preview-image:hover {
-    border-color: #005a87;
-    background: linear-gradient(135deg, #e0f2fe 0%, #b3e5fc 100%);
-}
-
-.ultimate-watermark-settings-content .preview-image img {
-    max-width: 250px;
-    height: auto;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    border: 3px solid #fff;
-}
-
-.ultimate-watermark-settings-content .image-upload-button {
-    background: linear-gradient(135deg, #0073aa 0%, #005a87 100%);
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    font-size: 14px;
-    font-weight: 600;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.3s ease;
+.btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    margin: 10px 0;
-}
-
-.ultimate-watermark-settings-content .image-upload-button:hover {
-    background: linear-gradient(135deg, #005a87 0%, #004466 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 115, 170, 0.3);
-}
-
-.ultimate-watermark-settings-content .image-upload-button .dashicons {
-    font-size: 16px;
-}
-
-/* Save Button */
-.ultimate-watermark-save-button {
-    background: linear-gradient(135deg, #0073aa 0%, #005a87 100%);
-    color: white;
+    padding: 10px 20px;
     border: none;
-    padding: 15px 30px;
-    font-size: 16px;
-    font-weight: 600;
     border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
     cursor: pointer;
-    transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 4px 6px rgba(0, 115, 170, 0.2);
-    margin-top: 20px;
+    transition: all 0.2s ease;
+    line-height: 1;
 }
 
-.ultimate-watermark-save-button:hover {
-    background: linear-gradient(135deg, #005a87 0%, #004466 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 115, 170, 0.3);
+.btn-primary {
+    background: #2271b1;
+    color: #fff;
 }
 
-.ultimate-watermark-save-button:active {
-    transform: translateY(0);
+.btn-primary:hover {
+    background: #135e96;
+    color: #fff;
 }
 
-.ultimate-watermark-save-button .dashicons {
-    font-size: 18px;
+.btn-secondary {
+    background: #f6f7f7;
+    color: #50575e;
+    border: 1px solid #c3c4c7;
 }
 
-/* Messages */
-.ultimate-watermark-settings-content .notice {
-    margin: 20px 0;
-    padding: 15px 20px;
-    border-radius: 6px;
-    border-left: 4px solid;
+.btn-secondary:hover {
+    background: #f0f0f1;
+    color: #1d2327;
 }
 
-.ultimate-watermark-settings-content .notice-success {
-    background: #f0f9ff;
-    border-color: #10b981;
-    color: #065f46;
-}
-
-.ultimate-watermark-settings-content .notice-error {
-    background: #fef2f2;
-    border-color: #ef4444;
-    color: #991b1b;
-}
-
-.ultimate-watermark-settings-content .notice-warning {
-    background: #fffbeb;
-    border-color: #f59e0b;
-    color: #92400e;
+.btn span.dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .ultimate-watermark-header {
-        padding: 20px 0;
-        margin-bottom: 20px;
-    }
-    
-    .ultimate-watermark-title {
-        font-size: 2em;
+    .settings-layout {
         flex-direction: column;
-        gap: 10px;
+        gap: 20px;
     }
     
-    .ultimate-watermark-nav-tabs {
+    .form-columns {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .form-actions {
         flex-direction: column;
-        gap: 4px;
-        padding: 6px;
+        gap: 15px;
+        align-items: stretch;
     }
     
-    .ultimate-watermark-nav-tab {
-        min-height: 44px;
-        padding: 12px 16px;
-        font-size: 13px;
-    }
-    
-    .ultimate-watermark-nav-tab span {
-        font-size: 13px;
-    }
-    
-    .ultimate-watermark-settings-content {
-        padding: 20px;
-    }
-    
-    .ultimate-watermark-sub-nav-tabs {
-        flex-direction: column;
-        gap: 2px;
-    }
-    
-    .ultimate-watermark-sub-nav-tab {
-        padding: 10px 16px;
-        font-size: 13px;
-    }
-    
-    .ultimate-watermark-setting-card {
-        padding: 16px;
-    }
-    
-    .ultimate-watermark-setting-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-    }
-    
-    .ultimate-watermark-setting-title {
-        font-size: 16px;
-    }
-    
-    .ultimate-watermark-multicheckbox-wrapper {
-        max-height: 250px;
-        padding: 12px;
-    }
-    
-    .ultimate-watermark-multicheckbox-label {
-        padding: 12px;
-        margin: 4px 0;
-    }
-    
-    .ultimate-watermark-settings-content .form-table th,
-    .ultimate-watermark-settings-content .form-table td {
-        display: block;
-        width: 100%;
-        padding: 15px 0;
-    }
-    
-    .ultimate-watermark-settings-content .form-table th {
-        border-bottom: none;
-        padding-bottom: 5px;
+    .actions-left,
+    .actions-right {
+        justify-content: center;
     }
 }
 
-/* Hide elements when needed */
-.ultimate-watermark-hide {
-    display: none;
-}
-
-/* Custom field styles */
-.ultimate-watermark-settings-content .forminp {
-    position: relative;
-}
-
-.ultimate-watermark-settings-content .forminp .description {
-    margin-top: 8px;
-    color: #666;
-    font-style: italic;
-}
-
-/* Multi-checkbox styles */
-.ultimate-watermark-multicheckbox-wrapper {
-    max-height: 300px;
-    overflow-y: auto;
-    border: 2px solid #e1e5e9;
-    border-radius: 8px;
-    padding: 16px;
-    background: #f8f9fa;
-    margin: 10px 0;
-}
-
-.ultimate-watermark-multicheckbox-label {
-    display: flex;
-    align-items: center;
-    padding: 14px 16px;
-    margin: 6px 0;
-    border: 1px solid #e1e5e9;
-    border-radius: 8px;
-    background: #fff;
-    transition: all 0.3s ease;
-    cursor: pointer;
-    position: relative;
-}
-
-.ultimate-watermark-multicheckbox-label:hover {
-    background: #f0f9ff;
-    border-color: #0073aa;
-    box-shadow: 0 3px 6px rgba(0, 115, 170, 0.1);
-    transform: translateY(-1px);
-}
-
-.ultimate-watermark-multicheckbox-label:last-child {
-    margin-bottom: 0;
-}
-
-.ultimate-watermark-multicheckbox-label input[type="checkbox"] {
-    margin-right: 14px;
-    width: 20px;
-    height: 20px;
-    accent-color: #0073aa;
-    flex-shrink: 0;
-}
-
-.ultimate-watermark-multicheckbox-text {
-    font-size: 14px;
-    line-height: 1.5;
-    color: #23282d;
-    flex: 1;
-}
-
-.ultimate-watermark-multicheckbox-text strong {
-    color: #0073aa;
-    font-weight: 600;
-}
-
-.ultimate-watermark-multicheckbox-text span {
-    color: #dc2626;
-    font-size: 12px;
-    margin-left: 8px;
-    font-weight: 500;
-}
-
-/* Legacy multicheckbox styles for backward compatibility */
-.ultimate-watermark-settings-content .multicheckbox-wrap {
-    max-height: 250px;
-    overflow-y: auto;
-    border: 2px solid #e1e5e9;
-    border-radius: 8px;
-    padding: 15px;
-    background: #f8f9fa;
-    margin: 10px 0;
-}
-
-.ultimate-watermark-settings-content .multicheckbox-wrap label {
-    display: flex;
-    align-items: center;
-    padding: 12px 15px;
-    margin: 5px 0;
-    border: 1px solid #e1e5e9;
-    border-radius: 6px;
-    background: #fff;
-    transition: all 0.3s ease;
-    cursor: pointer;
-}
-
-.ultimate-watermark-settings-content .multicheckbox-wrap label:hover {
-    background: #f0f9ff;
-    border-color: #0073aa;
-    box-shadow: 0 2px 4px rgba(0, 115, 170, 0.1);
-}
-
-.ultimate-watermark-settings-content .multicheckbox-wrap label:last-child {
-    margin-bottom: 0;
-}
-
-.ultimate-watermark-settings-content .multicheckbox-wrap input[type="checkbox"] {
-    margin-right: 12px;
-    width: 18px;
-    height: 18px;
-    accent-color: #0073aa;
-}
-
-.ultimate-watermark-settings-content .multicheckbox-wrap strong {
-    color: #0073aa;
-    font-weight: 600;
-}
-
-.ultimate-watermark-settings-content .multicheckbox-wrap span {
-    color: #dc2626;
-    font-size: 12px;
-    margin-left: 8px;
-}
-
-/* Tooltip styles */
-.ultimate-watermark-tippy-tooltip {
-    color: #0073aa;
-    cursor: help;
-    margin-left: 8px;
-    font-size: 16px;
-    transition: all 0.3s ease;
-}
-
-.ultimate-watermark-tippy-tooltip:hover {
-    color: #005a87;
-    transform: scale(1.1);
-}
-
-/* Select dropdown styles */
-.ultimate-watermark-settings-content select {
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-    background-position: right 12px center;
-    background-repeat: no-repeat;
-    background-size: 16px 12px;
-    padding-right: 40px;
-    appearance: none;
-}
-
-/* Radio button styles */
-.ultimate-watermark-settings-content .radio-group {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin: 10px 0;
-}
-
-.ultimate-watermark-settings-content .radio-group label {
-    display: flex;
-    align-items: center;
-    padding: 12px 15px;
-    border: 2px solid #e1e5e9;
-    border-radius: 6px;
-    background: #fff;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.ultimate-watermark-settings-content .radio-group label:hover {
-    border-color: #0073aa;
-    background: #f0f9ff;
-}
-
-.ultimate-watermark-settings-content .radio-group input[type="radio"] {
-    margin-right: 12px;
-    width: 18px;
-    height: 18px;
-    accent-color: #0073aa;
-}
-
-/* Field group styles */
-.ultimate-watermark-field-group {
-    background: #f8f9fa;
-    border: 1px solid #e1e5e9;
-    border-radius: 8px;
-    padding: 20px;
-    margin: 15px 0;
-}
-
-.ultimate-watermark-field-group-title {
-    font-weight: 600;
-    color: #23282d;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #e1e5e9;
-}
-
-/* Loading states */
-.ultimate-watermark-loading {
-    opacity: 0.6;
-    pointer-events: none;
-}
-
-.ultimate-watermark-loading::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 20px;
-    height: 20px;
-    margin: -10px 0 0 -10px;
-    border: 2px solid #f3f3f3;
-    border-top: 2px solid #0073aa;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}

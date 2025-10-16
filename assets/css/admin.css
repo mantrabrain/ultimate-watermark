@@ -1,0 +1,344 @@
+/**
+ * Ultimate Watermark Admin Styles
+ * 
+ * Modern, clean admin interface styles
+ *
+ * @package UltimateWatermark
+ * @since 2.0.0
+ */
+
+/* Enhanced Content Header */
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 32px;
+    padding: 24px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.title-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    flex-shrink: 0;
+}
+
+.title-icon .dashicons {
+    font-size: 24px;
+    color: white;
+    line-height: 1;
+}
+
+.title-content h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1a202c;
+    margin: 0 0 8px 0;
+    line-height: 1.2;
+}
+
+.content-subtitle {
+    font-size: 16px;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.content-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .content-header {
+        flex-direction: column;
+        gap: 20px;
+        align-items: stretch;
+    }
+    
+    .title-wrapper {
+        gap: 12px;
+    }
+    
+    .title-icon {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .title-icon .dashicons {
+        font-size: 20px;
+    }
+    
+    .title-content h1 {
+        font-size: 24px;
+    }
+    
+    .content-subtitle {
+        font-size: 14px;
+    }
+    
+    .content-actions {
+        justify-content: flex-start;
+    }
+}
+
+/* Dashboard Styles */
+.ultimate-watermark-dashboard {
+    max-width: 1200px;
+}
+
+.ultimate-watermark-dashboard-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.ultimate-watermark-welcome {
+    grid-column: 1 / -1;
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.ultimate-watermark-welcome h2 {
+    margin-top: 0;
+    color: #1d2327;
+}
+
+.ultimate-watermark-stats {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.ultimate-watermark-stat-card h3 {
+    margin-top: 0;
+    color: #1d2327;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.stat-item:last-child {
+    border-bottom: none;
+}
+
+.stat-label {
+    font-weight: 500;
+    color: #50575e;
+}
+
+.stat-value {
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.ultimate-watermark-actions {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.ultimate-watermark-actions h3 {
+    margin-top: 0;
+    color: #1d2327;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Settings Styles */
+.ultimate-watermark-settings {
+    max-width: 1200px;
+}
+
+.ultimate-watermark-settings .form-table {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.ultimate-watermark-settings .form-table th {
+    background: #f6f7f7;
+    border-bottom: 1px solid #c3c4c7;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.ultimate-watermark-settings .form-table td {
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.ultimate-watermark-settings .form-table tr:last-child th,
+.ultimate-watermark-settings .form-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Image Field Styles */
+.ultimate-watermark-image-field {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ultimate-watermark-image-field .button {
+    align-self: flex-start;
+}
+
+.ultimate-watermark-image-preview {
+    margin-top: 10px;
+}
+
+.ultimate-watermark-image-preview img {
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+/* Range Field Styles */
+.ultimate-watermark-range {
+    width: 200px;
+    margin-right: 10px;
+}
+
+.ultimate-watermark-range-value {
+    font-weight: 600;
+    color: #1d2327;
+    min-width: 40px;
+    display: inline-block;
+}
+
+/* Checkbox Group Styles */
+.ultimate-watermark-settings fieldset {
+    border: none;
+    margin: 0;
+    padding: 0;
+}
+
+.ultimate-watermark-settings fieldset legend {
+    font-weight: 600;
+    color: #1d2327;
+    margin-bottom: 10px;
+}
+
+.ultimate-watermark-settings fieldset label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 400;
+}
+
+.ultimate-watermark-settings fieldset input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .ultimate-watermark-dashboard-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .action-buttons .button {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+/* WordPress Admin Integration */
+.ultimate-watermark-settings .submit {
+    background: #f6f7f7;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+/* Loading States */
+.ultimate-watermark-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.ultimate-watermark-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #0073aa;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Success/Error Messages */
+.ultimate-watermark-notice {
+    padding: 12px;
+    margin: 15px 0;
+    border-radius: 4px;
+    border-left: 4px solid;
+}
+
+.ultimate-watermark-notice.success {
+    background: #d1edcc;
+    border-left-color: #46b450;
+    color: #155724;
+}
+
+.ultimate-watermark-notice.error {
+    background: #f8d7da;
+    border-left-color: #dc3545;
+    color: #721c24;
+}
+
+.ultimate-watermark-notice.warning {
+    background: #fff3cd;
+    border-left-color: #ffc107;
+    color: #856404;
+}
+
+.ultimate-watermark-notice.info {
+    background: #d1ecf1;
+    border-left-color: #17a2b8;
+    color: #0c5460;
+}

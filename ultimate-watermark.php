@@ -1,57 +1,59 @@
 <?php
-/*
-Plugin Name: Ultimate Watermark
-Description: Image Watermark plugin for WordPress media.
-Version: 1.1.1
-Author: MantraBrain
-Author URI: https://mantrabrain.com/
-License: GPLv3
-License URI: http://www.gnu.org/licenses/gpl-3.0.html
-Text Domain: ultimate-watermark
-Domain Path: /languages
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
-// exit if accessed directly
-if (!defined('ABSPATH'))
-    exit;
-
-define('ULTIMATE_WATERMARK_FILE', __FILE__);
-define('ULTIMATE_WATERMARK_VERSION', '1.1.1');
-define('ULTIMATE_WATERMARK_URI', plugins_url('', ULTIMATE_WATERMARK_FILE));
-define('ULTIMATE_WATERMARK_DIR', plugin_dir_path(ULTIMATE_WATERMARK_FILE));
-
-include_once plugin_dir_path(ULTIMATE_WATERMARK_FILE) . 'vendor/autoload.php';
-
 /**
- * Get instance of main class.
+ * Plugin Name: Ultimate Watermark
+ * Plugin URI: https://mantrabrain.com/ultimate-watermark
+ * Description: Advanced WordPress Image Watermarking Plugin with PSR-4 architecture
+ * Version: 2.0.0
+ * Author: MantraBrain
+ * Author URI: https://mantrabrain.com
+ * License: GPL v3 or later
+ * License URI: https://www.gnu.org/licenses/gpl-3.0.html
+ * Text Domain: ultimate-watermark
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Tested up to: 6.8
+ * Requires PHP: 7.4
+ * Network: false
  *
- * @return object Instance
+ * @package UltimateWatermark
+ * @author MantraBrain
+ * @version 2.0.0
  */
 
-use Ultimate_Watermark\Init;
-
-function ultimate_watermark()
-{
-    static $instance;
-
-    // first call to instance() initializes the plugin
-    if ($instance === null || !($instance instanceof Init))
-        $instance = Init::instance();
-
-    return $instance;
+// Prevent direct access
+if (!defined('ABSPATH')) {
+    exit;
 }
 
-ultimate_watermark();
+// Define plugin constants
+define('ULTIMATE_WATERMARK_VERSION', '2.0.0');
+define('ULTIMATE_WATERMARK_FILE', __FILE__);
+define('ULTIMATE_WATERMARK_DIR', plugin_dir_path(__FILE__));
+define('ULTIMATE_WATERMARK_URL', plugin_dir_url(__FILE__));
+define('ULTIMATE_WATERMARK_BASENAME', plugin_basename(__FILE__));
+
+// Load Composer autoloader
+if (file_exists(ULTIMATE_WATERMARK_DIR . 'vendor/autoload.php')) {
+    require_once ULTIMATE_WATERMARK_DIR . 'vendor/autoload.php';
+}
+
+// Initialize the plugin
+add_action('plugins_loaded', function () {
+    if (class_exists('MantraBrain\\UltimateWatermark\\Core\\Plugin')) {
+        \MantraBrain\UltimateWatermark\Core\Plugin::getInstance();
+    }
+});
+
+// Activation hook
+register_activation_hook(__FILE__, function () {
+    if (class_exists('MantraBrain\\UltimateWatermark\\Core\\Activator')) {
+        \MantraBrain\UltimateWatermark\Core\Activator::activate();
+    }
+});
+
+// Deactivation hook
+register_deactivation_hook(__FILE__, function () {
+    if (class_exists('MantraBrain\\UltimateWatermark\\Core\\Deactivator')) {
+        \MantraBrain\UltimateWatermark\Core\Deactivator::deactivate();
+    }
+});

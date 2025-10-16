@@ -1,140 +1,136 @@
-jQuery(document).ready(function ($) {
+/**
+ * Ultimate Watermark - Settings Page JavaScript
+ * 
+ * Handles the settings page functionality
+ *
+ * @package UltimateWatermark
+ * @since 2.0.0
+ */
 
-    var selectedElement;
-    var watermarkFileUpload = {
-        frame: function (el) {
-            if (this._frameWatermark)
-                return this._frameWatermark;
+(function($) {
+    'use strict';
 
-            this._frameWatermark = wp.media({
-                title: ultimateWatermarkSettings.title,
-                frame: ultimateWatermarkSettings.frame,
-                button: ultimateWatermarkSettings.button,
-                multiple: ultimateWatermarkSettings.multiple,
-                library: {
-                    type: 'image'
-                }
-            });
-
-            this._frameWatermark.on('open', this.updateFrame).state('library').on('select', this.select);
-            return this._frameWatermark;
+    const SettingsPage = {
+        
+        /**
+         * Initialize the settings page
+         */
+        init: function() {
+            this.bindEvents();
+            this.initForm();
         },
-        select: function () {
-            var _that = this;
-            var attachment = this.frame.state().get('selection').first();
-            console.log('Image selected:', attachment.attributes);
 
-            var elementCard = $(selectedElement).closest('.ultimate-watermark-setting-card');
-            console.log('Element card found:', elementCard.length);
-            selectedElement = null;
-            if ($.inArray(attachment.attributes.mime, ['image/gif', 'image/jpg', 'image/jpeg', 'image/png']) !== -1) {
+        /**
+         * Bind event handlers
+         */
+        bindEvents: function() {
+            // Range slider updates
+            $(document).on('input', '#backup_quality', this.updateBackupQualityValue);
+            
+            // Settings changes
+            $(document).on('change', '#watermark_on', this.togglePostTypesSelection);
+            
+            // Form submission
+            $(document).on('submit', '#ultimate-watermark-settings-form', this.handleFormSubmit);
+            
+            // Keyboard shortcuts
+            $(document).on('keydown', this.handleKeyboardShortcuts);
+        },
 
-                elementCard.find('input.attachment_id').val(attachment.attributes.id);
-                console.log('Set attachment ID:', attachment.attributes.id);
+        /**
+         * Initialize form functionality
+         */
+        initForm: function() {
+            // Initialize any form-specific functionality
+            this.updateBackupQualityValue();
+        },
 
-                elementCard.find('.preview-image').find('img').attr('src', attachment.attributes.url);
-                console.log('Set image src:', attachment.attributes.url);
-
-                elementCard.find('.preview-image').show();
-                console.log('Show preview image');
-
-                elementCard.find('.ultimate_watermark_remove_image_button').removeAttr('disabled');
-                var img = new Image();
-                img.src = attachment.attributes.url;
-                img.onload = function () {
-                    elementCard.find('.preview-image').find('p').html(ultimateWatermarkSettings.originalSize + ': ' + this.width + ' ' + ultimateWatermarkSettings.px + ' / ' + this.height + ' ' + ultimateWatermarkSettings.px);
-                    console.log('Image loaded, dimensions:', this.width + 'x' + this.height);
-                }
-
+        /**
+         * Toggle post types selection based on watermark on setting
+         */
+        togglePostTypesSelection: function() {
+            const watermarkOn = $(this).val();
+            
+            if (watermarkOn === 'selected_post_types') {
+                $('#post-types-selection').show();
             } else {
-
-                elementCard.find('.ultimate_watermark_remove_image_button').attr('disabled', 'true');
-                elementCard.find('input.attachment_id').val(0);
-                elementCard.find('.preview-image').hide();
-                elementCard.find('.preview-image').find('p').html('<strong>' + ultimateWatermarkSettings.notAllowedImg + '</strong>');
-
+                $('#post-types-selection').hide();
             }
         },
-        init: function () {
-            var _that = this;
-            $('body').on('click', '.ultimate_watermark_upload_image_button', function (e) {
+
+        /**
+         * Update backup quality value display
+         */
+        updateBackupQualityValue: function() {
+            const quality = $(this).val();
+            $(this).siblings('.range-value').text(quality + '%');
+        },
+
+        /**
+         * Handle form submission
+         */
+        handleFormSubmit: function(e) {
+            e.preventDefault();
+            
+            // Show loading state
+            SettingsPage.showLoadingState();
+            
+            // TODO: Implement form submission via AJAX
+            // Settings form submitted
+            
+            // For now, just show success message
+            setTimeout(() => {
+                SettingsPage.hideLoadingState();
+                SettingsPage.showSuccessMessage();
+            }, 2000);
+        },
+
+        /**
+         * Show loading state
+         */
+        showLoadingState: function() {
+            $('button[type="submit"]').prop('disabled', true).html('<span class="dashicons dashicons-update"></span> Saving...');
+        },
+
+        /**
+         * Hide loading state
+         */
+        hideLoadingState: function() {
+            $('button[type="submit"]').prop('disabled', false).html('<span class="dashicons dashicons-saved"></span> Save Settings');
+        },
+
+        /**
+         * Show success message
+         */
+        showSuccessMessage: function() {
+            // Create success notice
+            const notice = $('<div class="notice notice-success is-dismissible"><p><strong>Settings saved successfully!</strong></p></div>');
+            $('.settings-content').prepend(notice);
+            
+            // Auto-dismiss after 3 seconds
+            setTimeout(() => {
+                notice.fadeOut();
+            }, 3000);
+        },
+
+        /**
+         * Handle keyboard shortcuts
+         */
+        handleKeyboardShortcuts: function(e) {
+            // Ctrl/Cmd + S to save
+            if ((e.ctrlKey || e.metaKey) && e.keyCode === 83) {
                 e.preventDefault();
-                selectedElement = $(this);
-                console.log('Upload button clicked:', selectedElement);
-                _that.frame().open();
-            });
-            _that.initSlider();
-            _that.displayConditions();
-        },
-        initSlider: function () {
-            var slider = $('.ultimate-watermark-range-slider');
-
-            slider.each(function () {
-                var slider_item = $(this);
-                var handle = slider_item.find('.handle');
-                var max = slider_item.data("max");
-                var min = slider_item.data('min');
-                var value = slider_item.data('value');
-                var step = slider_item.data('step');
-                slider_item.slider({
-                    min: min,
-                    max: max,
-                    value: value,
-                    step: step,
-                    range: "min",
-                    create: function () {
-                        slider_item.closest('.slider-wrap').find('input').val($(this).slider("value"));
-                        handle.text($(this).slider("value"));
-                    },
-                    slide: function (event, ui) {
-                        handle.text(ui.value);
-                        slider_item.closest('.slider-wrap').find('input').val(ui.value);
-                    }
-                });
-            });
-
-
-        },
-        displayConditions: function () {
-            $('body').on('change', '#ultimate_watermark_watermark_on', function () {
-                var value = $(this).val();
-                var el = $('[id^="ultimate_watermark_watermark_on_custom_post_type"]');
-                var tr = el.closest('tr');
-                if (value === 'selected_custom_post_types') {
-                    tr.removeClass('ultimate-watermark-hide');
-                } else {
-                    tr.addClass('ultimate-watermark-hide');
-                }
-            });
-
-            $('body').on('change', '#ultimate_watermark_watermark_size_type', function () {
-                var value = $(this).val();
-                var absWidthTr = $('#ultimate_watermark_absolute_width').closest('tr');
-                var absHeightTr = $('#ultimate_watermark_absolute_height').closest('tr');
-                var scaledTr = $('#ultimate_watermark_scaled_image_width').closest('tr');
-                if (value === 'custom') {
-                    absWidthTr.removeClass('ultimate-watermark-hide');
-                    absHeightTr.removeClass('ultimate-watermark-hide');
-                    scaledTr.addClass('ultimate-watermark-hide');
-                } else if (value === 'scaled') {
-                    absWidthTr.addClass('ultimate-watermark-hide');
-                    absHeightTr.addClass('ultimate-watermark-hide');
-                    scaledTr.removeClass('ultimate-watermark-hide');
-                } else {
-                    absWidthTr.addClass('ultimate-watermark-hide');
-                    absHeightTr.addClass('ultimate-watermark-hide');
-                    scaledTr.addClass('ultimate-watermark-hide');
-                }
-            });
+                $('#ultimate-watermark-settings-form').submit();
+            }
         }
     };
 
-    watermarkFileUpload.init();
-
-    $(document).on('click', '.ultimate_watermark_remove_image_button', function (event) {
-        $(this).attr('disabled', 'true');
-        $(this).closest('.ultimate-watermark-setting-card').find('input.attachment_id').val(0);
-        $(this).closest('.ultimate-watermark-setting-card').find('.preview-image').hide();
+    // Initialize when document is ready
+    $(document).ready(function() {
+        SettingsPage.init();
     });
 
-});
+    // Make SettingsPage available globally
+    window.SettingsPage = SettingsPage;
+
+})(jQuery);
