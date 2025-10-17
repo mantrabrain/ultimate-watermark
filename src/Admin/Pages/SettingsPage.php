@@ -18,6 +18,19 @@ class SettingsPage
     use SingletonTrait;
 
     /**
+     * Get setting value
+     * 
+     * @param string $key Setting key
+     * @param mixed $default Default value
+     * @return mixed
+     */
+    private function getSetting(string $key, $default = null)
+    {
+        $settings = get_option('ultimate_watermark_options', []);
+        return $settings[$key] ?? $default;
+    }
+
+    /**
      * Render settings page
      */
     public function render(): void
@@ -58,7 +71,7 @@ class SettingsPage
                                     <div class="form-column">
                                         <div class="form-row">
                                             <label>
-                                                <input type="checkbox" id="backup_image" name="backup_image" value="1" checked>
+                                                <input type="checkbox" id="backup_image" name="backup_image" value="1" <?php checked($this->getSetting('backup_image', true)); ?>>
                                                 <?php esc_html_e('Backup full size image', 'ultimate-watermark'); ?>
                                             </label>
                                             <p class="description"><?php esc_html_e('Backup the full size image before applying watermark.', 'ultimate-watermark'); ?></p>
@@ -69,8 +82,8 @@ class SettingsPage
                                         <div class="form-row">
                                             <label for="backup_quality"><?php esc_html_e('Backup Image Quality', 'ultimate-watermark'); ?></label>
                                             <div class="range-input">
-                                                <input type="range" id="backup_quality" name="backup_quality" value="90" min="1" max="100">
-                                                <span class="range-value">90%</span>
+                                                <input type="range" id="backup_quality" name="backup_quality" value="<?php echo esc_attr($this->getSetting('backup_quality', 90)); ?>" min="1" max="100">
+                                                <span class="range-value"><?php echo esc_html($this->getSetting('backup_quality', 90)); ?>%</span>
                                             </div>
                                         </div>
                                     </div>

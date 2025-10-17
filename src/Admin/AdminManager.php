@@ -6,6 +6,7 @@ use MantraBrain\UltimateWatermark\Admin\Pages\DashboardPage;
 use MantraBrain\UltimateWatermark\Admin\Pages\WatermarkPage;
 use MantraBrain\UltimateWatermark\Admin\Pages\AddWatermarkPage;
 use MantraBrain\UltimateWatermark\Admin\Pages\SettingsPage;
+use MantraBrain\UltimateWatermark\Admin\Pages\BackupPage;
 use MantraBrain\UltimateWatermark\Admin\MediaLibraryIntegration;
 use MantraBrain\UltimateWatermark\Admin\MediaEditIntegration;
 
@@ -59,6 +60,10 @@ class AdminManager
     {
         add_action('admin_menu', [$this, 'addAdminMenu']);
         add_action('admin_init', [$this, 'init']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueueAdminAssets']);
+        add_action('admin_post_ultimate_watermark_save_settings', [$this, 'handleSettingsSave']);
+        add_action('admin_init', [$this, 'updateBackupSettings']);
+        add_action('wp_ajax_ultimate_watermark_delete_backup', [$this, 'handleDeleteBackup']);
         // Remove asset enqueuing from here - let AssetManager handle it
     }
 
@@ -72,6 +77,7 @@ class AdminManager
             'watermark' => new WatermarkPage(),
             'add-watermark' => new AddWatermarkPage(),
             'settings' => new SettingsPage(),
+            'backup' => new BackupPage(),
         ];
     }
 
@@ -158,6 +164,15 @@ class AdminManager
                     'ultimate-watermark-settings',
                     [$this, 'renderSettingsPage']
                 );
+
+                add_submenu_page(
+                    'ultimate-watermark',
+                    __('Backup Management', 'ultimate-watermark'),
+                    __('Backups', 'ultimate-watermark'),
+                    'manage_options',
+                    'ultimate-watermark-backups',
+                    [$this, 'renderBackupPage']
+                );
     }
 
 
@@ -185,6 +200,12 @@ class AdminManager
         // Sanitize each setting based on its type
         foreach ($input as $key => $value) {
             switch ($key) {
+                case 'backup_image':
+                case 'disable_rightclick':
+                case 'disable_drag_drop':
+                case 'enable_protection_logged_in':
+                    $sanitized[$key] = isset($value) ? '1' : '0';
+                    break;
                 case 'watermark_image':
                     $sanitized[$key] = absint($value);
                     break;
@@ -193,6 +214,7 @@ class AdminManager
                     break;
                 case 'watermark_transparency':
                 case 'watermark_quality':
+                case 'backup_quality':
                     $sanitized[$key] = absint($value);
                     break;
                 default:
@@ -228,6 +250,85 @@ class AdminManager
     public function renderSettingsPage(): void
     {
         $this->pages['settings']->render();
+    }
+
+    public function renderBackupPage(): void
+    {
+        $this->pages['backup']->render();
+    }
+
+    /**
+     * Update backup settings for existing installations
+     */
+    public function updateBackupSettings(): void
+    {
+        $existing_options = get_option('ultimate_watermark_options', []);
+        
+        // Add backup settings if they don't exist
+        if (!isset($existing_options['backup_image'])) {
+            $existing_options['backup_image'] = '1';
+        }
+        if (!isset($existing_options['backup_quality'])) {
+            $existing_options['backup_quality'] = 90;
+        }
+        
+        // Update the options
+        update_option('ultimate_watermark_options', $existing_options);
+    }
+
+    /**
+     * Handle delete backup AJAX request
+     */
+    public function handleDeleteBackup(): void
+    {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_backup_nonce')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+            return;
+        }
+
+        // Check permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'You do not have permission to delete backups.']);
+            return;
+        }
+
+        $attachment_id = intval($_POST['attachment_id'] ?? 0);
+        
+        if (!$attachment_id) {
+            wp_send_json_error(['message' => 'Invalid attachment ID.']);
+            return;
+        }
+
+        // Delete the backup using BackupManager
+        $deleted = \MantraBrain\UltimateWatermark\Utils\BackupManager::deleteBackup($attachment_id);
+        
+        if ($deleted) {
+            wp_send_json_success(['message' => 'Backup deleted successfully.']);
+        } else {
+            wp_send_json_error(['message' => 'Failed to delete backup.']);
+        }
+    }
+
+    /**
+     * Enqueue admin assets
+     */
+    public function enqueueAdminAssets(string $hook): void
+    {
+        // Only load on our plugin pages
+        if (strpos($hook, 'ultimate-watermark') === false) {
+            return;
+        }
+
+        // Enqueue backup page styles
+        if (strpos($hook, 'ultimate-watermark-backups') !== false) {
+            wp_enqueue_style(
+                'ultimate-watermark-backup-page',
+                ULTIMATE_WATERMARK_URL . 'assets/css/backup-page.css',
+                [],
+                '1.0.0'
+            );
+        }
     }
 
     /**

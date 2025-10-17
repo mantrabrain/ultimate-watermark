@@ -4,6 +4,7 @@ namespace MantraBrain\UltimateWatermark\Admin;
 
 use MantraBrain\UltimateWatermark\Utils\WatermarkUsageTracker;
 use MantraBrain\UltimateWatermark\Utils\WatermarkHelper;
+use MantraBrain\UltimateWatermark\Utils\BackupManager;
 
 /**
  * Media Edit Integration
@@ -292,19 +293,9 @@ class MediaEditIntegration
         // Get applied watermarks before removal
         $applied_watermarks = WatermarkUsageTracker::getAppliedWatermarks($attachment_id);
         
-        // Check if backup exists
-        $backup_path = $this->getBackupPath($file_path);
-        if (!$backup_path || !file_exists($backup_path)) {
-            // No backup available, cannot restore
-            return false;
-        }
-
         try {
-            // Restore original from backup
-            if (copy($backup_path, $file_path)) {
-                // Update attachment metadata
-                wp_generate_attachment_metadata($attachment_id, $file_path);
-                
+            // Restore original from backup using BackupManager
+            if (BackupManager::restoreFromBackup($file_path, $attachment_id)) {
                 // Track watermark usage removal for all applied watermarks
                 foreach ($applied_watermarks as $watermark_id) {
                     WatermarkUsageTracker::decrementUsage($watermark_id, $attachment_id);
@@ -371,19 +362,6 @@ class MediaEditIntegration
         }
     }
 
-    /**
-     * Get backup file path for an image
-     */
-    private function getBackupPath(string $file_path): ?string
-    {
-        $file_info = pathinfo($file_path);
-        $backup_dir = $file_info['dirname'] . '/watermark-backups';
-        $backup_filename = $file_info['filename'] . '_original.' . $file_info['extension'];
-        
-        $backup_path = $backup_dir . '/' . $backup_filename;
-        
-        return file_exists($backup_path) ? $backup_path : null;
-    }
 
     /**
      * Enqueue scripts and styles for media edit page

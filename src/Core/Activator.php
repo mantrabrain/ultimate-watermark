@@ -69,9 +69,33 @@ class Activator
             'watermark_image_sizes' => ['medium', 'large'],
             'disable_right_click' => '0',
             'disable_drag_drop' => '0',
+            'backup_image' => '1', // Enable backup by default
+            'backup_quality' => 90, // Default backup quality
         ];
 
         add_option('ultimate_watermark_options', $default_options);
+        
+        // Update existing options to include new backup settings
+        self::updateExistingOptions();
+    }
+
+    /**
+     * Update existing options to include new backup settings
+     */
+    private static function updateExistingOptions(): void
+    {
+        $existing_options = get_option('ultimate_watermark_options', []);
+        
+        // Add backup settings if they don't exist
+        if (!isset($existing_options['backup_image'])) {
+            $existing_options['backup_image'] = '1';
+        }
+        if (!isset($existing_options['backup_quality'])) {
+            $existing_options['backup_quality'] = 90;
+        }
+        
+        // Update the options
+        update_option('ultimate_watermark_options', $existing_options);
     }
 
     /**

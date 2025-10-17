@@ -4,6 +4,7 @@ namespace MantraBrain\UltimateWatermark\Admin;
 
 use MantraBrain\UltimateWatermark\Utils\WatermarkHelper;
 use MantraBrain\UltimateWatermark\Utils\WatermarkUsageTracker;
+use MantraBrain\UltimateWatermark\Utils\BackupManager;
 use MantraBrain\UltimateWatermark\Watermark\WatermarkManager;
 
 /**
@@ -178,19 +179,9 @@ class MediaLibraryIntegration
         // Get applied watermarks before removal
         $applied_watermarks = WatermarkUsageTracker::getAppliedWatermarks($attachment_id);
         
-        // Check if backup exists
-        $backup_path = $this->getBackupPath($file_path);
-        if (!$backup_path || !file_exists($backup_path)) {
-            // No backup available, cannot restore
-            return false;
-        }
-
         try {
-            // Restore original from backup
-            if (copy($backup_path, $file_path)) {
-                // Update attachment metadata
-                wp_generate_attachment_metadata($attachment_id, $file_path);
-                
+            // Restore original from backup using BackupManager
+            if (BackupManager::restoreFromBackup($file_path, $attachment_id)) {
                 // Track watermark usage removal for all applied watermarks
                 foreach ($applied_watermarks as $watermark_id) {
                     WatermarkUsageTracker::decrementUsage($watermark_id, $attachment_id);
@@ -205,19 +196,6 @@ class MediaLibraryIntegration
         return false;
     }
 
-    /**
-     * Get backup file path for an image
-     */
-    private function getBackupPath(string $file_path): ?string
-    {
-        $file_info = pathinfo($file_path);
-        $backup_dir = $file_info['dirname'] . '/watermark-backups';
-        $backup_filename = $file_info['filename'] . '_original.' . $file_info['extension'];
-        
-        $backup_path = $backup_dir . '/' . $backup_filename;
-        
-        return file_exists($backup_path) ? $backup_path : null;
-    }
 
     /**
      * Determine image size context for watermarking
@@ -246,6 +224,22 @@ class MediaLibraryIntegration
         $original_path = get_attached_file($attachment_id);
         if (!$original_path || !file_exists($original_path)) {
             return false;
+        }
+
+        // Create backup if it doesn't exist
+        error_log('Ultimate Watermark: Checking backup for attachment ' . $attachment_id . ' at path: ' . $original_path);
+        $backup_path = BackupManager::getBackupPath($original_path, $attachment_id);
+        if (!$backup_path) {
+            error_log('Ultimate Watermark: No existing backup found, creating new backup...');
+            $backup_path = BackupManager::createBackup($original_path, $attachment_id);
+            if (!$backup_path) {
+                error_log('Ultimate Watermark: Failed to create backup for ' . $original_path);
+                return false;
+            } else {
+                error_log('Ultimate Watermark: Backup created successfully: ' . $backup_path);
+            }
+        } else {
+            error_log('Ultimate Watermark: Using existing backup: ' . $backup_path);
         }
 
         // Create watermarked version
@@ -548,6 +542,15 @@ class MediaLibraryIntegration
             
             // Also update on page load
             updateToggleState();
+            
+            // Intercept form submission to add toggle state
+            $('form[enctype="multipart/form-data"]').on('submit', function() {
+                const isEnabled = $toggle.is(':checked');
+                if (isEnabled) {
+                    $(this).append('<input type="hidden" name="ultimate_watermark_auto_apply" value="1">');
+                }
+                console.log('Ultimate Watermark: Form submitted with auto-apply:', isEnabled);
+            });
         });
         </script>
         <?php
@@ -568,24 +571,15 @@ class MediaLibraryIntegration
             return $upload;
         }
 
-        // Check if auto-apply is enabled (check both POST and sessionStorage via AJAX)
+        // Check if auto-apply is enabled
         $auto_apply_enabled = false;
         
-        // Check POST data first
+        // Check POST data first (this should be set by the upload form)
         if (isset($_POST['ultimate_watermark_auto_apply']) && $_POST['ultimate_watermark_auto_apply'] === '1') {
             $auto_apply_enabled = true;
-        }
-        
-        // If not in POST, check if we can determine from context
-        if (!$auto_apply_enabled) {
-            // For now, let's assume it's enabled if we're in upload context and no explicit disable
-            // This is a fallback - the JavaScript should handle the real state
-            $auto_apply_enabled = true;
-            error_log('Ultimate Watermark: Using fallback auto-apply detection');
-        }
-        
-        if (!$auto_apply_enabled) {
-            error_log('Ultimate Watermark: Skipping - auto-apply not enabled');
+            error_log('Ultimate Watermark: Auto-apply enabled via POST data');
+        } else {
+            error_log('Ultimate Watermark: Auto-apply disabled - toggle is OFF');
             return $upload;
         }
 
@@ -654,16 +648,15 @@ class MediaLibraryIntegration
         error_log('Ultimate Watermark: processNewAttachment called for ID: ' . $attachment_id);
         error_log('Ultimate Watermark: POST data: ' . print_r($_POST, true));
         
-        // Check if auto-apply is enabled (for now, assume enabled if we reach this point)
-        $auto_apply_enabled = true;
+        // Check if auto-apply is enabled
+        $auto_apply_enabled = false;
         
-        // Check POST data first
+        // Check POST data first (this should be set by the upload form)
         if (isset($_POST['ultimate_watermark_auto_apply']) && $_POST['ultimate_watermark_auto_apply'] === '1') {
             $auto_apply_enabled = true;
-        }
-        
-        if (!$auto_apply_enabled) {
-            error_log('Ultimate Watermark: Auto-apply not enabled in processNewAttachment');
+            error_log('Ultimate Watermark: Auto-apply enabled via POST data in processNewAttachment');
+        } else {
+            error_log('Ultimate Watermark: Auto-apply disabled in processNewAttachment - toggle is OFF');
             return;
         }
         
@@ -725,6 +718,16 @@ class MediaLibraryIntegration
         if (!file_exists($file_path)) {
             error_log('Ultimate Watermark: File does not exist: ' . $file_path);
             return false;
+        }
+
+        // Create backup if it doesn't exist
+        $backup_path = BackupManager::getBackupPath($file_path);
+        if (!$backup_path) {
+            $backup_path = BackupManager::createBackup($file_path);
+            if (!$backup_path) {
+                error_log('Ultimate Watermark: Failed to create backup for ' . $file_path);
+                return false;
+            }
         }
 
         // Create temporary watermarked file
