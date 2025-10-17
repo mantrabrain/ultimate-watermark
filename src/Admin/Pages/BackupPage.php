@@ -103,10 +103,40 @@ class BackupPage
             echo '</div>';
             echo '</div>';
             
-            echo '<div class="uw-backups-grid">';
+            echo '<div class="uw-backups-table-container">';
+            echo '<div class="uw-bulk-actions">';
+            echo '<div class="uw-bulk-controls">';
+            echo '<div class="uw-bulk-buttons">';
+            echo '<button type="button" id="bulk-restore-btn" class="uw-btn uw-btn-primary uw-btn-small" disabled>';
+            echo '<span class="dashicons dashicons-undo"></span>';
+            echo esc_html__('Restore Selected', 'ultimate-watermark');
+            echo '</button>';
+            echo '<button type="button" id="bulk-delete-btn" class="uw-btn uw-btn-danger uw-btn-small" disabled>';
+            echo '<span class="dashicons dashicons-trash"></span>';
+            echo esc_html__('Delete Selected', 'ultimate-watermark');
+            echo '</button>';
+            echo '</div>';
+            echo '</div>';
+            echo '</div>';
+            
+            echo '<table class="uw-backups-table">';
+            echo '<thead>';
+            echo '<tr>';
+            echo '<th class="uw-col-checkbox">';
+            echo '<input type="checkbox" id="select-all-header" class="uw-checkbox">';
+            echo '</th>';
+            echo '<th class="uw-col-name">' . esc_html__('File Name', 'ultimate-watermark') . '</th>';
+            echo '<th class="uw-col-size">' . esc_html__('Size', 'ultimate-watermark') . '</th>';
+            echo '<th class="uw-col-date">' . esc_html__('Created', 'ultimate-watermark') . '</th>';
+            echo '<th class="uw-col-actions">' . esc_html__('Actions', 'ultimate-watermark') . '</th>';
+            echo '</tr>';
+            echo '</thead>';
+            echo '<tbody>';
             foreach ($stats['recent_backups'] as $backup) {
-                $this->renderBackupCard($backup);
+                $this->renderBackupTableRow($backup);
             }
+            echo '</tbody>';
+            echo '</table>';
             echo '</div>';
             echo '</div>';
         } else {
@@ -127,21 +157,52 @@ class BackupPage
     }
 
     /**
-     * Render individual backup card
+     * Render individual backup table row
      */
-    private function renderBackupCard(array $backup): void
+    private function renderBackupTableRow(array $backup): void
     {
-        echo '<div class="uw-backup-card" data-attachment-id="' . esc_attr($backup['id']) . '">';
+        echo '<tr class="uw-backup-row" data-attachment-id="' . esc_attr($backup['id']) . '">';
         
-        // Card header with image
-        echo '<div class="uw-card-header">';
-        echo '<div class="uw-card-image">';
+        // Checkbox column
+        echo '<td class="uw-col-checkbox">';
+        echo '<input type="checkbox" class="uw-checkbox uw-backup-checkbox" value="' . esc_attr($backup['id']) . '">';
+        echo '</td>';
+        
+        // File name column
+        echo '<td class="uw-col-name">';
+        echo '<div class="uw-file-info">';
+        echo '<div class="uw-file-thumbnail">';
         echo '<img src="' . esc_url($backup['url']) . '" alt="' . esc_attr($backup['title']) . '" loading="lazy">';
-        echo '<div class="uw-card-overlay">';
-        echo '<div class="uw-card-actions">';
+        echo '</div>';
+        echo '<div class="uw-file-details">';
+        echo '<div class="uw-file-name">' . esc_html($backup['title']) . '</div>';
+        echo '<div class="uw-file-path">' . esc_html(basename($backup['backup_path'])) . '</div>';
+        echo '</div>';
+        echo '</div>';
+        echo '</td>';
+        
+        // Size column
+        echo '<td class="uw-col-size">';
+        echo '<span class="uw-file-size">' . esc_html(size_format($backup['size'])) . '</span>';
+        echo '</td>';
+        
+        // Date column
+        echo '<td class="uw-col-date">';
+        echo '<div class="uw-date-info">';
+        echo '<div class="uw-date-relative">' . esc_html(human_time_diff(strtotime($backup['backup_created']))) . ' ' . esc_html__('ago', 'ultimate-watermark') . '</div>';
+        echo '<div class="uw-date-absolute">' . esc_html(date('M j, Y', strtotime($backup['backup_created']))) . '</div>';
+        echo '</div>';
+        echo '</td>';
+        
+        // Actions column
+        echo '<td class="uw-col-actions">';
+        echo '<div class="uw-row-actions">';
         echo '<a href="' . esc_url($backup['url']) . '" class="uw-action-btn uw-action-view" target="_blank" title="' . esc_attr__('View backup', 'ultimate-watermark') . '">';
         echo '<span class="dashicons dashicons-visibility"></span>';
         echo '</a>';
+        echo '<button type="button" class="uw-action-btn uw-action-restore restore-backup-btn" data-attachment-id="' . esc_attr($backup['id']) . '" title="' . esc_attr__('Restore from backup', 'ultimate-watermark') . '">';
+        echo '<span class="dashicons dashicons-undo"></span>';
+        echo '</button>';
         echo '<a href="' . esc_url(admin_url('post.php?post=' . $backup['id'] . '&action=edit')) . '" class="uw-action-btn uw-action-edit" title="' . esc_attr__('Edit original', 'ultimate-watermark') . '">';
         echo '<span class="dashicons dashicons-edit"></span>';
         echo '</a>';
@@ -149,25 +210,9 @@ class BackupPage
         echo '<span class="dashicons dashicons-trash"></span>';
         echo '</button>';
         echo '</div>';
-        echo '</div>';
-        echo '</div>';
-        echo '</div>';
+        echo '</td>';
         
-        // Card content
-        echo '<div class="uw-card-content">';
-        echo '<h4 class="uw-card-title">' . esc_html($backup['title']) . '</h4>';
-        echo '<div class="uw-card-meta">';
-        echo '<span class="uw-meta-item">';
-        echo '<span class="dashicons dashicons-database"></span>';
-        echo esc_html(size_format($backup['size']));
-        echo '</span>';
-        echo '<span class="uw-meta-item">';
-        echo '<span class="dashicons dashicons-clock"></span>';
-        echo esc_html(human_time_diff(strtotime($backup['backup_created']))) . ' ' . esc_html__('ago', 'ultimate-watermark');
-        echo '</span>';
-        echo '</div>';
-        echo '</div>';
-        
-        echo '</div>'; // Close uw-backup-card
+        echo '</tr>';
     }
 }
+

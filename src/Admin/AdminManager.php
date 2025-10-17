@@ -64,6 +64,9 @@ class AdminManager
         add_action('admin_post_ultimate_watermark_save_settings', [$this, 'handleSettingsSave']);
         add_action('admin_init', [$this, 'updateBackupSettings']);
         add_action('wp_ajax_ultimate_watermark_delete_backup', [$this, 'handleDeleteBackup']);
+        add_action('wp_ajax_ultimate_watermark_restore_backup', [$this, 'handleRestoreBackup']);
+        add_action('wp_ajax_ultimate_watermark_bulk_restore_backup', [$this, 'handleBulkRestoreBackup']);
+        add_action('wp_ajax_ultimate_watermark_bulk_delete_backup', [$this, 'handleBulkDeleteBackup']);
         // Remove asset enqueuing from here - let AssetManager handle it
     }
 
@@ -311,6 +314,140 @@ class AdminManager
     }
 
     /**
+     * Handle restore backup AJAX request
+     */
+    public function handleRestoreBackup(): void
+    {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_backup_nonce')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+            return;
+        }
+
+        // Check permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'You do not have permission to restore backups.']);
+            return;
+        }
+
+        $attachment_id = intval($_POST['attachment_id'] ?? 0);
+        
+        if (!$attachment_id) {
+            wp_send_json_error(['message' => 'Invalid attachment ID.']);
+            return;
+        }
+
+        // Restore the backup using BackupManager
+        $restored = \MantraBrain\UltimateWatermark\Utils\BackupManager::restoreFromBackup($attachment_id);
+        
+        if ($restored) {
+            wp_send_json_success(['message' => 'Image restored successfully from backup.']);
+        } else {
+            wp_send_json_error(['message' => 'Failed to restore image from backup.']);
+        }
+    }
+
+    /**
+     * Handle bulk restore backup AJAX request
+     */
+    public function handleBulkRestoreBackup(): void
+    {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_backup_nonce')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+            return;
+        }
+
+        // Check permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'You do not have permission to restore backups.']);
+            return;
+        }
+
+        $attachment_ids = json_decode($_POST['attachment_ids'] ?? '[]', true);
+        
+        if (empty($attachment_ids) || !is_array($attachment_ids)) {
+            wp_send_json_error(['message' => 'Invalid attachment IDs.']);
+            return;
+        }
+
+        $restored_count = 0;
+        $errors = [];
+
+        foreach ($attachment_ids as $attachment_id) {
+            $attachment_id = intval($attachment_id);
+            if ($attachment_id > 0) {
+                $restored = \MantraBrain\UltimateWatermark\Utils\BackupManager::restoreFromBackup($attachment_id);
+                if ($restored) {
+                    $restored_count++;
+                } else {
+                    $errors[] = $attachment_id;
+                }
+            }
+        }
+
+        if ($restored_count > 0) {
+            $message = $restored_count . ' image(s) restored successfully from backup.';
+            if (!empty($errors)) {
+                $message .= ' ' . count($errors) . ' image(s) could not be restored.';
+            }
+            wp_send_json_success(['message' => $message]);
+        } else {
+            wp_send_json_error(['message' => 'Failed to restore any images from backup.']);
+        }
+    }
+
+    /**
+     * Handle bulk delete backup AJAX request
+     */
+    public function handleBulkDeleteBackup(): void
+    {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_backup_nonce')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+            return;
+        }
+
+        // Check permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'You do not have permission to delete backups.']);
+            return;
+        }
+
+        $attachment_ids = json_decode($_POST['attachment_ids'] ?? '[]', true);
+        
+        if (empty($attachment_ids) || !is_array($attachment_ids)) {
+            wp_send_json_error(['message' => 'Invalid attachment IDs.']);
+            return;
+        }
+
+        $deleted_count = 0;
+        $errors = [];
+
+        foreach ($attachment_ids as $attachment_id) {
+            $attachment_id = intval($attachment_id);
+            if ($attachment_id > 0) {
+                $deleted = \MantraBrain\UltimateWatermark\Utils\BackupManager::deleteBackup($attachment_id);
+                if ($deleted) {
+                    $deleted_count++;
+                } else {
+                    $errors[] = $attachment_id;
+                }
+            }
+        }
+
+        if ($deleted_count > 0) {
+            $message = $deleted_count . ' backup(s) deleted successfully.';
+            if (!empty($errors)) {
+                $message .= ' ' . count($errors) . ' backup(s) could not be deleted.';
+            }
+            wp_send_json_success(['message' => $message]);
+        } else {
+            wp_send_json_error(['message' => 'Failed to delete any backups.']);
+        }
+    }
+
+    /**
      * Enqueue admin assets
      */
     public function enqueueAdminAssets(string $hook): void
@@ -320,7 +457,7 @@ class AdminManager
             return;
         }
 
-        // Enqueue backup page styles
+        // Enqueue backup page styles and scripts
         if (strpos($hook, 'ultimate-watermark-backups') !== false) {
             wp_enqueue_style(
                 'ultimate-watermark-backup-page',
@@ -328,6 +465,21 @@ class AdminManager
                 [],
                 '1.0.0'
             );
+            
+            wp_enqueue_script(
+                'ultimate-watermark-backup-page',
+                ULTIMATE_WATERMARK_URL . 'assets/js/backup-page.js',
+                ['jquery'],
+                '1.0.0',
+                true
+            );
+            
+            // Localize script for AJAX
+            wp_localize_script('ultimate-watermark-backup-page', 'ultimateWatermarkBackup', [
+                'ajaxurl' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('ultimate_watermark_backup_nonce'),
+                'mediaLibraryUrl' => admin_url('upload.php')
+            ]);
         }
     }
 
