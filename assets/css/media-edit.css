@@ -1,0 +1,603 @@
+/* Ultimate Watermark - Media Edit Page Styles */
+
+/* Watermark Status Container */
+.watermark-status {
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #f8fafc;
+    margin: 8px 0;
+}
+
+.watermark-status.no-watermarks {
+    text-align: center;
+    color: #6b7280;
+}
+
+.watermark-status.no-watermarks .dashicons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.watermark-status.no-watermarks .status-text {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Applied Watermarks */
+.watermark-status.has-watermarks {
+    background: #fff;
+    border-color: #d1d5db;
+}
+
+.applied-watermark {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+    transition: all 0.2s ease;
+}
+
+.applied-watermark:last-child {
+    margin-bottom: 0;
+}
+
+.applied-watermark:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Watermark Header */
+.watermark-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.watermark-header .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: #6b7280;
+}
+
+.watermark-name {
+    font-size: 14px;
+    color: #1f2937;
+    font-weight: 600;
+}
+
+.watermark-type {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 400;
+}
+
+/* Watermark Preview */
+.watermark-preview {
+    margin-bottom: 12px;
+    padding: 8px;
+    background: #f9fafb;
+    border-radius: 4px;
+    border: 1px solid #f3f4f6;
+}
+
+/* Text Watermark Preview */
+.text-watermark-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+}
+
+.watermark-text {
+    font-size: 12px !important;
+    line-height: 1.2;
+    padding: 4px 8px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+}
+
+/* Image Watermark Preview */
+.image-watermark-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+}
+
+.watermark-image {
+    width: 32px;
+    height: 32px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+}
+
+.image-watermark-preview.no-image {
+    color: #9ca3af;
+    font-size: 12px;
+    font-style: italic;
+    gap: 6px;
+}
+
+.image-watermark-preview.no-image .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+/* Watermark Actions */
+.watermark-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.remove-watermark-btn {
+    background: #dc2626;
+    color: #fff;
+    border: 1px solid #dc2626;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.remove-watermark-btn:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
+    color: #fff;
+}
+
+.remove-watermark-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+}
+
+.remove-watermark-btn:disabled {
+    background: #9ca3af;
+    border-color: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.remove-watermark-btn .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+/* Loading State */
+.applied-watermark.removing {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.applied-watermark.removing .remove-watermark-btn {
+    background: #6b7280;
+    border-color: #6b7280;
+}
+
+.applied-watermark.removing .remove-watermark-btn::after {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+    margin-left: 4px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Success State */
+.applied-watermark.removed {
+    opacity: 0.3;
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.applied-watermark.removed .watermark-header,
+.applied-watermark.removed .watermark-preview {
+    text-decoration: line-through;
+}
+
+/* Error State */
+.applied-watermark.error {
+    border-color: #fca5a5;
+    background: #fef2f2;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .watermark-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    
+    .watermark-actions {
+        justify-content: center;
+        margin-top: 8px;
+    }
+    
+    .remove-watermark-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* WordPress Admin Integration */
+.attachment-details .watermark-status {
+    margin: 16px 0;
+}
+
+.attachment-details .watermark-status .watermark-header {
+    font-size: 13px;
+}
+
+.attachment-details .watermark-status .watermark-name {
+    font-size: 13px;
+}
+
+/* Form Field Integration */
+.attachment-details .watermark-status {
+    border: 1px solid #ddd;
+    background: #fafafa;
+}
+
+.attachment-details .applied-watermark {
+    background: #fff;
+    border: 1px solid #ddd;
+}
+
+.attachment-details .watermark-preview {
+    background: #f9f9f9;
+    border: 1px solid #eee;
+}
+
+/* Sidebar Meta Box Styles */
+#ultimate-watermark-info .watermark-status {
+    margin: 0;
+    padding: 12px;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    background: #fff;
+}
+
+/* Applied Watermarks List */
+#ultimate-watermark-info .applied-watermarks-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 20px 0;
+    counter-reset: watermark-counter;
+}
+
+#ultimate-watermark-info .applied-watermark-item {
+    position: relative;
+    padding: 12px 0 12px 30px;
+    border-bottom: 1px solid #e5e7eb;
+    counter-increment: watermark-counter;
+}
+
+#ultimate-watermark-info .applied-watermark-item:last-child {
+    border-bottom: none;
+}
+
+#ultimate-watermark-info .applied-watermark-item::before {
+    content: counter(watermark-counter);
+    position: absolute;
+    left: 0;
+    top: 12px;
+    background: #3b82f6;
+    color: #ffffff;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+
+/* Watermark Item Header */
+#ultimate-watermark-info .watermark-item-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+#ultimate-watermark-info .watermark-item-header .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    color: #6b7280;
+    flex-shrink: 0;
+}
+
+#ultimate-watermark-info .watermark-name-link {
+    font-size: 14px;
+    color: #1f2937;
+    font-weight: 500;
+    text-decoration: none;
+    flex: 1;
+    line-height: 1.4;
+}
+
+
+#ultimate-watermark-info .watermark-type {
+    font-size: 11px;
+    color: #6b7280;
+    font-weight: 400;
+    background: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+/* Remove All Button */
+#ultimate-watermark-info .watermark-remove-all {
+    margin: 0;
+    padding: 0;
+}
+
+#ultimate-watermark-info .remove-all-watermarks-btn {
+    background: #ef4444;
+    color: #ffffff;
+    border: 1px solid #ef4444;
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.15);
+    text-transform: none;
+    letter-spacing: 0.2px;
+    line-height: 1.4;
+}
+
+#ultimate-watermark-info .remove-all-watermarks-btn:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: #ffffff;
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.25);
+    transform: translateY(-1px);
+}
+
+#ultimate-watermark-info .remove-all-watermarks-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+#ultimate-watermark-info .remove-all-watermarks-btn .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+
+#ultimate-watermark-info .watermark-status.no-watermarks {
+    text-align: center;
+    background: #f6f7f7;
+    border-color: #dcdcde;
+}
+
+#ultimate-watermark-info .watermark-status.no-watermarks .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    margin-right: 6px;
+    color: #8c8f94;
+}
+
+#ultimate-watermark-info .watermark-status.no-watermarks .status-text {
+    font-size: 13px;
+    color: #646970;
+    font-weight: 500;
+}
+
+
+
+#ultimate-watermark-info .watermark-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+#ultimate-watermark-info .watermark-header .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    color: #646970;
+}
+
+#ultimate-watermark-info .watermark-name {
+    font-size: 13px;
+    color: #1d2327;
+    font-weight: 600;
+}
+
+#ultimate-watermark-info .watermark-type {
+    font-size: 11px;
+    color: #646970;
+    font-weight: 400;
+}
+
+#ultimate-watermark-info .watermark-item-preview {
+    margin-bottom: 10px;
+    padding: 6px;
+    background: #f6f7f7;
+    border-radius: 3px;
+    border: 1px solid #dcdcde;
+}
+
+#ultimate-watermark-info .text-watermark-preview {
+    min-height: 24px;
+}
+
+#ultimate-watermark-info .watermark-text {
+    font-size: 10px !important;
+    padding: 3px 6px;
+    max-width: 100%;
+}
+
+#ultimate-watermark-info .image-watermark-preview {
+    min-height: 24px;
+}
+
+#ultimate-watermark-info .watermark-image {
+    width: 24px;
+    height: 24px;
+}
+
+#ultimate-watermark-info .watermark-item-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: space-between;
+}
+
+#ultimate-watermark-info .edit-watermark-btn {
+    background: #0073aa;
+    color: #fff;
+    border: 1px solid #0073aa;
+    border-radius: 3px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    text-decoration: none;
+    flex: 1;
+    justify-content: center;
+}
+
+#ultimate-watermark-info .edit-watermark-btn:hover {
+    background: #005177;
+    border-color: #005177;
+    color: #fff;
+    text-decoration: none;
+}
+
+#ultimate-watermark-info .edit-watermark-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px #fff, 0 0 0 3px #0073aa;
+}
+
+#ultimate-watermark-info .edit-watermark-btn .dashicons {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+}
+
+#ultimate-watermark-info .remove-watermark-btn {
+    background: #d63638;
+    color: #fff;
+    border: 1px solid #d63638;
+    border-radius: 3px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex: 1;
+    justify-content: center;
+}
+
+#ultimate-watermark-info .remove-watermark-btn:hover {
+    background: #b32d2e;
+    border-color: #b32d2e;
+    color: #fff;
+}
+
+#ultimate-watermark-info .remove-watermark-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px #fff, 0 0 0 3px #d63638;
+}
+
+#ultimate-watermark-info .remove-watermark-btn:disabled {
+    background: #8c8f94;
+    border-color: #8c8f94;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+#ultimate-watermark-info .remove-watermark-btn .dashicons {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+}
+
+/* Sidebar loading and success states */
+#ultimate-watermark-info .applied-watermark.removing {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+#ultimate-watermark-info .applied-watermark.removing .remove-watermark-btn {
+    background: #8c8f94;
+    border-color: #8c8f94;
+}
+
+#ultimate-watermark-info .applied-watermark.removed {
+    opacity: 0.3;
+    background: #f0f6fc;
+    border-color: #72aee6;
+}
+
+#ultimate-watermark-info .applied-watermark.error {
+    border-color: #d63638;
+    background: #fcf0f1;
+}
+
+/* Remove All States */
+#ultimate-watermark-info .watermark-status.removed-all {
+    opacity: 0.3;
+    background: #f0f6fc;
+    border-color: #72aee6;
+}
+
+#ultimate-watermark-info .watermark-status.error-all {
+    border-color: #d63638;
+    background: #fcf0f1;
+}

@@ -7,6 +7,7 @@ use MantraBrain\UltimateWatermark\Admin\Pages\WatermarkPage;
 use MantraBrain\UltimateWatermark\Admin\Pages\AddWatermarkPage;
 use MantraBrain\UltimateWatermark\Admin\Pages\SettingsPage;
 use MantraBrain\UltimateWatermark\Admin\MediaLibraryIntegration;
+use MantraBrain\UltimateWatermark\Admin\MediaEditIntegration;
 
 /**
  * Admin Manager Class
@@ -34,6 +35,13 @@ class AdminManager
     private $mediaLibraryIntegration;
 
     /**
+     * Media edit integration
+     *
+     * @var MediaEditIntegration
+     */
+    private $mediaEditIntegration;
+
+    /**
      * Constructor
      */
     public function __construct()
@@ -41,6 +49,7 @@ class AdminManager
         $this->initHooks();
         $this->initPages();
         $this->initMediaLibraryIntegration();
+        $this->initMediaEditIntegration();
     }
 
     /**
@@ -73,6 +82,15 @@ class AdminManager
     {
         $this->mediaLibraryIntegration = new MediaLibraryIntegration();
         $this->mediaLibraryIntegration->init();
+    }
+
+    /**
+     * Initialize media edit integration
+     */
+    private function initMediaEditIntegration(): void
+    {
+        $this->mediaEditIntegration = new MediaEditIntegration();
+        $this->mediaEditIntegration->init();
     }
 
     /**

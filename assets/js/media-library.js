@@ -12,8 +12,10 @@
          * Initialize the media library watermarking
          */
         init: function() {
+            console.log('Ultimate Watermark: Initializing media library integration');
             this.bindEvents();
             this.addWatermarkingStyles();
+            console.log('Ultimate Watermark: Media library integration initialized');
         },
 
         /**
@@ -21,24 +23,35 @@
          */
         bindEvents: function() {
             // Handle bulk action form submission
-            $(document).on('submit', '#posts-filter', this.handleBulkActionSubmit);
+            $(document).on('submit', '#posts-filter', this.handleBulkActionSubmit.bind(this));
             
             // Handle button clicks directly (as backup)
-            $(document).on('click', '#doaction, #doaction2', this.handleButtonClick);
+            $(document).on('click', '#doaction, #doaction2', this.handleButtonClick.bind(this));
+            
+            // Handle confirmation modal events
+            $(document).on('click', '.modal-cancel, .modal-close, .modal-overlay', this.closeConfirmationModal.bind(this));
+            $(document).on('click', '.modal-confirm', this.confirmWatermarkAction.bind(this));
         },
 
         /**
          * Handle bulk action form submission
          */
         handleBulkActionSubmit: function(e) {
+            console.log('Ultimate Watermark: Bulk action form submitted');
             const $form = $(this);
             const action = $form.find('#bulk-action-selector-top, #bulk-action-selector-bottom').val();
             
+            console.log('Ultimate Watermark: Action selected:', action);
+            
             // Check if it's a watermark action
             if (action && action.indexOf('ultimate_watermark_') === 0) {
+                console.log('Ultimate Watermark: Watermark action detected');
                 const selectedItems = $form.find('input[name="media[]"]:checked');
                 
+                console.log('Ultimate Watermark: Selected items count:', selectedItems.length);
+                
                 if (selectedItems.length === 0) {
+                    console.log('Ultimate Watermark: No items selected');
                     this.showErrorMessage('Please select at least one media item to watermark.');
                     e.preventDefault();
                     return false;
@@ -48,6 +61,7 @@
                 e.preventDefault();
                 e.stopPropagation();
                 
+                console.log('Ultimate Watermark: Showing confirmation modal');
                 // Show custom confirmation modal
                 this.showConfirmationModal(action, selectedItems);
                 
@@ -74,19 +88,8 @@
                     return false;
                 }
                 
-                // Show confirmation dialog
-                const watermarkName = action.replace('ultimate_watermark_', '').replace(/_/g, ' ');
-                const confirmMessage = `Are you sure you want to apply the watermark "${watermarkName}" to ${selectedItems.length} selected item(s)? This will modify the original images.`;
-                
-                if (!confirm(confirmMessage)) {
-                    return false;
-                }
-                
-                // Show processing indicator
-                MediaLibraryWatermark.showProcessingIndicator();
-                
-                // Handle the watermarking via AJAX
-                MediaLibraryWatermark.handleWatermarkingAjax(action, selectedItems);
+                // Show custom confirmation modal
+                this.showConfirmationModal(action, selectedItems);
                 
                 return false;
             }
@@ -239,25 +242,131 @@
         },
 
         /**
+         * Show confirmation modal
+         */
+        showConfirmationModal: function(action, selectedItems) {
+            console.log('Ultimate Watermark: showConfirmationModal called with action:', action, 'items:', selectedItems.length);
+            const isRemoveAction = action === 'ultimate_watermark_remove';
+            const itemCount = selectedItems.length;
+            
+            let title, message, confirmText, confirmClass;
+            
+            if (isRemoveAction) {
+                title = 'Remove Watermark';
+                message = `Are you sure you want to remove watermarks from ${itemCount} selected image(s)? This will restore the original images from backup.`;
+                confirmText = 'Remove Watermark';
+                confirmClass = 'btn-warning';
+            } else {
+                const watermarkName = action.replace('ultimate_watermark_', '').replace(/_/g, ' ');
+                title = 'Apply Watermark';
+                message = `Are you sure you want to apply the watermark "${watermarkName}" to ${itemCount} selected image(s)? This will modify the original images.`;
+                confirmText = 'Apply Watermark';
+                confirmClass = 'btn-primary';
+            }
+            
+            // Create modal if it doesn't exist
+            if (!$('#watermark-confirmation-modal').length) {
+                console.log('Ultimate Watermark: Creating confirmation modal');
+                $('body').append(`
+                    <div id="watermark-confirmation-modal" class="confirmation-modal" style="display: none;">
+                        <div class="modal-overlay"></div>
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h3>${title}</h3>
+                                <button type="button" class="modal-close">
+                                    <span class="dashicons dashicons-no-alt"></span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <p>${message}</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary modal-cancel">
+                                    Cancel
+                                </button>
+                                <button type="button" class="btn ${confirmClass} modal-confirm">
+                                    ${confirmText}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `);
+            } else {
+                // Update existing modal content
+                $('#watermark-confirmation-modal .modal-header h3').text(title);
+                $('#watermark-confirmation-modal .modal-body p').text(message);
+                $('#watermark-confirmation-modal .modal-confirm').text(confirmText).removeClass('btn-primary btn-warning').addClass(confirmClass);
+            }
+            
+            // Show modal
+            console.log('Ultimate Watermark: Showing modal');
+            $('#watermark-confirmation-modal').show();
+            
+            // Store action and selected items for later use
+            $('#watermark-confirmation-modal').data('action', action);
+            $('#watermark-confirmation-modal').data('selectedItems', selectedItems);
+            console.log('Ultimate Watermark: Modal data stored');
+        },
+
+        /**
+         * Close confirmation modal
+         */
+        closeConfirmationModal: function() {
+            $('#watermark-confirmation-modal').hide();
+        },
+
+        /**
+         * Confirm watermark action
+         */
+        confirmWatermarkAction: function() {
+            const action = $('#watermark-confirmation-modal').data('action');
+            const selectedItems = $('#watermark-confirmation-modal').data('selectedItems');
+            
+            this.closeConfirmationModal();
+            
+            // Show processing indicator
+            this.showProcessingIndicator();
+            
+            // Handle the watermarking via AJAX
+            this.handleWatermarkingAjax(action, selectedItems);
+        },
+
+        /**
          * Handle watermarking via AJAX
          */
         handleWatermarkingAjax: function(action, selectedItems) {
-            const watermarkId = action.replace('ultimate_watermark_', '');
             const attachmentIds = selectedItems.map(function() {
                 return $(this).val();
             }).get();
+            
+            // Determine if this is an apply or remove action
+            const isRemoveAction = action === 'ultimate_watermark_remove';
+            const ajaxAction = isRemoveAction ? 'ultimate_watermark_remove' : 'ultimate_watermark_apply_manual';
+            
+            console.log('Ultimate Watermark: Processing action:', action, 'AJAX action:', ajaxAction, 'Attachment IDs:', attachmentIds);
+            
+            // Prepare AJAX data
+            const ajaxData = {
+                action: ajaxAction,
+                attachment_ids: attachmentIds,
+                nonce: ultimate_watermark_media.nonce
+            };
+            
+            // Add watermark_id only for apply actions
+            if (!isRemoveAction) {
+                const watermarkId = action.replace('ultimate_watermark_', '');
+                ajaxData.watermark_id = watermarkId;
+            }
+            
+            console.log('Ultimate Watermark: AJAX data:', ajaxData);
             
             // Make AJAX request
             $.ajax({
                 url: ultimate_watermark_media.ajax_url,
                 type: 'POST',
-                data: {
-                    action: 'ultimate_watermark_apply_manual',
-                    watermark_id: watermarkId,
-                    attachment_ids: attachmentIds,
-                    nonce: ultimate_watermark_media.nonce
-                },
+                data: ajaxData,
                 success: (response) => {
+                    console.log('Ultimate Watermark: AJAX success response:', response);
                     this.hideProcessingIndicator();
                     
                     if (response.success) {
@@ -265,9 +374,11 @@
                         const errorCount = response.data.results.filter(r => !r.success).length;
                         
                         if (errorCount === 0) {
-                            this.showSuccessMessage(`Successfully applied watermark to ${successCount} image(s).`);
+                            const actionText = isRemoveAction ? 'removed watermark from' : 'applied watermark to';
+                            this.showSuccessMessage(`Successfully ${actionText} ${successCount} image(s).`);
                         } else {
-                            this.showErrorMessage(`Applied watermark to ${successCount} image(s), but ${errorCount} failed.`);
+                            const actionText = isRemoveAction ? 'removed watermark from' : 'applied watermark to';
+                            this.showErrorMessage(`${actionText.charAt(0).toUpperCase() + actionText.slice(1)} ${successCount} image(s), but ${errorCount} failed.`);
                         }
                         
                         // Refresh the media library to show updated images
@@ -275,12 +386,15 @@
                             location.reload();
                         }, 2000);
                     } else {
-                        this.showErrorMessage(response.data || 'Failed to apply watermark. Please try again.');
+                        const actionText = isRemoveAction ? 'remove watermark' : 'apply watermark';
+                        this.showErrorMessage(response.data || `Failed to ${actionText}. Please try again.`);
                     }
                 },
                 error: (xhr, status, error) => {
+                    console.error('Ultimate Watermark: AJAX error:', xhr, status, error);
                     this.hideProcessingIndicator();
-                    this.showErrorMessage('Failed to apply watermark. Please try again.');
+                    const actionText = isRemoveAction ? 'remove watermark' : 'apply watermark';
+                    this.showErrorMessage(`Failed to ${actionText}. Please try again.`);
                 }
             });
         },

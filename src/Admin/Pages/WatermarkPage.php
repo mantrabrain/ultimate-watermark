@@ -92,8 +92,7 @@ class WatermarkPage
                                     <input type="checkbox" id="select-all-watermarks">
                                 </th>
                                 <th class="name-column"><?php esc_html_e('Name', 'ultimate-watermark'); ?></th>
-                                <th class="type-column"><?php esc_html_e('Type', 'ultimate-watermark'); ?></th>
-                                <th class="preview-column"><?php esc_html_e('Preview', 'ultimate-watermark'); ?></th>
+                                <th class="type-preview-column"><?php esc_html_e('Type & Preview', 'ultimate-watermark'); ?></th>
                                 <th class="behavior-column"><?php esc_html_e('Behavior', 'ultimate-watermark'); ?></th>
                                 <th class="rules-column"><?php esc_html_e('Rules', 'ultimate-watermark'); ?></th>
                                 <th class="position-column"><?php esc_html_e('Position', 'ultimate-watermark'); ?></th>
@@ -195,7 +194,7 @@ class WatermarkPage
         if (empty($watermarks)) {
             ?>
             <tr class="no-watermarks">
-                <td colspan="10" class="empty-cell">
+                <td colspan="9" class="empty-cell">
                     <div class="empty-state-inline">
                         <span class="dashicons dashicons-format-image"></span>
                         <span><?php esc_html_e('No watermarks found', 'ultimate-watermark'); ?></span>
@@ -259,43 +258,43 @@ class WatermarkPage
                     </span>
                 </div>
             </td>
-            <td class="type-column">
-                <div class="watermark-type">
-                    <span class="dashicons <?php echo esc_attr($type_icon); ?>"></span>
-                    <span><?php echo esc_html(ucfirst($watermark['type'])); ?></span>
-                </div>
-            </td>
-            <td class="preview-column">
-                <div class="watermark-preview">
-                    <?php if ($watermark['type'] === 'text'): ?>
-                        <div class="text-watermark-preview">
-                            <span class="watermark-text" style="
-                                color: <?php echo esc_attr($watermark['watermark_color']); ?>;
-                                font-size: <?php echo esc_attr($watermark['watermark_font_size']); ?>px;
-                                font-family: <?php echo esc_attr($watermark['watermark_font_family']); ?>;
-                                font-weight: <?php echo esc_attr($watermark['watermark_font_weight']); ?>;
-                                font-style: <?php echo esc_attr($watermark['watermark_font_style']); ?>;
-                                text-decoration: <?php echo esc_attr($watermark['watermark_text_decoration']); ?>;
-                                display: inline-block;
-                                max-width: 100%;
-                                overflow: hidden;
-                                text-overflow: ellipsis;
-                                white-space: nowrap;
-                            ">
-                                <?php echo esc_html($watermark['watermark_text']); ?>
-                            </span>
-                        </div>
-                    <?php else: ?>
-                        <div class="image-watermark-preview">
-                            <?php 
-                            if ($watermark['watermark_image_id'] && !empty($watermark['image_url'])) {
-                                echo '<img src="' . esc_url($watermark['image_url']) . '" alt="' . esc_attr($watermark['name']) . '" class="watermark-image-preview">';
-                            } else {
-                                echo '<div class="no-image">' . esc_html__('No image set', 'ultimate-watermark') . '</div>';
-                            }
-                            ?>
-                        </div>
-                    <?php endif; ?>
+            <td class="type-preview-column">
+                <div class="watermark-type-preview">
+                    <div class="watermark-type">
+                        <span class="dashicons <?php echo esc_attr($type_icon); ?>"></span>
+                        <span><?php echo esc_html(ucfirst($watermark['type'])); ?></span>
+                    </div>
+                    <div class="watermark-preview">
+                        <?php if ($watermark['type'] === 'text'): ?>
+                            <div class="text-watermark-preview">
+                                <span class="watermark-text" style="
+                                    color: <?php echo esc_attr($watermark['watermark_color']); ?>;
+                                    font-size: <?php echo esc_attr($watermark['watermark_font_size']); ?>px;
+                                    font-family: <?php echo esc_attr($watermark['watermark_font_family']); ?>;
+                                    font-weight: <?php echo esc_attr($watermark['watermark_font_weight']); ?>;
+                                    font-style: <?php echo esc_attr($watermark['watermark_font_style']); ?>;
+                                    text-decoration: <?php echo esc_attr($watermark['watermark_text_decoration']); ?>;
+                                    display: inline-block;
+                                    max-width: 100%;
+                                    overflow: hidden;
+                                    text-overflow: ellipsis;
+                                    white-space: nowrap;
+                                ">
+                                    <?php echo esc_html($watermark['watermark_text']); ?>
+                                </span>
+                            </div>
+                        <?php else: ?>
+                            <div class="image-watermark-preview">
+                                <?php 
+                                if ($watermark['watermark_image_id'] && !empty($watermark['image_url'])) {
+                                    echo '<img src="' . esc_url($watermark['image_url']) . '" alt="' . esc_attr($watermark['name']) . '" class="watermark-image-preview">';
+                                } else {
+                                    echo '<div class="no-image">' . esc_html__('No image set', 'ultimate-watermark') . '</div>';
+                                }
+                                ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </td>
             <td class="behavior-column">
