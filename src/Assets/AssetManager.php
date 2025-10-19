@@ -68,6 +68,8 @@ class AssetManager
         wp_localize_script('ultimate-watermark-frontend', 'ultimateWatermark', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('ultimate_watermark_nonce'),
+            'settings' => get_option('ultimate_watermark_options', []),
+            'isLoggedIn' => is_user_logged_in(),
         ]);
     }
 
@@ -197,10 +199,16 @@ class AssetManager
                     wp_enqueue_script(
                         'ultimate-watermark-settings',
                         $plugin->getPluginUrl() . 'assets/js/settings.js',
-                        ['jquery'],
+                        ['jquery', 'ultimate-watermark-notification-system'],
                         $plugin->getVersion(),
                         true
                     );
+                    
+                    // Localize script for AJAX
+                    wp_localize_script('ultimate-watermark-settings', 'ultimateWatermarkSettings', [
+                        'ajaxurl' => admin_url('admin-ajax.php'),
+                        'nonce' => wp_create_nonce('ultimate_watermark_settings'),
+                    ]);
                 }
 
         // Localize script

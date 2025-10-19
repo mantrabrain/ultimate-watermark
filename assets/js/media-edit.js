@@ -36,12 +36,18 @@
             const attachmentId = $button.data('attachment-id');
             
             // Show confirmation
-            if (!confirm(ultimate_watermark_media_edit.strings.confirm_remove_all || 'Are you sure you want to remove ALL watermarks from this image? This will restore the original image from backup.')) {
-                return;
-            }
-            
-            // Show loading state
-            this.showLoadingStateAll($button);
+            UWNotifications.confirm({
+                title: 'Remove All Watermarks',
+                message: ultimate_watermark_media_edit.strings.confirm_remove_all || 'Are you sure you want to remove ALL watermarks from this image? This will restore the original image from backup.',
+                type: 'warning',
+                confirmText: 'Remove All',
+                cancelText: 'Cancel',
+                confirmButtonType: 'danger'
+            }).then(confirmed => {
+                if (!confirmed) return;
+                
+                // Show loading state
+                this.showLoadingStateAll($button);
             
             // Make AJAX request
             $.ajax({
@@ -59,7 +65,7 @@
                         this.showSuccessStateAll();
                         
                         // Show success message
-                        this.showNotification(ultimate_watermark_media_edit.strings.removed_all || 'All watermarks removed successfully', 'success');
+                        UWNotifications.success('Success', ultimate_watermark_media_edit.strings.removed_all || 'All watermarks removed successfully');
                         
                         // Update the UI to show "no watermarks" state
                         setTimeout(() => {
@@ -73,14 +79,14 @@
                         
                     } else {
                         this.showErrorStateAll();
-                        this.showNotification(response.data || ultimate_watermark_media_edit.strings.error, 'error');
+                        UWNotifications.error('Error', response.data || ultimate_watermark_media_edit.strings.error);
                     }
                 },
                 error: (xhr, status, error) => {
                     console.error('Ultimate Watermark: AJAX error:', xhr, status, error);
                     this.hideLoadingStateAll($button);
                     this.showErrorStateAll();
-                    this.showNotification(ultimate_watermark_media_edit.strings.error, 'error');
+                    UWNotifications.error('Error', ultimate_watermark_media_edit.strings.error);
                 }
             });
         },
@@ -124,40 +130,6 @@
             }, 3000);
         },
 
-        /**
-         * Show notification message
-         */
-        showNotification: function(message, type) {
-            // Remove existing notifications
-            $('.ultimate-watermark-notification').remove();
-            
-            // Create notification element
-            const $notification = $(`
-                <div class="ultimate-watermark-notification notice notice-${type} is-dismissible">
-                    <p>${message}</p>
-                    <button type="button" class="notice-dismiss">
-                        <span class="screen-reader-text">Dismiss this notice.</span>
-                    </button>
-                </div>
-            `);
-            
-            // Add to page
-            $('.wrap h1').after($notification);
-            
-            // Auto-dismiss after 5 seconds
-            setTimeout(() => {
-                $notification.fadeOut(300, function() {
-                    $(this).remove();
-                });
-            }, 5000);
-            
-            // Handle manual dismiss
-            $notification.on('click', '.notice-dismiss', function() {
-                $notification.fadeOut(300, function() {
-                    $(this).remove();
-                });
-            });
-        }
     };
 
     // Initialize when document is ready

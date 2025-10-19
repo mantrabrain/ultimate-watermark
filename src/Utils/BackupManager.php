@@ -27,7 +27,7 @@ class BackupManager
         return [
             'backup_enabled' => isset($settings['backup_image']) ? (bool) $settings['backup_image'] : true,
             'backup_quality' => isset($settings['backup_quality']) ? (int) $settings['backup_quality'] : 90,
-            'backup_all_sizes' => isset($settings['backup_all_sizes']) ? (bool) $settings['backup_all_sizes'] : false, // Future feature
+            'backup_strategy' => isset($settings['backup_strategy']) ? $settings['backup_strategy'] : 'full_size',
         ];
     }
     
@@ -39,9 +39,7 @@ class BackupManager
     public static function isBackupEnabled(): bool
     {
         $settings = self::getBackupSettings();
-        $enabled = $settings['backup_enabled'];
-        error_log('Ultimate Watermark: Backup enabled check - settings: ' . print_r($settings, true) . ', enabled: ' . ($enabled ? 'true' : 'false'));
-        return $enabled;
+        return $settings['backup_enabled'];
     }
     
     /**
@@ -49,14 +47,12 @@ class BackupManager
      * 
      * @param string $file_path Original image path
      * @param int $attachment_id WordPress attachment ID
-     * @return bool|string Backup path on success, false on failure
+     * @param array $watermarked_sizes Array of image sizes that had watermarks applied
+     * @return bool|string|array Backup path(s) on success, false on failure
      */
-    public static function createBackup(string $file_path, int $attachment_id = 0): bool|string
+    public static function createBackup(string $file_path, int $attachment_id = 0, array $watermarked_sizes = []): bool|string|array
     {
-        error_log('Ultimate Watermark: BackupManager::createBackup called for: ' . $file_path . ' (attachment: ' . $attachment_id . ')');
-        
         if (!self::isBackupEnabled()) {
-            error_log('Ultimate Watermark: Backup is disabled in settings');
             return false;
         }
         
@@ -64,15 +60,12 @@ class BackupManager
         if ($attachment_id > 0) {
             $existing_backup = get_post_meta($attachment_id, '_ultimate_watermark_backup_path', true);
             if ($existing_backup && file_exists($existing_backup)) {
-                error_log('Ultimate Watermark: Backup already exists for attachment ' . $attachment_id . ', skipping backup creation');
                 return $existing_backup; // Return existing backup path
             }
         }
         
-        error_log('Ultimate Watermark: No existing backup found, creating new backup');
         
         if (!file_exists($file_path)) {
-            error_log('Ultimate Watermark: Cannot create backup - file does not exist: ' . $file_path);
             return false;
         }
         
@@ -88,30 +81,115 @@ class BackupManager
         // Create backup directory if it doesn't exist
         if (!file_exists($backup_dir)) {
             if (!wp_mkdir_p($backup_dir)) {
-                error_log('Ultimate Watermark: Failed to create backup directory: ' . $backup_dir);
                 return false;
             }
         }
         
-        // Generate backup filename with attachment ID for uniqueness
+        // Handle different backup strategies
+        if ($settings['backup_strategy'] === 'watermarked_sizes' && !empty($watermarked_sizes)) {
+            // Backup full size + watermarked sizes
+            return self::createMultiSizeBackup($file_path, $attachment_id, $watermarked_sizes, $backup_dir, $settings);
+        } else {
+            // Backup full size only (default behavior)
+            return self::createSingleBackup($file_path, $attachment_id, $backup_dir, $settings);
+        }
+    }
+    
+    /**
+     * Create single backup (full size only)
+     * 
+     * @param string $file_path Original image path
+     * @param int $attachment_id WordPress attachment ID
+     * @param string $backup_dir Backup directory path
+     * @param array $settings Backup settings
+     * @return bool|string Backup path on success, false on failure
+     */
+    private static function createSingleBackup(string $file_path, int $attachment_id, string $backup_dir, array $settings): bool|string
+    {
+        $file_info = pathinfo($file_path);
         $backup_filename = $attachment_id . '_' . $file_info['filename'] . '_original.' . $file_info['extension'];
         $backup_path = $backup_dir . '/' . $backup_filename;
         
         // Create backup with quality settings
         if (self::copyImageWithQuality($file_path, $backup_path, $settings['backup_quality'])) {
-            error_log('Ultimate Watermark: Backup created successfully: ' . $backup_path);
             
             // Store backup info in attachment meta
             if ($attachment_id > 0) {
                 update_post_meta($attachment_id, '_ultimate_watermark_backup_path', $backup_path);
                 update_post_meta($attachment_id, '_ultimate_watermark_backup_created', current_time('mysql'));
+                update_post_meta($attachment_id, '_ultimate_watermark_backup_strategy', 'single');
             }
             
             return $backup_path;
         } else {
-            error_log('Ultimate Watermark: Failed to create backup: ' . $backup_path);
             return false;
         }
+    }
+    
+    /**
+     * Create multi-size backup (full size + watermarked sizes)
+     * 
+     * @param string $file_path Original image path
+     * @param int $attachment_id WordPress attachment ID
+     * @param array $watermarked_sizes Array of watermarked image sizes
+     * @param string $backup_dir Backup directory path
+     * @param array $settings Backup settings
+     * @return bool|array Backup paths on success, false on failure
+     */
+    private static function createMultiSizeBackup(string $file_path, int $attachment_id, array $watermarked_sizes, string $backup_dir, array $settings): bool|array
+    {
+        $file_info = pathinfo($file_path);
+        $backup_paths = [];
+        
+        // Always backup full size
+        $full_backup_filename = $attachment_id . '_' . $file_info['filename'] . '_original.' . $file_info['extension'];
+        $full_backup_path = $backup_dir . '/' . $full_backup_filename;
+        
+        if (self::copyImageWithQuality($file_path, $full_backup_path, $settings['backup_quality'])) {
+            $backup_paths['original'] = $full_backup_path;
+        }
+        
+        // Backup watermarked sizes
+        foreach ($watermarked_sizes as $size_name) {
+            $size_file = self::getImageSizePath($file_path, $size_name);
+            if ($size_file && file_exists($size_file)) {
+                $size_backup_filename = $attachment_id . '_' . $file_info['filename'] . '_' . $size_name . '.' . $file_info['extension'];
+                $size_backup_path = $backup_dir . '/' . $size_backup_filename;
+                
+                if (self::copyImageWithQuality($size_file, $size_backup_path, $settings['backup_quality'])) {
+                    $backup_paths[$size_name] = $size_backup_path;
+                }
+            }
+        }
+        
+        if (!empty($backup_paths)) {
+            // Store backup info in attachment meta
+            if ($attachment_id > 0) {
+                update_post_meta($attachment_id, '_ultimate_watermark_backup_paths', $backup_paths);
+                update_post_meta($attachment_id, '_ultimate_watermark_backup_created', current_time('mysql'));
+                update_post_meta($attachment_id, '_ultimate_watermark_backup_strategy', 'multi');
+                update_post_meta($attachment_id, '_ultimate_watermark_backup_sizes', array_keys($backup_paths));
+            }
+            
+            return $backup_paths;
+        } else {
+            return false;
+        }
+    }
+    
+    /**
+     * Get image size file path
+     * 
+     * @param string $file_path Original image path
+     * @param string $size_name Image size name
+     * @return string|null Image size path if exists, null otherwise
+     */
+    private static function getImageSizePath(string $file_path, string $size_name): ?string
+    {
+        $file_info = pathinfo($file_path);
+        $size_file = $file_info['dirname'] . '/' . $file_info['filename'] . '-' . $size_name . '.' . $file_info['extension'];
+        
+        return file_exists($size_file) ? $size_file : null;
     }
     
     /**
@@ -183,10 +261,31 @@ class BackupManager
      */
     public static function restoreFromBackup(string $file_path, int $attachment_id): bool
     {
+        // Check if this is a multi-size backup
+        $backup_paths = get_post_meta($attachment_id, '_ultimate_watermark_backup_paths', true);
+        $backup_strategy = get_post_meta($attachment_id, '_ultimate_watermark_backup_strategy', true);
+        
+        if ($backup_strategy === 'multi' && is_array($backup_paths) && !empty($backup_paths)) {
+            // Restore all related backup sizes
+            return self::restoreMultiSizeBackup($file_path, $attachment_id, $backup_paths);
+        } else {
+            // Restore single backup (legacy behavior)
+            return self::restoreSingleBackup($file_path, $attachment_id);
+        }
+    }
+    
+    /**
+     * Restore single backup (legacy behavior)
+     * 
+     * @param string $file_path Original image path
+     * @param int $attachment_id WordPress attachment ID
+     * @return bool Success status
+     */
+    private static function restoreSingleBackup(string $file_path, int $attachment_id): bool
+    {
         $backup_path = self::getBackupPath($file_path, $attachment_id);
         
         if (!$backup_path || !file_exists($backup_path)) {
-            error_log('Ultimate Watermark: No backup found for restoration: ' . $file_path);
             return false;
         }
         
@@ -200,11 +299,58 @@ class BackupManager
                 delete_post_meta($attachment_id, '_ultimate_watermark_backup_path');
                 delete_post_meta($attachment_id, '_ultimate_watermark_backup_created');
                 
-                error_log('Ultimate Watermark: Image restored from backup: ' . $file_path);
                 return true;
             }
         } catch (\Exception $e) {
-            error_log('Ultimate Watermark: Error restoring from backup: ' . $e->getMessage());
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Restore multi-size backup
+     * 
+     * @param string $file_path Original image path
+     * @param int $attachment_id WordPress attachment ID
+     * @param array $backup_paths Array of backup paths
+     * @return bool Success status
+     */
+    private static function restoreMultiSizeBackup(string $file_path, int $attachment_id, array $backup_paths): bool
+    {
+        $restored_count = 0;
+        $file_info = pathinfo($file_path);
+        
+        try {
+            // Restore original (full size) first
+            if (isset($backup_paths['original']) && file_exists($backup_paths['original'])) {
+                if (copy($backup_paths['original'], $file_path)) {
+                    $restored_count++;
+                }
+            }
+            
+            // Restore additional sizes
+            foreach ($backup_paths as $size_name => $backup_path) {
+                if ($size_name !== 'original' && file_exists($backup_path)) {
+                    $size_file = self::getImageSizePath($file_path, $size_name);
+                    if ($size_file && copy($backup_path, $size_file)) {
+                        $restored_count++;
+                    }
+                }
+            }
+            
+            if ($restored_count > 0) {
+                // Update attachment metadata
+                wp_generate_attachment_metadata($attachment_id, $file_path);
+                
+                // Clean up backup info from meta
+                delete_post_meta($attachment_id, '_ultimate_watermark_backup_paths');
+                delete_post_meta($attachment_id, '_ultimate_watermark_backup_created');
+                delete_post_meta($attachment_id, '_ultimate_watermark_backup_strategy');
+                delete_post_meta($attachment_id, '_ultimate_watermark_backup_sizes');
+                
+                return true;
+            }
+        } catch (\Exception $e) {
         }
         
         return false;
@@ -226,14 +372,33 @@ class BackupManager
         }
         
         $file_info = pathinfo($file_path);
-        $backup_dir = $file_info['dirname'] . '/watermark-backups';
+        $upload_dir = wp_upload_dir();
+        $backup_base_dir = $upload_dir['basedir'] . '/ulwm-backup';
         
-        if (!file_exists($backup_dir)) {
-            return $backups;
+        // Search in current year/month first, then all directories
+        $current_year = date('Y');
+        $current_month = date('m');
+        $search_dirs = [
+            $backup_base_dir . '/' . $current_year . '/' . $current_month,
+            $backup_base_dir
+        ];
+        
+        $backup_files = [];
+        foreach ($search_dirs as $backup_dir) {
+            if (!file_exists($backup_dir)) {
+                continue;
+            }
+            
+            // Look for backup files with the new naming pattern: {attachment_id}_{original_filename}_original.{extension}
+            $backup_pattern = $backup_dir . '/' . $attachment_id . '_*_original.' . $file_info['extension'];
+            $found_files = glob($backup_pattern);
+            $backup_files = array_merge($backup_files, $found_files);
+            
+            // If we found backups, break (don't search other directories)
+            if (!empty($found_files)) {
+                break;
+            }
         }
-        
-        // Get all backup files for this image
-        $backup_files = glob($backup_dir . '/' . $file_info['filename'] . '_*.' . $file_info['extension']);
         
         foreach ($backup_files as $backup_file) {
             $backup_info = pathinfo($backup_file);
@@ -253,8 +418,8 @@ class BackupManager
             
             $backups[] = [
                 'path' => $backup_file,
-                'url' => str_replace(wp_upload_dir()['basedir'], wp_upload_dir()['baseurl'], $backup_file),
-                'type' => $backup_type,
+                'url' => str_replace($upload_dir['basedir'], $upload_dir['baseurl'], $backup_file),
+                'type' => 'original',
                 'size' => filesize($backup_file),
                 'created' => filemtime($backup_file),
                 'filename' => $backup_info['basename']
@@ -281,14 +446,22 @@ class BackupManager
             }
         }
         
-        // Clean up backup directory if empty
-        $file_path = get_attached_file($attachment_id);
-        if ($file_path) {
-            $file_info = pathinfo($file_path);
-            $backup_dir = $file_info['dirname'] . '/watermark-backups';
+        // Clean up backup directory if empty (for new centralized structure)
+        $upload_dir = wp_upload_dir();
+        $backup_base_dir = $upload_dir['basedir'] . '/ulwm-backup';
+        
+        // Check current year/month directory
+        $current_year = date('Y');
+        $current_month = date('m');
+        $current_backup_dir = $backup_base_dir . '/' . $current_year . '/' . $current_month;
+        
+        if (file_exists($current_backup_dir) && count(scandir($current_backup_dir)) <= 2) { // Only . and .. entries
+            rmdir($current_backup_dir);
             
-            if (file_exists($backup_dir) && count(scandir($backup_dir)) <= 2) { // Only . and .. entries
-                rmdir($backup_dir);
+            // Also remove year directory if empty
+            $year_dir = $backup_base_dir . '/' . $current_year;
+            if (file_exists($year_dir) && count(scandir($year_dir)) <= 2) {
+                rmdir($year_dir);
             }
         }
         

@@ -161,6 +161,15 @@ class BackupPage
      */
     private function renderBackupTableRow(array $backup): void
     {
+        // Get additional backup sizes for this attachment
+        $additional_sizes = $this->getAdditionalBackupSizes($backup['id']);
+        $total_size = $backup['size'];
+        
+        // Calculate total size including additional sizes
+        foreach ($additional_sizes as $size) {
+            $total_size += $size['size'];
+        }
+        
         echo '<tr class="uw-backup-row" data-attachment-id="' . esc_attr($backup['id']) . '">';
         
         // Checkbox column
@@ -177,13 +186,28 @@ class BackupPage
         echo '<div class="uw-file-details">';
         echo '<div class="uw-file-name">' . esc_html($backup['title']) . '</div>';
         echo '<div class="uw-file-path">' . esc_html(basename($backup['backup_path'])) . '</div>';
+        
+        // Show additional sizes count if any
+        if (!empty($additional_sizes)) {
+            $count = count($additional_sizes);
+            echo '<div class="uw-additional-sizes">';
+            echo '<span class="uw-size-count">+' . $count . ' ' . esc_html(_n('additional size', 'additional sizes', $count, 'ultimate-watermark')) . '</span>';
+            echo '</div>';
+        }
+        
         echo '</div>';
         echo '</div>';
         echo '</td>';
         
         // Size column
         echo '<td class="uw-col-size">';
-        echo '<span class="uw-file-size">' . esc_html(size_format($backup['size'])) . '</span>';
+        echo '<span class="uw-file-size">' . esc_html(size_format($total_size)) . '</span>';
+        if (!empty($additional_sizes)) {
+            echo '<div class="uw-size-breakdown">';
+            echo '<span class="uw-main-size">' . esc_html(size_format($backup['size'])) . ' ' . esc_html__('main', 'ultimate-watermark') . '</span>';
+            echo '<span class="uw-additional-size">+' . esc_html(size_format($total_size - $backup['size'])) . ' ' . esc_html__('additional', 'ultimate-watermark') . '</span>';
+            echo '</div>';
+        }
         echo '</td>';
         
         // Date column
@@ -213,6 +237,33 @@ class BackupPage
         echo '</td>';
         
         echo '</tr>';
+    }
+    
+    /**
+     * Get additional backup sizes for an attachment
+     * 
+     * @param int $attachment_id WordPress attachment ID
+     * @return array Array of additional backup sizes
+     */
+    private function getAdditionalBackupSizes(int $attachment_id): array
+    {
+        $backup_paths = get_post_meta($attachment_id, '_ultimate_watermark_backup_paths', true);
+        $additional_sizes = [];
+        
+        if (is_array($backup_paths) && !empty($backup_paths)) {
+            foreach ($backup_paths as $size_name => $backup_path) {
+                if ($size_name !== 'original' && file_exists($backup_path)) {
+                    $additional_sizes[] = [
+                        'name' => $size_name,
+                        'path' => $backup_path,
+                        'size' => filesize($backup_path),
+                        'url' => str_replace(wp_upload_dir()['basedir'], wp_upload_dir()['baseurl'], $backup_path)
+                    ];
+                }
+            }
+        }
+        
+        return $additional_sizes;
     }
 }
 

@@ -349,7 +349,7 @@
             
             // Check if wp.media is available
             if (typeof wp === 'undefined' || !wp.media) {
-                alert('WordPress media library is not available.');
+                UWNotifications.error('Error', 'WordPress media library is not available.');
                 return;
             }
             
@@ -686,7 +686,7 @@
                     
                     if (response.success) {
                         // Show success message
-                        this.showSuccessMessage(response.data.message || 'Watermark saved successfully!');
+                        UWNotifications.success('Success', response.data.message || 'Watermark saved successfully!');
                         
                         // Only redirect if redirect_url is provided (new watermarks only)
                         if (response.data.redirect_url) {
@@ -696,14 +696,14 @@
                         }
                     } else {
                         // Show error message
-                        this.showErrorMessage(response.data.message || 'Failed to save watermark.');
+                        UWNotifications.error('Error', response.data.message || 'Failed to save watermark.');
                     }
                 },
                 error: (xhr, status, error) => {
                     this.hideLoadingState();
                     
                     // Show error message
-                    this.showErrorMessage('An error occurred while saving the watermark.');
+                    UWNotifications.error('Error', 'An error occurred while saving the watermark.');
                     
                 }
             });
@@ -766,7 +766,7 @@
             const watermarkType = formData.get('watermark_type');
             
             if (!name || name.trim() === '') {
-                alert('Please enter a watermark name.');
+                UWNotifications.error('Validation Error', 'Please enter a watermark name.');
                 $('#name').focus();
                 return false;
             }
@@ -774,14 +774,14 @@
             if (watermarkType === 'text') {
                 const text = formData.get('watermark_text');
                 if (!text || text.trim() === '') {
-                    alert('Please enter watermark text.');
+                    UWNotifications.error('Validation Error', 'Please enter watermark text.');
                     $('#watermark_text').focus();
                     return false;
                 }
             } else {
                 const imageId = formData.get('watermark_image_id');
                 if (!imageId) {
-                    alert('Please select a watermark image.');
+                    UWNotifications.error('Validation Error', 'Please select a watermark image.');
                     $('#watermark-upload-area').click();
                     return false;
                 }
@@ -804,12 +804,6 @@
             $('button[type="submit"]').prop('disabled', false).html('<span class="dashicons dashicons-saved"></span> Create Watermark');
         },
 
-        /**
-         * Show success message
-         */
-        showSuccessMessage: function() {
-            // TODO: Implement success message
-        },
 
         /**
          * Save draft
@@ -1186,22 +1180,9 @@
          */
         showPreviewError: function(message) {
             this.hidePreviewLoading();
-            this.showErrorMessage(message);
+            UWNotifications.error('Preview Error', message);
         },
 
-        /**
-         * Show success message
-         */
-        showSuccessMessage: function(message) {
-            this.showToast(message, 'success');
-        },
-
-        /**
-         * Show error message
-         */
-        showErrorMessage: function(message) {
-            this.showToast(message, 'error');
-        },
 
         /**
          * Show toast notification
@@ -1233,23 +1214,19 @@
             
             // Auto-hide after 5 seconds
             setTimeout(() => {
-                this.hideToast(toast);
+                toast.removeClass('show');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
             }, 5000);
             
             // Close button handler
             toast.find('.toast-close').on('click', () => {
-                this.hideToast(toast);
+                toast.removeClass('show');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
             });
-        },
-
-        /**
-         * Hide toast notification
-         */
-        hideToast: function(toast) {
-            toast.removeClass('show');
-            setTimeout(() => {
-                toast.remove();
-            }, 300);
         },
 
         /**

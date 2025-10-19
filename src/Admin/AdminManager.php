@@ -62,11 +62,12 @@ class AdminManager
         add_action('admin_init', [$this, 'init']);
         add_action('admin_enqueue_scripts', [$this, 'enqueueAdminAssets']);
         add_action('admin_post_ultimate_watermark_save_settings', [$this, 'handleSettingsSave']);
-        add_action('admin_init', [$this, 'updateBackupSettings']);
+        // Removed updateBackupSettings hook - now handled by proper settings system
         add_action('wp_ajax_ultimate_watermark_delete_backup', [$this, 'handleDeleteBackup']);
         add_action('wp_ajax_ultimate_watermark_restore_backup', [$this, 'handleRestoreBackup']);
         add_action('wp_ajax_ultimate_watermark_bulk_restore_backup', [$this, 'handleBulkRestoreBackup']);
         add_action('wp_ajax_ultimate_watermark_bulk_delete_backup', [$this, 'handleBulkDeleteBackup']);
+        add_action('wp_ajax_ultimate_watermark_save_settings', [$this, 'handleSaveSettings']);
         // Remove asset enqueuing from here - let AssetManager handle it
     }
 
@@ -184,50 +185,10 @@ class AdminManager
      */
     private function registerSettings(): void
     {
-        // Register general settings
-        register_setting('ultimate_watermark_settings', 'ultimate_watermark_options', [
-            'sanitize_callback' => [$this, 'sanitizeSettings'],
-        ]);
+        // Settings are now handled by our dynamic configuration system
+        // No need for register_setting since we use direct database approach
     }
 
-    /**
-     * Sanitize settings
-     *
-     * @param array $input
-     * @return array
-     */
-    public function sanitizeSettings(array $input): array
-    {
-        $sanitized = [];
-        
-        // Sanitize each setting based on its type
-        foreach ($input as $key => $value) {
-            switch ($key) {
-                case 'backup_image':
-                case 'disable_rightclick':
-                case 'disable_drag_drop':
-                case 'enable_protection_logged_in':
-                    $sanitized[$key] = isset($value) ? '1' : '0';
-                    break;
-                case 'watermark_image':
-                    $sanitized[$key] = absint($value);
-                    break;
-                case 'watermark_size_type':
-                    $sanitized[$key] = sanitize_text_field($value);
-                    break;
-                case 'watermark_transparency':
-                case 'watermark_quality':
-                case 'backup_quality':
-                    $sanitized[$key] = absint($value);
-                    break;
-                default:
-                    $sanitized[$key] = sanitize_text_field($value);
-                    break;
-            }
-        }
-        
-        return $sanitized;
-    }
 
     /**
      * Render dashboard page
@@ -260,24 +221,6 @@ class AdminManager
         $this->pages['backup']->render();
     }
 
-    /**
-     * Update backup settings for existing installations
-     */
-    public function updateBackupSettings(): void
-    {
-        $existing_options = get_option('ultimate_watermark_options', []);
-        
-        // Add backup settings if they don't exist
-        if (!isset($existing_options['backup_image'])) {
-            $existing_options['backup_image'] = '1';
-        }
-        if (!isset($existing_options['backup_quality'])) {
-            $existing_options['backup_quality'] = 90;
-        }
-        
-        // Update the options
-        update_option('ultimate_watermark_options', $existing_options);
-    }
 
     /**
      * Handle delete backup AJAX request
@@ -304,7 +247,7 @@ class AdminManager
         }
 
         // Delete the backup using BackupManager
-        $deleted = \MantraBrain\UltimateWatermark\Utils\BackupManager::deleteBackup($attachment_id);
+        $deleted = \MantraBrain\UltimateWatermark\Utils\BackupManager::deleteAttachmentBackups($attachment_id);
         
         if ($deleted) {
             wp_send_json_success(['message' => 'Backup deleted successfully.']);
@@ -337,8 +280,16 @@ class AdminManager
             return;
         }
 
+        // Get the attachment file path
+        $file_path = get_attached_file($attachment_id);
+        
+        if (!$file_path) {
+            wp_send_json_error(['message' => 'Could not find attachment file.']);
+            return;
+        }
+        
         // Restore the backup using BackupManager
-        $restored = \MantraBrain\UltimateWatermark\Utils\BackupManager::restoreFromBackup($attachment_id);
+        $restored = \MantraBrain\UltimateWatermark\Utils\BackupManager::restoreFromBackup($file_path, $attachment_id);
         
         if ($restored) {
             wp_send_json_success(['message' => 'Image restored successfully from backup.']);
@@ -377,9 +328,16 @@ class AdminManager
         foreach ($attachment_ids as $attachment_id) {
             $attachment_id = intval($attachment_id);
             if ($attachment_id > 0) {
-                $restored = \MantraBrain\UltimateWatermark\Utils\BackupManager::restoreFromBackup($attachment_id);
-                if ($restored) {
-                    $restored_count++;
+                // Get the attachment file path
+                $file_path = get_attached_file($attachment_id);
+                
+                if ($file_path) {
+                    $restored = \MantraBrain\UltimateWatermark\Utils\BackupManager::restoreFromBackup($file_path, $attachment_id);
+                    if ($restored) {
+                        $restored_count++;
+                    } else {
+                        $errors[] = $attachment_id;
+                    }
                 } else {
                     $errors[] = $attachment_id;
                 }
@@ -427,7 +385,7 @@ class AdminManager
         foreach ($attachment_ids as $attachment_id) {
             $attachment_id = intval($attachment_id);
             if ($attachment_id > 0) {
-                $deleted = \MantraBrain\UltimateWatermark\Utils\BackupManager::deleteBackup($attachment_id);
+                $deleted = \MantraBrain\UltimateWatermark\Utils\BackupManager::deleteAttachmentBackups($attachment_id);
                 if ($deleted) {
                     $deleted_count++;
                 } else {
@@ -452,7 +410,16 @@ class AdminManager
      */
     public function enqueueAdminAssets(string $hook): void
     {
-        // Only load on our plugin pages
+        // Enqueue notification system globally for all admin pages
+        wp_enqueue_script(
+            'ultimate-watermark-notification-system',
+            ULTIMATE_WATERMARK_URL . 'assets/js/notification-system.js',
+            [],
+            '1.0.0',
+            true
+        );
+
+        // Only load other assets on our plugin pages
         if (strpos($hook, 'ultimate-watermark') === false) {
             return;
         }
@@ -469,7 +436,7 @@ class AdminManager
             wp_enqueue_script(
                 'ultimate-watermark-backup-page',
                 ULTIMATE_WATERMARK_URL . 'assets/js/backup-page.js',
-                ['jquery'],
+                ['jquery', 'ultimate-watermark-notification-system'],
                 '1.0.0',
                 true
             );
@@ -491,5 +458,87 @@ class AdminManager
     public function getPages(): array
     {
         return $this->pages;
+    }
+
+    /**
+     * Handle AJAX settings save
+     */
+    public function handleSaveSettings(): void
+    {
+        try {
+            // Verify nonce
+            if (!wp_verify_nonce($_POST['nonce'], 'ultimate_watermark_settings')) {
+                wp_send_json_error(['message' => 'Security check failed']);
+                return;
+            }
+
+            // Get form data directly (it's already an array)
+            $form_data = $_POST['form_data'];
+            
+            // Get settings page instance to access configuration
+            $settings_page = \MantraBrain\UltimateWatermark\Admin\Pages\SettingsPage::getInstance();
+            $all_field_keys = $settings_page->getAllFieldKeys();
+            
+            // Temporarily disable any hooks that might interfere with our option
+            remove_all_filters('pre_option_ultimate_watermark_options');
+            remove_all_filters('option_ultimate_watermark_options');
+            remove_all_filters('update_option_ultimate_watermark_options');
+            
+            // Process each field using the configuration
+            $settings = [];
+            foreach ($all_field_keys as $field_key) {
+                $field_config = $settings_page->getFieldConfig($field_key);
+                
+                if (!$field_config) {
+                    continue;
+                }
+                
+                // Get value from form data or use default
+                $raw_value = $form_data[$field_key] ?? $field_config['default'];
+                
+                // Sanitize and validate the value
+                $sanitized_value = $settings_page->sanitizeFieldValue($field_key, $raw_value);
+                
+                $settings[$field_key] = $sanitized_value;
+            }
+            
+            // Use direct database approach to bypass any WordPress hooks
+            // Force delete and clear all caches
+            delete_option('ultimate_watermark_options');
+            wp_cache_delete('ultimate_watermark_options', 'options');
+            wp_cache_flush();
+            
+            // Direct database approach to bypass any WordPress hooks
+            global $wpdb;
+            $serialized_settings = maybe_serialize($settings);
+            
+            // First, delete the existing option completely
+            $wpdb->delete($wpdb->options, ['option_name' => 'ultimate_watermark_options']);
+            
+            // Then insert the new one
+            $db_result = $wpdb->insert(
+                $wpdb->options,
+                [
+                    'option_name' => 'ultimate_watermark_options',
+                    'option_value' => $serialized_settings,
+                    'autoload' => 'yes'
+                ],
+                ['%s', '%s', '%s']
+            );
+            
+            if ($db_result === false) {
+                wp_send_json_error(['message' => 'Failed to save settings to database']);
+                return;
+            }
+            
+            // Clear caches to ensure fresh data
+            wp_cache_flush();
+            wp_cache_delete('ultimate_watermark_options', 'options');
+            
+            wp_send_json_success(['message' => 'Settings saved successfully']);
+            
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => 'An error occurred while saving settings']);
+        }
     }
 }

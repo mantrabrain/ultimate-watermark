@@ -12,10 +12,8 @@
          * Initialize the media library watermarking
          */
         init: function() {
-            console.log('Ultimate Watermark: Initializing media library integration');
             this.bindEvents();
             this.addWatermarkingStyles();
-            console.log('Ultimate Watermark: Media library integration initialized');
         },
 
         /**
@@ -37,22 +35,17 @@
          * Handle bulk action form submission
          */
         handleBulkActionSubmit: function(e) {
-            console.log('Ultimate Watermark: Bulk action form submitted');
             const $form = $(this);
             const action = $form.find('#bulk-action-selector-top, #bulk-action-selector-bottom').val();
             
-            console.log('Ultimate Watermark: Action selected:', action);
             
             // Check if it's a watermark action
             if (action && action.indexOf('ultimate_watermark_') === 0) {
-                console.log('Ultimate Watermark: Watermark action detected');
                 const selectedItems = $form.find('input[name="media[]"]:checked');
                 
-                console.log('Ultimate Watermark: Selected items count:', selectedItems.length);
                 
                 if (selectedItems.length === 0) {
-                    console.log('Ultimate Watermark: No items selected');
-                    this.showErrorMessage('Please select at least one media item to watermark.');
+                    UWNotifications.error('Error', 'Please select at least one media item to watermark.');
                     e.preventDefault();
                     return false;
                 }
@@ -61,7 +54,6 @@
                 e.preventDefault();
                 e.stopPropagation();
                 
-                console.log('Ultimate Watermark: Showing confirmation modal');
                 // Show custom confirmation modal
                 this.showConfirmationModal(action, selectedItems);
                 
@@ -84,7 +76,7 @@
                 const selectedItems = $form.find('input[name="media[]"]:checked');
                 
                 if (selectedItems.length === 0) {
-                    this.showErrorMessage('Please select at least one media item to watermark.');
+                    UWNotifications.error('Error', 'Please select at least one media item to watermark.');
                     return false;
                 }
                 
@@ -227,25 +219,11 @@
             `);
         },
 
-        /**
-         * Show success message
-         */
-        showSuccessMessage: function(message) {
-            this.showNotification(message, 'success');
-        },
-
-        /**
-         * Show error message
-         */
-        showErrorMessage: function(message) {
-            this.showNotification(message, 'error');
-        },
 
         /**
          * Show confirmation modal
          */
         showConfirmationModal: function(action, selectedItems) {
-            console.log('Ultimate Watermark: showConfirmationModal called with action:', action, 'items:', selectedItems.length);
             const isRemoveAction = action === 'ultimate_watermark_remove';
             const itemCount = selectedItems.length;
             
@@ -266,7 +244,6 @@
             
             // Create modal if it doesn't exist
             if (!$('#watermark-confirmation-modal').length) {
-                console.log('Ultimate Watermark: Creating confirmation modal');
                 $('body').append(`
                     <div id="watermark-confirmation-modal" class="confirmation-modal" style="display: none;">
                         <div class="modal-overlay"></div>
@@ -298,14 +275,18 @@
                 $('#watermark-confirmation-modal .modal-confirm').text(confirmText).removeClass('btn-primary btn-warning').addClass(confirmClass);
             }
             
-            // Show modal
-            console.log('Ultimate Watermark: Showing modal');
-            $('#watermark-confirmation-modal').show();
-            
-            // Store action and selected items for later use
-            $('#watermark-confirmation-modal').data('action', action);
-            $('#watermark-confirmation-modal').data('selectedItems', selectedItems);
-            console.log('Ultimate Watermark: Modal data stored');
+            UWNotifications.confirm({
+                title: title,
+                message: message,
+                type: isRemoveAction ? 'warning' : 'info',
+                confirmText: confirmText,
+                cancelText: 'Cancel',
+                confirmButtonType: confirmClass
+            }).then(confirmed => {
+                if (confirmed) {
+                    this.confirmWatermarkAction(action, selectedItems);
+                }
+            });
         },
 
         /**
@@ -318,10 +299,7 @@
         /**
          * Confirm watermark action
          */
-        confirmWatermarkAction: function() {
-            const action = $('#watermark-confirmation-modal').data('action');
-            const selectedItems = $('#watermark-confirmation-modal').data('selectedItems');
-            
+        confirmWatermarkAction: function(action, selectedItems) {
             this.closeConfirmationModal();
             
             // Show processing indicator
@@ -343,7 +321,6 @@
             const isRemoveAction = action === 'ultimate_watermark_remove';
             const ajaxAction = isRemoveAction ? 'ultimate_watermark_remove' : 'ultimate_watermark_apply_manual';
             
-            console.log('Ultimate Watermark: Processing action:', action, 'AJAX action:', ajaxAction, 'Attachment IDs:', attachmentIds);
             
             // Prepare AJAX data
             const ajaxData = {
@@ -358,7 +335,6 @@
                 ajaxData.watermark_id = watermarkId;
             }
             
-            console.log('Ultimate Watermark: AJAX data:', ajaxData);
             
             // Make AJAX request
             $.ajax({
@@ -366,7 +342,6 @@
                 type: 'POST',
                 data: ajaxData,
                 success: (response) => {
-                    console.log('Ultimate Watermark: AJAX success response:', response);
                     this.hideProcessingIndicator();
                     
                     if (response.success) {
@@ -375,10 +350,10 @@
                         
                         if (errorCount === 0) {
                             const actionText = isRemoveAction ? 'removed watermark from' : 'applied watermark to';
-                            this.showSuccessMessage(`Successfully ${actionText} ${successCount} image(s).`);
+                            UWNotifications.success('Success', `Successfully ${actionText} ${successCount} image(s).`);
                         } else {
                             const actionText = isRemoveAction ? 'removed watermark from' : 'applied watermark to';
-                            this.showErrorMessage(`${actionText.charAt(0).toUpperCase() + actionText.slice(1)} ${successCount} image(s), but ${errorCount} failed.`);
+                            UWNotifications.error('Partial Success', `${actionText.charAt(0).toUpperCase() + actionText.slice(1)} ${successCount} image(s), but ${errorCount} failed.`);
                         }
                         
                         // Refresh the media library to show updated images
@@ -387,14 +362,14 @@
                         }, 2000);
                     } else {
                         const actionText = isRemoveAction ? 'remove watermark' : 'apply watermark';
-                        this.showErrorMessage(response.data || `Failed to ${actionText}. Please try again.`);
+                        UWNotifications.error('Error', response.data || `Failed to ${actionText}. Please try again.`);
                     }
                 },
                 error: (xhr, status, error) => {
                     console.error('Ultimate Watermark: AJAX error:', xhr, status, error);
                     this.hideProcessingIndicator();
                     const actionText = isRemoveAction ? 'remove watermark' : 'apply watermark';
-                    this.showErrorMessage(`Failed to ${actionText}. Please try again.`);
+                    UWNotifications.error('Error', `Failed to ${actionText}. Please try again.`);
                 }
             });
         },
@@ -407,42 +382,6 @@
             $('#doaction, #doaction2').val('Apply').prop('disabled', false);
         },
 
-        /**
-         * Show notification
-         */
-        showNotification: function(message, type) {
-            const $notification = $(`
-                <div class="notice notice-${type} is-dismissible ultimate-watermark-notification" style="
-                    position: fixed;
-                    top: 32px;
-                    right: 20px;
-                    z-index: 999999;
-                    max-width: 400px;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                ">
-                    <p><strong>Ultimate Watermark:</strong> ${message}</p>
-                    <button type="button" class="notice-dismiss">
-                        <span class="screen-reader-text">Dismiss this notice.</span>
-                    </button>
-                </div>
-            `);
-            
-            $('body').append($notification);
-            
-            // Auto-dismiss after 5 seconds
-            setTimeout(() => {
-                $notification.fadeOut(300, function() {
-                    $(this).remove();
-                });
-            }, 5000);
-            
-            // Handle manual dismiss
-            $notification.find('.notice-dismiss').on('click', function() {
-                $notification.fadeOut(300, function() {
-                    $(this).remove();
-                });
-            });
-        }
     };
 
     // Initialize when document is ready
@@ -467,9 +406,9 @@
                 if (errorCount > 0) {
                     message += ` ${errorCount} image(s) could not be processed.`;
                 }
-                MediaLibraryWatermark.showSuccessMessage(message);
+                UWNotifications.success('Success', message);
             } else {
-                MediaLibraryWatermark.showErrorMessage(`Failed to apply "${watermark}" to any images. Please check your image files and try again.`);
+                UWNotifications.error('Error', `Failed to apply "${watermark}" to any images. Please check your image files and try again.`);
             }
             
             // Clean up URL parameters

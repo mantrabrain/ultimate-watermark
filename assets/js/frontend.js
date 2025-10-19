@@ -1,7 +1,7 @@
 /**
  * Ultimate Watermark Frontend JavaScript
  * 
- * Basic frontend functionality for image protection
+ * Frontend functionality for image protection based on settings
  *
  * @package UltimateWatermark
  * @since 2.0.0
@@ -19,8 +19,32 @@
          * Initialize frontend functionality
          */
         init: function() {
-            this.disableRightClick();
-            this.disableDragDrop();
+            this.checkSettings();
+        },
+
+        /**
+         * Check settings and apply protection accordingly
+         */
+        checkSettings: function() {
+            // Get settings from localized data
+            if (typeof ultimateWatermark !== 'undefined' && ultimateWatermark.settings) {
+                const settings = ultimateWatermark.settings;
+                
+                // Check if protection should be enabled for logged-in users
+                if (settings.enable_protection_logged_in === '1' || !ultimateWatermark.isLoggedIn) {
+                    if (settings.disable_rightclick === '1') {
+                        this.disableRightClick();
+                    }
+                    
+                    if (settings.disable_drag_drop === '1') {
+                        this.disableDragDrop();
+                    }
+                }
+            } else {
+                // Fallback: Apply basic protection if settings not available
+                this.disableRightClick();
+                this.disableDragDrop();
+            }
         },
 
         /**

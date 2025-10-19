@@ -48,7 +48,18 @@
                 WatermarksPage.pendingDeleteId = watermarkId;
                 
                 // Show confirmation modal
-                $('#delete-confirmation-modal').show();
+                UWNotifications.confirm({
+                    title: 'Delete Watermark',
+                    message: 'Are you sure you want to delete this watermark? This action cannot be undone.',
+                    type: 'error',
+                    confirmText: 'Delete',
+                    cancelText: 'Cancel',
+                    confirmButtonType: 'danger'
+                }).then(confirmed => {
+                    if (confirmed) {
+                        this.confirmDelete(watermarkId);
+                    }
+                });
             });
             
             // WordPress-style bulk actions
@@ -206,12 +217,12 @@
                         // Reload the page to show the duplicated watermark
                         location.reload();
                     } else {
-                        alert('Error duplicating watermark: ' + (response.data || 'Unknown error'));
+                        UWNotifications.error('Error', 'Error duplicating watermark: ' + (response.data || 'Unknown error'));
                         $button.text(originalText).prop('disabled', false);
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('Error duplicating watermark. Please try again.');
+                    UWNotifications.error('Error', 'Error duplicating watermark. Please try again.');
                     $button.text(originalText).prop('disabled', false);
                 }
             });
@@ -261,12 +272,12 @@
                             $statusBadge.html('<span class="status-dot"></span>Inactive');
                         }
                     } else {
-                        alert('Error updating watermark status: ' + (response.data || 'Unknown error'));
+                        UWNotifications.error('Error', 'Error updating watermark status: ' + (response.data || 'Unknown error'));
                         $button.text(originalText).prop('disabled', false);
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('Error updating watermark status: ' + error);
+                    UWNotifications.error('Error', 'Error updating watermark status: ' + error);
                     $button.text(originalText).prop('disabled', false);
                 }
             });
@@ -284,7 +295,18 @@
             this.pendingDeleteId = watermarkId;
             
             // Show confirmation modal
-            $('#delete-confirmation-modal').show();
+            UWNotifications.confirm({
+                title: 'Delete Watermark',
+                message: 'Are you sure you want to delete this watermark? This action cannot be undone.',
+                type: 'error',
+                confirmText: 'Delete',
+                cancelText: 'Cancel',
+                confirmButtonType: 'danger'
+            }).then(confirmed => {
+                if (confirmed) {
+                    this.confirmDelete(watermarkId);
+                }
+            });
         },
 
         /**
@@ -299,17 +321,9 @@
         /**
          * Confirm delete action
          */
-        confirmDelete: function(e) {
-            e.preventDefault();
-            
-            const $modal = $(e.target).closest('.confirmation-modal');
-            const $confirmBtn = $modal.find('.modal-confirm');
-            const originalText = $confirmBtn.text();
-            $confirmBtn.text('Deleting...').prop('disabled', true);
-            
+        confirmDelete: function(watermarkId) {
             // Handle single delete
-            if (this.pendingDeleteId) {
-                const watermarkId = this.pendingDeleteId;
+            if (watermarkId) {
                 
                 $.ajax({
                     url: ultimate_watermark_ajax.ajax_url,
@@ -333,29 +347,15 @@
                             WatermarksPage.pendingDeleteId = null;
                             
                             // Show success message
-                            if (typeof UltimateWatermarkToast !== 'undefined') {
-                                UltimateWatermarkToast.success('Watermark deleted successfully');
-                            } else {
-                                alert('Watermark deleted successfully');
-                            }
+                            UWNotifications.success('Success', 'Watermark deleted successfully');
                         } else {
-                            if (typeof UltimateWatermarkToast !== 'undefined') {
-                                UltimateWatermarkToast.error('Error deleting watermark: ' + (response.data || 'Unknown error'));
-                            } else {
-                                alert('Error deleting watermark: ' + (response.data || 'Unknown error'));
-                            }
+                            UWNotifications.error('Error', 'Error deleting watermark: ' + (response.data || 'Unknown error'));
                             $confirmBtn.text(originalText).prop('disabled', false);
                             WatermarksPage.pendingDeleteId = null;
                         }
                     },
                     error: function(xhr, status, error) {
-                        if (typeof UltimateWatermarkToast !== 'undefined') {
-                            UltimateWatermarkToast.error('Error deleting watermark. Please try again.');
-                        } else {
-                            alert('Error deleting watermark. Please try again.');
-                        }
-                        $confirmBtn.text(originalText).prop('disabled', false);
-                        WatermarksPage.pendingDeleteId = null;
+                        UWNotifications.error('Error', 'Error deleting watermark. Please try again.');
                     }
                 });
                 
@@ -417,7 +417,7 @@
             const action = $select.val();
             
             if (action === '-1' || !action) {
-                alert('Please select a bulk action.');
+                UWNotifications.error('Error', 'Please select a bulk action.');
                 return;
             }
             
@@ -427,7 +427,7 @@
             }).get();
             
             if (selectedIds.length === 0) {
-                alert('Please select watermarks to perform the action on.');
+                UWNotifications.error('Error', 'Please select watermarks to perform the action on.');
                 return;
             }
             
@@ -443,7 +443,7 @@
                     this.handleBulkDelete(selectedIds);
                     break;
                 default:
-                    alert('Unknown bulk action: ' + action);
+                    UWNotifications.error('Error', 'Unknown bulk action: ' + action);
             }
         },
 
@@ -451,15 +451,19 @@
          * Handle bulk delete with confirmation
          */
         handleBulkDelete: function(selectedIds) {
-            // Store selected IDs for confirmation
-            this.pendingBulkDeleteIds = selectedIds;
-            
-            // Update modal message with count
-            const $modal = $('#bulk-delete-confirmation-modal');
-            $modal.find('.modal-body p').text(`Are you sure you want to delete ${selectedIds.length} watermark(s)? This action cannot be undone.`);
-            
             // Show confirmation modal
-            $modal.show();
+            UWNotifications.confirm({
+                title: 'Delete Multiple Watermarks',
+                message: `Are you sure you want to delete ${selectedIds.length} watermark(s)? This action cannot be undone.`,
+                type: 'error',
+                confirmText: 'Delete All',
+                cancelText: 'Cancel',
+                confirmButtonType: 'danger'
+            }).then(confirmed => {
+                if (confirmed) {
+                    this.confirmBulkDelete(selectedIds);
+                }
+            });
         },
 
         /**
@@ -472,7 +476,7 @@
             }).get();
             
             if (selectedIds.length === 0) {
-                alert('Please select watermarks to activate.');
+                UWNotifications.error('Error', 'Please select watermarks to activate.');
                 return;
             }
 
@@ -489,7 +493,7 @@
             }).get();
             
             if (selectedIds.length === 0) {
-                alert('Please select watermarks to deactivate.');
+                UWNotifications.error('Error', 'Please select watermarks to deactivate.');
                 return;
             }
 
@@ -506,19 +510,23 @@
             }).get();
             
             if (selectedIds.length === 0) {
-                alert('Please select watermarks to delete.');
+                UWNotifications.error('Error', 'Please select watermarks to delete.');
                 return;
             }
 
-            // Store selected IDs for confirmation
-            this.pendingBulkDeleteIds = selectedIds;
-            
-            // Update modal message with count
-            const $modal = $('#bulk-delete-confirmation-modal');
-            $modal.find('.modal-body p').text(`Are you sure you want to delete ${selectedIds.length} watermark(s)? This action cannot be undone.`);
-            
             // Show confirmation modal
-            $modal.show();
+            UWNotifications.confirm({
+                title: 'Delete Multiple Watermarks',
+                message: `Are you sure you want to delete ${selectedIds.length} watermark(s)? This action cannot be undone.`,
+                type: 'error',
+                confirmText: 'Delete All',
+                cancelText: 'Cancel',
+                confirmButtonType: 'danger'
+            }).then(confirmed => {
+                if (confirmed) {
+                    this.confirmBulkDelete(selectedIds);
+                }
+            });
         },
 
         /**

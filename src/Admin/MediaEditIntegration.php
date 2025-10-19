@@ -40,28 +40,6 @@ class MediaEditIntegration
         if (!wp_attachment_is_image($post->ID)) {
             return $form_fields;
         }
-
-        // Get applied watermarks for this image
-        $applied_watermarks = WatermarkUsageTracker::getAppliedWatermarks($post->ID);
-        
-        if (empty($applied_watermarks)) {
-            // No watermarks applied
-            $form_fields['watermark_info'] = [
-                'label' => __('Watermark Status', 'ultimate-watermark'),
-                'input' => 'html',
-                'html' => $this->renderNoWatermarkInfo(),
-                'helps' => __('This image has no watermarks applied.', 'ultimate-watermark')
-            ];
-        } else {
-            // Watermarks applied
-            $form_fields['watermark_info'] = [
-                'label' => __('Applied Watermarks', 'ultimate-watermark'),
-                'input' => 'html',
-                'html' => $this->renderWatermarkInfo($applied_watermarks, $post->ID),
-                'helps' => __('Watermarks currently applied to this image.', 'ultimate-watermark')
-            ];
-        }
-
         return $form_fields;
     }
 

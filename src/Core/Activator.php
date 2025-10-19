@@ -71,6 +71,7 @@ class Activator
             'disable_drag_drop' => '0',
             'backup_image' => '1', // Enable backup by default
             'backup_quality' => 90, // Default backup quality
+            'backup_strategy' => 'full_size', // Default backup strategy
         ];
 
         add_option('ultimate_watermark_options', $default_options);
@@ -92,6 +93,9 @@ class Activator
         }
         if (!isset($existing_options['backup_quality'])) {
             $existing_options['backup_quality'] = 90;
+        }
+        if (!isset($existing_options['backup_strategy'])) {
+            $existing_options['backup_strategy'] = 'full_size';
         }
         
         // Update the options
