@@ -187,6 +187,28 @@ class AssetManager
                         'ajax_url' => admin_url('admin-ajax.php'),
                         'nonce' => wp_create_nonce('ultimate_watermark_ajax'),
                     ]);
+                } elseif ($screen->id === 'ultimate-watermark_page_ultimate-watermark-analytics') {
+                    // Analytics page
+                    wp_enqueue_style(
+                        'ultimate-watermark-analytics',
+                        $plugin->getPluginUrl() . 'assets/css/analytics.css',
+                        ['ultimate-watermark-admin', 'ultimate-watermark-layout'],
+                        $plugin->getVersion()
+                    );
+
+                    wp_enqueue_script(
+                        'ultimate-watermark-analytics',
+                        $plugin->getPluginUrl() . 'assets/js/analytics.js',
+                        ['jquery'],
+                        $plugin->getVersion(),
+                        true
+                    );
+                    
+                    // Localize script for AJAX
+                    wp_localize_script('ultimate-watermark-analytics', 'ultimateWatermarkAnalytics', [
+                        'ajaxurl' => admin_url('admin-ajax.php'),
+                        'nonce' => wp_create_nonce('ultimate_watermark_analytics'),
+                    ]);
                 } elseif ($screen->id === 'ultimate-watermark_page_ultimate-watermark-settings') {
                     // Settings page
                     wp_enqueue_style(

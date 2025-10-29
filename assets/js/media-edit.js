@@ -201,8 +201,6 @@
             const size = $img.data('size');
             const attachmentId = $img.data('attachment-id');
             
-            console.log('Image preview clicked:', { imageUrl, size, attachmentId });
-            
             // Try to find the actual img tag inside wp_attachment_image
             let $mainImage = $('.wp_attachment_image .thumbnail');
             if (!$mainImage.length) {
@@ -221,8 +219,6 @@
                 $mainImage = $('img[src*="' + attachmentId + '"]').first();
             }
             
-            console.log('Found main image:', $mainImage.length, $mainImage.attr('src'));
-            
             if ($mainImage.length && imageUrl) {
                 // Store original src for potential restoration
                 if (!$mainImage.data('original-src')) {
@@ -238,12 +234,10 @@
                     $mainImage.removeClass('preview-highlight');
                 }, 1000);
             } else {
-                console.log('Could not find main image element');
                 // Fallback: try to update any image in the attachment area
                 const $anyImage = $('#attachment-details img').first();
                 if ($anyImage.length && imageUrl) {
                     $anyImage.attr('src', imageUrl);
-                    console.log('Updated fallback image');
                 }
             }
         }

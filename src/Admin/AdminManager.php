@@ -3,6 +3,7 @@
 namespace MantraBrain\UltimateWatermark\Admin;
 
 use MantraBrain\UltimateWatermark\Admin\Pages\DashboardPage;
+use MantraBrain\UltimateWatermark\Admin\Pages\AnalyticsPage;
 use MantraBrain\UltimateWatermark\Admin\Pages\WatermarkPage;
 use MantraBrain\UltimateWatermark\Admin\Pages\AddWatermarkPage;
 use MantraBrain\UltimateWatermark\Admin\Pages\SettingsPage;
@@ -68,6 +69,7 @@ class AdminManager
         add_action('wp_ajax_ultimate_watermark_bulk_restore_backup', [$this, 'handleBulkRestoreBackup']);
         add_action('wp_ajax_ultimate_watermark_bulk_delete_backup', [$this, 'handleBulkDeleteBackup']);
         add_action('wp_ajax_ultimate_watermark_save_settings', [$this, 'handleSaveSettings']);
+        add_action('wp_ajax_ultimate_watermark_update_toggle_state', [$this, 'handleUpdateToggleState']);
         // Remove asset enqueuing from here - let AssetManager handle it
     }
 
@@ -78,6 +80,7 @@ class AdminManager
     {
         $this->pages = [
             'dashboard' => new DashboardPage(),
+            'analytics' => new AnalyticsPage(),
             'watermark' => new WatermarkPage(),
             'add-watermark' => new AddWatermarkPage(),
             'settings' => new SettingsPage(),
@@ -144,6 +147,16 @@ class AdminManager
             [$this, 'renderDashboardPage']
         );
 
+        // Analytics submenu
+        add_submenu_page(
+            'ultimate-watermark',
+            __('Analytics', 'ultimate-watermark'),
+            __('Analytics', 'ultimate-watermark'),
+            'manage_options',
+            'ultimate-watermark-analytics',
+            [$this, 'renderAnalyticsPage']
+        );
+
         // Watermark submenu
                 add_submenu_page(
                     'ultimate-watermark',
@@ -199,6 +212,14 @@ class AdminManager
     public function renderDashboardPage(): void
     {
         $this->pages['dashboard']->render();
+    }
+
+    /**
+     * Render analytics page
+     */
+    public function renderAnalyticsPage(): void
+    {
+        $this->pages['analytics']->render();
     }
 
     /**
@@ -608,6 +629,38 @@ class AdminManager
         } catch (Exception $e) {
             wp_send_json_error(['message' => 'An error occurred while saving settings']);
         }
+    }
+
+    /**
+     * Handle update toggle state
+     */
+    public function handleUpdateToggleState(): void
+    {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_toggle')) {
+            wp_die('Security check failed');
+        }
+
+        // Check permissions
+        if (!current_user_can('upload_files')) {
+            wp_die('Insufficient permissions');
+        }
+
+        // Get enabled state
+        $enabled = $_POST['enabled'] ?? '0';
+        error_log('Ultimate Watermark - AJAX toggle state update: ' . $enabled);
+
+        // Store in session
+        if (!session_id()) {
+            session_start();
+        }
+        $_SESSION['ultimate_watermark_auto_apply'] = $enabled;
+        error_log('Ultimate Watermark - Session data set: ' . print_r($_SESSION['ultimate_watermark_auto_apply'], true));
+
+        // Send success response
+        wp_send_json_success([
+            'enabled' => $enabled === '1'
+        ]);
     }
 
 }
