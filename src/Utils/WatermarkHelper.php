@@ -20,20 +20,13 @@ class WatermarkHelper
     {
         $watermarks = [];
         
-        // Query only active watermarks from database
+        // Query all published watermarks from database
         $posts = get_posts([
             'post_type' => WatermarkPostType::POST_TYPE,
             'post_status' => 'publish',
             'numberposts' => -1,
             'orderby' => 'date',
-            'order' => 'DESC',
-            'meta_query' => [
-                [
-                    'key' => 'active',
-                    'value' => '1',
-                    'compare' => '='
-                ]
-            ]
+            'order' => 'DESC'
         ]);
         
         foreach ($posts as $post) {
@@ -160,14 +153,21 @@ class WatermarkHelper
     public static function getActiveAutomaticWatermarks(string $context = 'upload', ?int $post_id = null, string $image_size = 'full'): array
     {
         $all_active = self::getActiveWatermarks();
+       // echo '<pre>';
+        //print_r($all_active);exit;
         
         // First filter by behavior (automatic watermarking)
         $automatic_watermarks = array_filter($all_active, function($watermark) {
-            return $watermark['automatic_watermarking'] === '1';
+            $is_automatic = $watermark['automatic_watermarking'] === '1' || (boolean)$watermark['automatic_watermarking'] === true ;
+            return $is_automatic;
         });
         
+        
+        
         // Then filter by rules (post types and image sizes)
-        return self::filterWatermarksByRules($automatic_watermarks, $context, $post_id, $image_size);
+        $filtered_watermarks = self::filterWatermarksByRules($automatic_watermarks, $context, $post_id, $image_size);
+        
+        return $filtered_watermarks;
     }
 
     /**
@@ -382,10 +382,11 @@ class WatermarkHelper
         if ($watermark_on === 'selected_post_types') {
             $allowed_post_types = $watermark['watermark_post_types'] ?? [];
             
-            // For upload context, we need to determine the post type
-            if ($context === 'upload' && $post_id) {
-                $post_type = get_post_type($post_id);
-                return in_array($post_type, $allowed_post_types);
+            // For upload context, allow if attachment is in allowed post types
+            // This is because uploaded images become attachments
+            if ($context === 'upload') {
+                $result = in_array('attachment', $allowed_post_types);
+                return $result;
             }
             
             // For manual context, assume it's for media library (attachment post type)
@@ -433,8 +434,17 @@ class WatermarkHelper
             return true;
         }
         
+        // Special case for upload context: if watermark is configured for any size, allow it during upload
+        // This is because during upload, we process the full-size image and then generate all sizes
+        if ($image_size === 'full') {
+            // During upload, if the watermark is configured for any size, it should be available
+            // because WordPress will generate all sizes from the uploaded image
+            return true;
+        }
+        
         // Check if the current image size is in the allowed sizes
-        return in_array($image_size, $watermark_sizes);
+        $result = in_array($image_size, $watermark_sizes);
+        return $result;
     }
 
     /**
@@ -448,14 +458,20 @@ class WatermarkHelper
      */
     public static function filterWatermarksByRules(array $watermarks, string $context = 'upload', ?int $post_id = null, string $image_size = 'full'): array
     {
+        
         return array_filter($watermarks, function($watermark) use ($context, $post_id, $image_size) {
+            
             // Check post type rules
-            if (!self::shouldApplyWatermarkByPostType($watermark, $context, $post_id)) {
+            $post_type_check = self::shouldApplyWatermarkByPostType($watermark, $context, $post_id);
+            
+            if (!$post_type_check) {
                 return false;
             }
             
             // Check image size rules
-            if (!self::shouldApplyWatermarkByImageSize($watermark, $image_size)) {
+            $size_check = self::shouldApplyWatermarkByImageSize($watermark, $image_size);
+            
+            if (!$size_check) {
                 return false;
             }
             

@@ -11,33 +11,26 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
      */
     public function applyWatermark(string $sourceImagePath, string $outputImagePath, array $watermarkData): bool
     {
-        error_log("Ultimate Watermark: applyWatermark called with data: " . print_r($watermarkData, true));
         
         // Load source image
         $image = $this->loadImage($sourceImagePath);
         if (!$image) {
-            error_log("Ultimate Watermark: Failed to load source image: " . $sourceImagePath);
             return false;
         }
         
         $watermarkType = $watermarkData['watermark_type'] ?? 'text';
-        error_log("Ultimate Watermark: Watermark type detected: " . $watermarkType);
         
         if ($watermarkType === 'text') {
-            error_log("Ultimate Watermark: Applying text watermark");
             $this->applyTextWatermark($image, $watermarkData);
         } elseif ($watermarkType === 'image') {
-            error_log("Ultimate Watermark: Applying image watermark");
             $this->applyImageWatermark($image, $watermarkData);
         } else {
-            error_log("Ultimate Watermark: Unknown watermark type: " . $watermarkType);
         }
         
         // Save watermarked image with quality and format settings
         $result = $this->saveImage($image, $outputImagePath, $watermarkData);
         imagedestroy($image);
         
-        error_log("Ultimate Watermark: Save result: " . ($result ? 'success' : 'failed'));
         return $result;
     }
     
@@ -46,31 +39,39 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
      */
     public function generatePreview(string $sourceImagePath, array $watermarkData)
     {
-        error_log("Ultimate Watermark: generatePreview called with data: " . print_r($watermarkData, true));
         
         // Load source image
         $image = $this->loadImage($sourceImagePath);
         if (!$image) {
-            error_log("Ultimate Watermark: Failed to load source image for preview: " . $sourceImagePath);
             return false;
         }
         
         $watermarkType = $watermarkData['watermark_type'] ?? 'text';
-        error_log("Ultimate Watermark: Preview watermark type detected: " . $watermarkType);
         
         if ($watermarkType === 'text') {
-            error_log("Ultimate Watermark: Applying text watermark to preview");
             $this->applyTextWatermark($image, $watermarkData);
         } elseif ($watermarkType === 'image') {
-            error_log("Ultimate Watermark: Applying image watermark to preview");
             $this->applyImageWatermark($image, $watermarkData);
         } else {
-            error_log("Ultimate Watermark: Unknown preview watermark type: " . $watermarkType);
         }
         
         // Create preview path in WordPress uploads directory
         $uploadDir = wp_upload_dir();
-        $previewPath = $uploadDir['basedir'] . '/ultimate-watermark/watermark_preview_' . uniqid() . '.png';
+        
+        // Clean up any existing preview images first
+        $previewDir = $uploadDir['basedir'] . '/ultimate-watermark';
+        if (file_exists($previewDir)) {
+            $existingFiles = glob($previewDir . '/watermark_preview_*.png');
+            foreach ($existingFiles as $file) {
+                if (file_exists($file)) {
+                    unlink($file);
+                }
+            }
+        }
+        
+        // Generate a consistent filename based on watermark data hash
+        $watermarkHash = md5(serialize($watermarkData));
+        $previewPath = $uploadDir['basedir'] . '/ultimate-watermark/watermark_preview_' . $watermarkHash . '.png';
         
         // Ensure directory exists
         $previewDir = dirname($previewPath);
@@ -181,7 +182,6 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         $fontStyle = $watermarkData['watermark_font_style'] ?? 'normal';
         $fontPath = $this->getFontPath($fontFamily, $fontWeight, $fontStyle);
         
-        error_log("Ultimate Watermark: Font settings - Family: $fontFamily, Weight: $fontWeight, Style: $fontStyle");
         
         if ($fontPath && function_exists('imagettftext')) {
             $this->drawRotatedTextTTF($image, $text, $textColor, $fontSize, $rotation, $fontPath, $watermarkData);
@@ -237,7 +237,6 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             $y = max(0, min($y, $imageHeight - 1));
             
             imagettftext($image, $fontSize, 0, $x, $y, $textColor, $fontPath, $text);
-            error_log("Ultimate Watermark: Drew text with TTF font '$fontFamily' at position ($x, $y)");
             
             // Draw text decoration if specified
             $this->drawTextDecoration($image, $text, $x, $y, $fontSize, $textColor, $fontPath, $watermarkData);
@@ -249,7 +248,6 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             
             // imagestring() doesn't support custom colors, so we'll use a default color
             imagestring($image, 5, $x, $y, $text);
-            error_log("Ultimate Watermark: Drew text with built-in font at position ($x, $y) - Note: Custom colors not supported with built-in fonts");
         }
     }
     
@@ -260,7 +258,6 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
     {
         $textDecoration = $watermarkData['watermark_text_decoration'] ?? 'none';
         
-        error_log("Ultimate Watermark: Text decoration setting: '$textDecoration'");
         
         if ($textDecoration === 'none') {
             return;
@@ -292,7 +289,6 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             imageline($image, $x, $lineY + $i, $x + $textWidth, $lineY + $i, $textColor);
         }
         
-        error_log("Ultimate Watermark: Drew text decoration '$textDecoration' at y=$lineY");
     }
     
     /**
@@ -622,12 +618,10 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         
         foreach ($fontPaths as $fontPath) {
             if (file_exists($fontPath)) {
-                error_log("Ultimate Watermark: Found font '$fontFamily' ($fontWeight, $fontStyle) at: $fontPath");
                 return $fontPath;
             }
         }
         
-        error_log("Ultimate Watermark: Font '$fontFamily' ($fontWeight, $fontStyle) not found, using fallback");
         return null;
     }
     
@@ -647,20 +641,17 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
     {
         $watermarkPath = $watermarkData['watermark_image_path'] ?? '';
         if (empty($watermarkPath) || !file_exists($watermarkPath)) {
-            error_log("Ultimate Watermark: Watermark path is empty or file doesn't exist: " . $watermarkPath);
             return;
         }
         
         $watermarkImage = $this->loadWatermarkImage($watermarkPath);
         if (!$watermarkImage) {
-            error_log("Ultimate Watermark: Failed to load watermark image from: " . $watermarkPath);
             return;
         }
         
         $rotation = $watermarkData['watermark_rotation'] ?? 0;
         $opacity = $watermarkData['watermark_opacity'] ?? 50;
         
-        error_log("Ultimate Watermark: Applying image watermark - Path: $watermarkPath, Rotation: $rotation, Opacity: $opacity");
         
         // Apply rotation and positioning (opacity will be handled in the rotation method)
         $this->applyImageWatermarkWithRotation($image, $watermarkImage, $rotation, $opacity, $watermarkData);
@@ -682,7 +673,6 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         // Apply size scaling to watermark
         $watermarkImage = $this->applyWatermarkSizeScaling($watermarkImage, $watermarkData, $imageWidth, $imageHeight);
         
-        error_log("Ultimate Watermark: Position: $watermarkPosition, OffsetX: $offsetX, OffsetY: $offsetY");
         
         // If no rotation, use simple positioning
         if ($rotation == 0) {
@@ -696,14 +686,12 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             } else {
                 imagecopy($image, $watermarkImage, $position['x'], $position['y'], 0, 0, $watermarkWidth, $watermarkHeight);
             }
-            error_log("Ultimate Watermark: Applied non-rotated watermark at position: " . $position['x'] . ", " . $position['y']);
             return;
         }
         
         // For rotated image, we need to rotate the watermark first
         $rotatedWatermark = imagerotate($watermarkImage, $rotation, 0);
         if (!$rotatedWatermark) {
-            error_log("Ultimate Watermark: Failed to rotate watermark, falling back to non-rotated");
             // Fallback to non-rotated if rotation fails
             $watermarkWidth = imagesx($watermarkImage);
             $watermarkHeight = imagesy($watermarkImage);
@@ -721,7 +709,6 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         $rotatedWidth = imagesx($rotatedWatermark);
         $rotatedHeight = imagesy($rotatedWatermark);
         
-        error_log("Ultimate Watermark: Rotated watermark dimensions: $rotatedWidth x $rotatedHeight");
         
         // Calculate position based on watermark position and rotated dimensions
         $x = 0;
@@ -771,7 +758,6 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         $x = max(0, min($x, $imageWidth - $rotatedWidth));
         $y = max(0, min($y, $imageHeight - $rotatedHeight));
         
-        error_log("Ultimate Watermark: Final position: $x, $y");
         
         // Copy rotated watermark to main image with opacity (cast to int to avoid deprecation warning)
         if ($opacity < 100) {
@@ -782,7 +768,6 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         
         // Clean up rotated watermark
         imagedestroy($rotatedWatermark);
-        error_log("Ultimate Watermark: Successfully applied rotated watermark");
     }
     
     /**
@@ -794,7 +779,6 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         $originalWidth = imagesx($watermarkImage);
         $originalHeight = imagesy($watermarkImage);
         
-        error_log("Ultimate Watermark: Size type: $sizeType, Original: {$originalWidth}x{$originalHeight}, Image: {$imageWidth}x{$imageHeight}");
         
         $newWidth = $originalWidth;
         $newHeight = $originalHeight;
@@ -804,18 +788,15 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
                 $scalePercentage = $watermarkData['watermark_scale_percentage'] ?? 80;
                 $newWidth = (int) ($imageWidth * $scalePercentage / 100);
                 $newHeight = (int) ($originalHeight * $newWidth / $originalWidth); // Maintain aspect ratio
-                error_log("Ultimate Watermark: Scaled to: {$newWidth}x{$newHeight} ({$scalePercentage}%)");
                 break;
                 
             case 'custom':
                 $newWidth = $watermarkData['watermark_custom_width'] ?? 100;
                 $newHeight = $watermarkData['watermark_custom_height'] ?? 100;
-                error_log("Ultimate Watermark: Custom size: {$newWidth}x{$newHeight}");
                 break;
                 
             case 'original':
             default:
-                error_log("Ultimate Watermark: Using original size: {$newWidth}x{$newHeight}");
                 return $watermarkImage; // No scaling needed
         }
         
@@ -839,7 +820,6 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         // Destroy original watermark image
         imagedestroy($watermarkImage);
         
-        error_log("Ultimate Watermark: Successfully scaled watermark to: {$newWidth}x{$newHeight}");
         return $scaledWatermark;
     }
     
@@ -965,7 +945,6 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         $quality = $watermarkData['watermark_quality'] ?? 90;
         $imageFormat = $watermarkData['image_format'] ?? 'baseline';
         
-        error_log("Ultimate Watermark: Saving image with quality: $quality, format: $imageFormat, extension: $extension");
         
         switch ($extension) {
             case 'jpg':
@@ -991,7 +970,6 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
                 return imagewebp($image, $outputPath, $quality);
                 
             default:
-                error_log("Ultimate Watermark: Unsupported image format: $extension");
                 return false;
         }
     }

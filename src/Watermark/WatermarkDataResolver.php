@@ -44,8 +44,15 @@ class WatermarkDataResolver
         $watermarkData = WatermarkHelper::getActiveWatermarkById($watermarkId);
         
         if (!$watermarkData) {
-            error_log('WatermarkDataResolver: Watermark not found or inactive (ID: ' . $watermarkId . ')');
             return null;
+        }
+
+        // Convert image ID to path if provided
+        if (!empty($watermarkData['watermark_image_id'])) {
+            $imagePath = get_attached_file($watermarkData['watermark_image_id']);
+            if ($imagePath && file_exists($imagePath)) {
+                $watermarkData['watermark_image_path'] = $imagePath;
+            }
         }
 
         // Normalize the data structure

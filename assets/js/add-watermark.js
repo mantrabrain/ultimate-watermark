@@ -32,6 +32,7 @@
             this.initForm();
             this.initPreview();
             this.initWatermarkPreview();
+            this.initFormSubmission();
             
             // Initialize position selector with a small delay to ensure DOM is ready
             setTimeout(() => {
@@ -126,6 +127,14 @@
             
             // Set initial preview - removed sidebar preview
             // this.updatePreview();
+        },
+
+        /**
+         * Initialize form submission
+         */
+        initFormSubmission: function() {
+            // Form submission is handled by WordPress admin form submission
+            // No additional JavaScript handling needed
         },
 
         /**

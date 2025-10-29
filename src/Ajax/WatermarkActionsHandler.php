@@ -129,6 +129,9 @@ class WatermarkActionsHandler
             return;
         }
 
+        // Clean up preview images before deleting the watermark
+        \MantraBrain\UltimateWatermark\Utils\PreviewManager::cleanupWatermarkPreviews($watermark_id);
+        
         // Delete the watermark
         $result = wp_delete_post($watermark_id, true);
         error_log('Ultimate Watermark Delete - Delete result: ' . print_r($result, true));
@@ -281,6 +284,9 @@ class WatermarkActionsHandler
 
         $deleted_count = 0;
         foreach ($watermark_ids as $watermark_id) {
+            // Clean up preview images before deleting the watermark
+            \MantraBrain\UltimateWatermark\Utils\PreviewManager::cleanupWatermarkPreviews($watermark_id);
+            
             $result = wp_delete_post($watermark_id, true);
             if ($result) {
                 $deleted_count++;

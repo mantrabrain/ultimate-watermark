@@ -83,6 +83,9 @@ class AdminManager
             'settings' => new SettingsPage(),
             'backup' => new BackupPage(),
         ];
+
+        // Initialize pages that need initialization
+        $this->pages['add-watermark']->init();
     }
 
     /**
@@ -274,6 +277,7 @@ class AdminManager
         }
 
         $attachment_id = intval($_POST['attachment_id'] ?? 0);
+        $delete_after_restore = isset($_POST['delete_after_restore']) && $_POST['delete_after_restore'] === '1';
         
         if (!$attachment_id) {
             wp_send_json_error(['message' => 'Invalid attachment ID.']);
@@ -292,7 +296,16 @@ class AdminManager
         $restored = \MantraBrain\UltimateWatermark\Utils\BackupManager::restoreFromBackup($file_path, $attachment_id);
         
         if ($restored) {
-            wp_send_json_success(['message' => 'Image restored successfully from backup.']);
+            $message = $delete_after_restore 
+                ? 'Image restored successfully and backup deleted.' 
+                : 'Image restored successfully from backup.';
+            
+            // Delete backup files if requested
+            if ($delete_after_restore) {
+                \MantraBrain\UltimateWatermark\Utils\BackupManager::deleteBackupFiles($attachment_id);
+            }
+            
+            wp_send_json_success(['message' => $message]);
         } else {
             wp_send_json_error(['message' => 'Failed to restore image from backup.']);
         }
@@ -315,8 +328,38 @@ class AdminManager
             return;
         }
 
-        $attachment_ids = json_decode($_POST['attachment_ids'] ?? '[]', true);
-        
+        // Be flexible: accept JSON array or comma-separated list. Account for added slashes.
+        $raw_ids = $_POST['attachment_ids'] ?? '';
+        if (is_string($raw_ids)) {
+            $raw_ids_trim = trim((string) $raw_ids);
+            $raw_ids_trim = function_exists('wp_unslash') ? wp_unslash($raw_ids_trim) : $raw_ids_trim;
+            if ($raw_ids_trim !== '' && $raw_ids_trim[0] === '[') {
+                $attachment_ids = json_decode($raw_ids_trim, true);
+                if (!is_array($attachment_ids)) {
+                    // Fallback: extract digits from a bracketed string like ["59","58"]
+                    preg_match_all('/\\d+/', $raw_ids_trim, $m);
+                    $attachment_ids = isset($m[0]) ? array_map('intval', $m[0]) : [];
+                }
+            } else {
+                $attachment_ids = array_filter(array_map('intval', array_map('trim', explode(',', $raw_ids_trim))));
+            }
+        } elseif (is_array($raw_ids)) {
+            $attachment_ids = array_map('intval', $raw_ids);
+        } else {
+            $attachment_ids = [];
+        }
+
+        // Server-side log to help diagnose if needed
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Ultimate Watermark: Bulk delete raw ids: ' . print_r($raw_ids, true));
+            error_log('Ultimate Watermark: Bulk delete parsed ids: ' . print_r($attachment_ids, true));
+        }
+
+        // Normalize IDs
+        if (is_array($attachment_ids)) {
+            $attachment_ids = array_values(array_unique(array_filter(array_map('intval', $attachment_ids), function($v){ return $v > 0; })));
+        }
+
         if (empty($attachment_ids) || !is_array($attachment_ids)) {
             wp_send_json_error(['message' => 'Invalid attachment IDs.']);
             return;
@@ -372,8 +415,33 @@ class AdminManager
             return;
         }
 
-        $attachment_ids = json_decode($_POST['attachment_ids'] ?? '[]', true);
-        
+        // Accept either array (attachment_ids[]) or JSON/comma-separated
+        $raw_ids = $_POST['attachment_ids'] ?? ($_POST['attachment_ids'] ?? '');
+        if (is_array($raw_ids)) {
+            $attachment_ids = array_map('intval', $raw_ids);
+        } else {
+            $raw_ids_trim = trim((string) $raw_ids);
+            $raw_ids_trim = function_exists('wp_unslash') ? wp_unslash($raw_ids_trim) : $raw_ids_trim;
+            if ($raw_ids_trim !== '' && $raw_ids_trim[0] === '[') {
+                $attachment_ids = json_decode($raw_ids_trim, true);
+                if (!is_array($attachment_ids)) {
+                    preg_match_all('/\\d+/', $raw_ids_trim, $m);
+                    $attachment_ids = isset($m[0]) ? array_map('intval', $m[0]) : [];
+                }
+            } else {
+                $attachment_ids = array_filter(array_map('intval', array_map('trim', explode(',', $raw_ids_trim))));
+            }
+        }
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Ultimate Watermark: Bulk delete raw ids: ' . print_r($raw_ids, true));
+            error_log('Ultimate Watermark: Bulk delete parsed ids: ' . print_r($attachment_ids, true));
+        }
+
+        if (is_array($attachment_ids)) {
+            $attachment_ids = array_values(array_unique(array_filter(array_map('intval', $attachment_ids), function($v){ return $v > 0; })));
+        }
+
         if (empty($attachment_ids) || !is_array($attachment_ids)) {
             wp_send_json_error(['message' => 'Invalid attachment IDs.']);
             return;
@@ -541,4 +609,5 @@ class AdminManager
             wp_send_json_error(['message' => 'An error occurred while saving settings']);
         }
     }
+
 }

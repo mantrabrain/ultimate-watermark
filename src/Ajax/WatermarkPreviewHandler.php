@@ -63,6 +63,9 @@ class WatermarkPreviewHandler
         error_log("Ultimate Watermark: Source image path: " . $sourceImagePath);
 
         try {
+            // Clean up any existing preview images before generating new one
+            $this->cleanupExistingPreviews();
+            
             // Generate preview using WatermarkService
             $previewResult = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::generatePreview($sourceImagePath, $watermarkData);
             
@@ -134,7 +137,7 @@ class WatermarkPreviewHandler
      */
     private function getSourceImagePath(): string
     {
-        // Use the preview image from assets
+        // Always use the original preview image from assets (never modify it)
         $pluginDir = plugin_dir_path(dirname(__DIR__));
         $originalPreviewPath = $pluginDir . 'assets/images/preview-image.jpg';
         
@@ -143,24 +146,7 @@ class WatermarkPreviewHandler
             $originalPreviewPath = $this->createDefaultPreviewImage();
         }
         
-        // Create a copy of the original preview image for watermarking
-        $uploadDir = wp_upload_dir();
-        $previewDir = $uploadDir['basedir'] . '/ultimate-watermark';
-        
-        if (!file_exists($previewDir)) {
-            wp_mkdir_p($previewDir);
-        }
-        
-        $copyPath = $previewDir . '/preview-source-' . time() . '.jpg';
-        
-        // Copy the original preview image
-        if (copy($originalPreviewPath, $copyPath)) {
-            // Clean up old preview source images (keep only last 10)
-            $this->cleanupOldPreviewSources($previewDir);
-            return $copyPath;
-        }
-        
-        // Fallback to original if copy fails
+        // Always return the original image path (never create copies)
         return $originalPreviewPath;
     }
 
@@ -208,24 +194,27 @@ class WatermarkPreviewHandler
     }
 
     /**
-     * Clean up old preview source images
+     * Clean up existing preview images before generating new one
      */
-    private function cleanupOldPreviewSources(string $previewDir): void
+    private function cleanupExistingPreviews(): void
     {
-        $files = glob($previewDir . '/preview-source-*.jpg');
+        $uploadDir = wp_upload_dir();
+        $previewDir = $uploadDir['basedir'] . '/ultimate-watermark';
         
-        if (count($files) > 10) {
-            // Sort by modification time (oldest first)
-            usort($files, function($a, $b) {
-                return filemtime($a) - filemtime($b);
-            });
-            
-            // Remove oldest files, keeping only the last 10
-            $filesToRemove = array_slice($files, 0, count($files) - 10);
-            foreach ($filesToRemove as $file) {
-                if (file_exists($file)) {
-                    unlink($file);
-                }
+        if (!file_exists($previewDir)) {
+            return;
+        }
+        
+        // Remove all existing preview images
+        $previewFiles = glob($previewDir . '/preview-*.jpg');
+        $watermarkPreviewFiles = glob($previewDir . '/watermark_preview_*.png');
+        $previewSourceFiles = glob($previewDir . '/preview-source-*.jpg');
+        
+        $allFiles = array_merge($previewFiles, $watermarkPreviewFiles, $previewSourceFiles);
+        
+        foreach ($allFiles as $file) {
+            if (file_exists($file)) {
+                unlink($file);
             }
         }
     }

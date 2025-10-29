@@ -3,7 +3,7 @@
  * Plugin Name: Ultimate Watermark
  * Plugin URI: https://mantrabrain.com/ultimate-watermark
  * Description: Advanced WordPress Image Watermarking Plugin with PSR-4 architecture
- * Version: 2.0.0
+ * Version: 2.0.1
  * Author: MantraBrain
  * Author URI: https://mantrabrain.com
  * License: GPL v3 or later

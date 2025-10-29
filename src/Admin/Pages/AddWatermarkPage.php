@@ -19,6 +19,14 @@ class AddWatermarkPage
     use SingletonTrait;
 
     /**
+     * Initialize the add watermark page
+     */
+    public function init()
+    {
+        //add_action('save_post', [$this, 'saveWatermarkData']);
+    }
+
+    /**
      * Render add watermark page
      */
     public function render(): void
@@ -56,10 +64,6 @@ class AddWatermarkPage
         $is_edit_mode = $watermark_id > 0;
         $watermark_data = $is_edit_mode ? $this->getWatermarkData($watermark_id) : null;
         
-        // Debug: Check if we're in edit mode and have data
-        if ($is_edit_mode && $watermark_data) {
-            // Edit mode data loaded
-        }
         
         $tabs_config = $this->getFormTabsConfig();
         ?>
@@ -75,6 +79,18 @@ class AddWatermarkPage
                         <?php $this->renderFormTabs($tabs_config, $watermark_data); ?>
 
                         <?php $this->renderFormContent($tabs_config, $watermark_data); ?>
+                        
+                        <!-- Form Actions -->
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <span class="dashicons dashicons-saved"></span>
+                                <?php echo $is_edit_mode ? __('Update Watermark', 'ultimate-watermark') : __('Create Watermark', 'ultimate-watermark'); ?>
+                            </button>
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=ultimate-watermark-watermarks')); ?>" class="btn btn-secondary">
+                                <span class="dashicons dashicons-arrow-left-alt"></span>
+                                <?php _e('Cancel', 'ultimate-watermark'); ?>
+                            </a>
+                        </div>
                     </form>
                 </div>
 
@@ -314,16 +330,6 @@ class AddWatermarkPage
     {
         $value = $watermark_data ? ($watermark_data[$field_name] ?? $field_config['default'] ?? '') : ($field_config['default'] ?? '');
         
-        // Debug: Log watermark data for specific fields
-        if (in_array($field_name, ['watermark_font_style', 'watermark_text_decoration'])) {
-            error_log("Ultimate Watermark: Watermark data for '$field_name': " . print_r($watermark_data, true));
-        }
-        
-        // Debug: Log field rendering
-        if (in_array($field_name, ['watermark_font_style', 'watermark_text_decoration'])) {
-            error_log("Ultimate Watermark: Rendering field '$field_name' with value: '$value'");
-            error_log("Ultimate Watermark: Field config: " . print_r($field_config, true));
-        }
         
         switch ($field_config['type']) {
             case 'text':
@@ -596,7 +602,7 @@ class AddWatermarkPage
      *
      * @return array
      */
-    private function getFormTabsConfig()
+    public function getFormTabsConfig()
     {
         return [
             'basic' => [
@@ -1001,6 +1007,23 @@ class AddWatermarkPage
         return $options;
     }
 
+
+    /**
+     * Sanitize checkbox value
+     */
+    public function sanitizeCheckbox($value): string
+    {
+        return $value ? '1' : '0';
+    }
+
+    /**
+     * Validate checkbox value
+     */
+    public function validateCheckbox($value): bool
+    {
+        return in_array($value, ['0', '1'], true);
+    }
+
     /**
      * Get watermark data for editing
      */
@@ -1027,7 +1050,13 @@ class AddWatermarkPage
                     }
                     
                     $meta_value = get_post_meta($watermark_id, $field_name, true);
-                    $data[$field_name] = $meta_value ?: ($field_config['default'] ?? '');
+                    
+                    // Handle checkbox fields specially - '0' is a valid value
+                    if ($field_config['type'] === 'checkbox') {
+                        $data[$field_name] = $meta_value !== '' ? $meta_value : ($field_config['default'] ?? '0');
+                    } else {
+                        $data[$field_name] = $meta_value ?: ($field_config['default'] ?? '');
+                    }
                 }
             }
         }
@@ -1125,7 +1154,6 @@ class AddWatermarkPage
     public function sanitizeColor($value) { return sanitize_hex_color($value); }
     public function sanitizeSelect($value) { return sanitize_text_field($value); }
     public function sanitizeMediaId($value) { return absint($value); }
-    public function sanitizeCheckbox($value) { return $value ? '1' : '0'; }
     public function sanitizeCheckboxGroup($value) { return is_array($value) ? array_map('sanitize_text_field', $value) : []; }
 
     // Validation callbacks
@@ -1136,6 +1164,5 @@ class AddWatermarkPage
     public function validateColor($value) { return preg_match('/^#[a-fA-F0-9]{6}$/', $value); }
     public function validateSelect($value, $options = []) { return in_array($value, array_keys($options)); }
     public function validateMediaId($value) { return $value > 0 && wp_attachment_is_image($value); }
-    public function validateCheckbox($value) { return in_array($value, ['0', '1']); }
     public function validateCheckboxGroup($value) { return is_array($value); }
 }

@@ -42,6 +42,7 @@ class BackupPage
     {
         $stats = BackupManager::getBackupStats();
         
+        
         echo '<div class="uw-backup-page">';
         
         // Header Section
@@ -77,7 +78,7 @@ class BackupPage
         echo '<span class="dashicons dashicons-database"></span>';
         echo '</div>';
         echo '<div class="uw-stat-content">';
-        echo '<div class="uw-stat-number">' . esc_html(size_format($stats['total_size'])) . '</div>';
+        echo '<div class="uw-stat-number">' . esc_html($this->formatSizePrecise($stats['total_size'])) . '</div>';
         echo '<div class="uw-stat-label">' . esc_html__('Storage Used', 'ultimate-watermark') . '</div>';
         echo '</div>';
         echo '</div>';
@@ -154,6 +155,32 @@ class BackupPage
         }
         
         echo '</div>'; // Close uw-backup-page
+        
+        // Image Modal
+        echo '<div id="uw-image-modal" class="uw-image-modal" style="display: none;">';
+        echo '<div class="uw-modal-overlay"></div>';
+        echo '<div class="uw-modal-content">';
+        echo '<div class="uw-modal-header">';
+        echo '<h3 class="uw-modal-title">Image Preview</h3>';
+        echo '<button type="button" class="uw-modal-close" id="uw-close-modal">';
+        echo '<span class="dashicons dashicons-no-alt"></span>';
+        echo '</button>';
+        echo '</div>';
+        echo '<div class="uw-modal-body">';
+        echo '<img id="uw-modal-image" src="" alt="" class="uw-modal-image">';
+        echo '</div>';
+        echo '<div class="uw-modal-footer">';
+        echo '<button type="button" class="uw-btn uw-btn-secondary" id="uw-download-image">';
+        echo '<span class="dashicons dashicons-download"></span>';
+        echo 'Download';
+        echo '</button>';
+        echo '<button type="button" class="uw-btn uw-btn-primary" id="uw-view-full">';
+        echo '<span class="dashicons dashicons-external"></span>';
+        echo 'View Full Size';
+        echo '</button>';
+        echo '</div>';
+        echo '</div>';
+        echo '</div>';
     }
 
     /**
@@ -181,7 +208,7 @@ class BackupPage
         echo '<td class="uw-col-name">';
         echo '<div class="uw-file-info">';
         echo '<div class="uw-file-thumbnail">';
-        echo '<img src="' . esc_url($backup['url']) . '" alt="' . esc_attr($backup['title']) . '" loading="lazy">';
+        echo '<img src="' . esc_url($backup['url']) . '" alt="' . esc_attr($backup['title']) . '" loading="lazy" class="uw-thumbnail-image" data-image-url="' . esc_url($backup['url']) . '" data-image-title="' . esc_attr($backup['title']) . '">';
         echo '</div>';
         echo '<div class="uw-file-details">';
         echo '<div class="uw-file-name">' . esc_html($backup['title']) . '</div>';
@@ -192,6 +219,9 @@ class BackupPage
             $count = count($additional_sizes);
             echo '<div class="uw-additional-sizes">';
             echo '<span class="uw-size-count">+' . $count . ' ' . esc_html(_n('additional size', 'additional sizes', $count, 'ultimate-watermark')) . '</span>';
+            echo '<button type="button" class="uw-toggle-children" data-attachment-id="' . esc_attr($backup['id']) . '">';
+            echo '<span class="dashicons dashicons-arrow-down-alt2"></span>';
+            echo '</button>';
             echo '</div>';
         }
         
@@ -201,11 +231,11 @@ class BackupPage
         
         // Size column
         echo '<td class="uw-col-size">';
-        echo '<span class="uw-file-size">' . esc_html(size_format($total_size)) . '</span>';
+        echo '<span class="uw-file-size">' . esc_html($this->formatSizePrecise($total_size)) . '</span>';
         if (!empty($additional_sizes)) {
             echo '<div class="uw-size-breakdown">';
-            echo '<span class="uw-main-size">' . esc_html(size_format($backup['size'])) . ' ' . esc_html__('main', 'ultimate-watermark') . '</span>';
-            echo '<span class="uw-additional-size">+' . esc_html(size_format($total_size - $backup['size'])) . ' ' . esc_html__('additional', 'ultimate-watermark') . '</span>';
+            echo '<span class="uw-main-size">' . esc_html($this->formatSizePrecise($backup['size'])) . ' ' . esc_html__('main', 'ultimate-watermark') . '</span>';
+            echo '<span class="uw-additional-size">+' . esc_html($this->formatSizePrecise($total_size - $backup['size'])) . ' ' . esc_html__('additional', 'ultimate-watermark') . '</span>';
             echo '</div>';
         }
         echo '</td>';
@@ -237,6 +267,45 @@ class BackupPage
         echo '</td>';
         
         echo '</tr>';
+        
+        // Add child rows for additional sizes
+        if (!empty($additional_sizes)) {
+            foreach ($additional_sizes as $size) {
+                echo '<tr class="uw-backup-child-row" data-parent-id="' . esc_attr($backup['id']) . '" style="display: none;">';
+                
+                // Empty checkbox column for child rows
+                echo '<td class="uw-col-checkbox"></td>';
+                
+                // File name column with indentation
+                echo '<td class="uw-col-name">';
+                echo '<div class="uw-file-info uw-child-file">';
+                echo '<div class="uw-file-thumbnail uw-child-thumbnail">';
+                echo '<img src="' . esc_url($size['url']) . '" alt="' . esc_attr($size['title']) . '" loading="lazy" class="uw-thumbnail-image" data-image-url="' . esc_url($size['url']) . '" data-image-title="' . esc_attr($size['title']) . '">';
+                echo '</div>';
+                echo '<div class="uw-file-details">';
+                echo '<div class="uw-file-name">' . esc_html($size['title']) . '</div>';
+                echo '<div class="uw-file-path">' . esc_html(basename($size['path'])) . '</div>';
+                echo '<div class="uw-size-type">' . esc_html(ucfirst($size['type'])) . ' Size</div>';
+                echo '</div>';
+                echo '</div>';
+                echo '</td>';
+                
+                // Size column
+                echo '<td class="uw-col-size">';
+                echo '<span class="uw-file-size">' . esc_html($this->formatSizePrecise($size['size'])) . '</span>';
+                echo '</td>';
+                
+                // Date column
+                echo '<td class="uw-col-date">';
+                echo '<span class="uw-file-date">' . esc_html(date('M j, Y', $size['created'])) . '</span>';
+                echo '</td>';
+                
+                // Actions column (empty for child rows)
+                echo '<td class="uw-col-actions"></td>';
+                
+                echo '</tr>';
+            }
+        }
     }
     
     /**
@@ -253,17 +322,48 @@ class BackupPage
         if (is_array($backup_paths) && !empty($backup_paths)) {
             foreach ($backup_paths as $size_name => $backup_path) {
                 if ($size_name !== 'original' && file_exists($backup_path)) {
+                    $attachment = get_post($attachment_id);
                     $additional_sizes[] = [
                         'name' => $size_name,
+                        'title' => $attachment ? $attachment->post_title . ' (' . ucfirst($size_name) . ')' : 'Unknown Image',
+                        'type' => $size_name,
                         'path' => $backup_path,
                         'size' => filesize($backup_path),
-                        'url' => str_replace(wp_upload_dir()['basedir'], wp_upload_dir()['baseurl'], $backup_path)
+                        'url' => str_replace(wp_upload_dir()['basedir'], wp_upload_dir()['baseurl'], $backup_path),
+                        'created' => filemtime($backup_path)
                     ];
                 }
             }
         }
         
         return $additional_sizes;
+    }
+    
+    /**
+     * Format file size with more precision than WordPress default
+     * 
+     * @param int $bytes File size in bytes
+     * @return string Formatted size string
+     */
+    private function formatSizePrecise(int $bytes): string
+    {
+        if ($bytes >= 1024 * 1024) {
+            $mb = $bytes / (1024 * 1024);
+            if ($mb >= 100) {
+                return round($mb) . ' MB';
+            } else {
+                return number_format($mb, 2) . ' MB';
+            }
+        } elseif ($bytes >= 1024) {
+            $kb = $bytes / 1024;
+            if ($kb >= 100) {
+                return round($kb) . ' KB';
+            } else {
+                return number_format($kb, 2) . ' KB';
+            }
+        } else {
+            return $bytes . ' B';
+        }
     }
 }
 

@@ -30,14 +30,9 @@ class WatermarkAjaxHandler
      */
     public function handleSaveWatermark()
     {
-        // Debug logging
-        error_log('WatermarkAjaxHandler: Save watermark request received');
-        error_log('POST data: ' . print_r($_POST, true));
-        error_log('Nonce received: ' . ($_POST['ultimate_watermark_nonce'] ?? 'none'));
         
         // Verify nonce
         if (!wp_verify_nonce($_POST['ultimate_watermark_nonce'], 'ultimate_watermark_nonce')) {
-            error_log('WatermarkAjaxHandler: Nonce verification failed');
             wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
         }
 
@@ -106,6 +101,9 @@ class WatermarkAjaxHandler
         
         // Clear cached preview to force regeneration
         delete_post_meta($watermark_id, 'preview_url');
+        
+        // Clean up old preview images for this watermark
+        \MantraBrain\UltimateWatermark\Utils\PreviewManager::cleanupWatermarkPreviews($watermark_id);
 
         return $watermark_id;
     }
@@ -115,29 +113,41 @@ class WatermarkAjaxHandler
      */
     private function saveWatermarkMeta($watermark_id, $data)
     {
-        $meta_fields = [
-            'watermark_type', 'watermark_text', 'watermark_font_size', 'watermark_color',
-            'watermark_font_family', 'watermark_font_weight', 'watermark_font_style', 'watermark_text_decoration',
-            'watermark_image_id', 'watermark_position', 'watermark_opacity', 'watermark_rotation',
-            'watermark_offset_x', 'watermark_offset_y', 'offset_unit',
-            'watermark_size_type', 'watermark_custom_width', 'watermark_custom_height',
-            'watermark_scale_percentage', 'watermark_quality', 'image_format',
-            'automatic_watermarking', 'manual_watermarking', 'frontend_watermarking',
-            'watermark_on', 'watermark_post_types', 'watermark_sizes',
-            'backup_full_size', 'backup_quality'
-        ];
-
-        foreach ($meta_fields as $field) {
-            if (isset($data[$field])) {
-                $value = $data[$field];
-                
-                if (is_array($value)) {
-                    $value = array_map('sanitize_text_field', $value);
-                } else {
-                    $value = sanitize_text_field($value);
+        // Get form configuration to dynamically handle all fields
+        $tabs_config = \MantraBrain\UltimateWatermark\Admin\Pages\AddWatermarkPage::getInstance()->getFormTabsConfig();
+        
+        foreach ($tabs_config as $tab_config) {
+            foreach ($tab_config['sections'] as $section_config) {
+                foreach ($section_config['fields'] as $field_name => $field_config) {
+                    // Skip name and description as they are handled as post data
+                    if (in_array($field_name, ['name', 'description'])) {
+                        continue;
+                    }
+                    
+                    
+                    // Handle checkbox fields specially
+                    if ($field_config['type'] === 'checkbox') {
+                        // For checkboxes: if not set in data, it means unchecked (0)
+                        $value = isset($data[$field_name]) && $data[$field_name] ? '1' : '0';
+                        update_post_meta($watermark_id, $field_name, $value);
+                    } elseif (isset($data[$field_name])) {
+                        $value = $data[$field_name];
+                        
+                        // Sanitize based on field type
+                        if (isset($field_config['sanitize_callback']) && is_callable($field_config['sanitize_callback'])) {
+                            $value = call_user_func($field_config['sanitize_callback'], $value);
+                        } else {
+                            // Default sanitization
+                            if (is_array($value)) {
+                                $value = array_map('sanitize_text_field', $value);
+                            } else {
+                                $value = sanitize_text_field($value);
+                            }
+                        }
+                        
+                        update_post_meta($watermark_id, $field_name, $value);
+                    }
                 }
-                
-                update_post_meta($watermark_id, $field, $value);
             }
         }
     }

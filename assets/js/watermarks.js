@@ -40,7 +40,7 @@
             $(document).on('click', '.watermark-edit', this.editWatermark);
             $(document).on('click', '.watermark-duplicate', this.duplicateWatermark.bind(this));
             $(document).on('click', '.watermark-toggle', this.toggleWatermark.bind(this));
-            $(document).on('click', '.watermark-delete', function(e) {
+            $(document).on('click', '.watermark-delete', (e) => {
                 // Get the watermark ID from the clicked element
                 const watermarkId = $(e.target).data('id') || $(e.target).attr('data-id');
                 
@@ -55,11 +55,11 @@
                     confirmText: 'Delete',
                     cancelText: 'Cancel',
                     confirmButtonType: 'danger'
-                }).then(confirmed => {
+                }).then(function(confirmed) {
                     if (confirmed) {
                         this.confirmDelete(watermarkId);
                     }
-                });
+                }.bind(this));
             });
             
             // WordPress-style bulk actions
@@ -302,11 +302,11 @@
                 confirmText: 'Delete',
                 cancelText: 'Cancel',
                 confirmButtonType: 'danger'
-            }).then(confirmed => {
+            }).then(function(confirmed) {
                 if (confirmed) {
                     this.confirmDelete(watermarkId);
                 }
-            });
+            }.bind(this));
         },
 
         /**
@@ -341,7 +341,7 @@
                             });
                             
                             // Close modal
-                            $modal.hide();
+                            $('.confirmation-modal').hide();
                             
                             // Reset pending delete ID
                             WatermarksPage.pendingDeleteId = null;
@@ -376,7 +376,7 @@
                     success: function(response) {
                         if (response.success) {
                             // Close modal and hide bulk actions
-                            $modal.hide();
+                            $('.confirmation-modal').hide();
                             $('#bulk-actions').hide();
                             
                             // Show success message
@@ -459,11 +459,11 @@
                 confirmText: 'Delete All',
                 cancelText: 'Cancel',
                 confirmButtonType: 'danger'
-            }).then(confirmed => {
+            }).then(function(confirmed) {
                 if (confirmed) {
                     this.confirmBulkDelete(selectedIds);
                 }
-            });
+            }.bind(this));
         },
 
         /**
@@ -505,12 +505,30 @@
          */
         bulkDelete: function(e) {
             e.preventDefault();
+            console.log('Ultimate Watermark: Bulk delete clicked');
+            
             const selectedIds = $('.watermark-checkbox:checked').map(function() {
                 return $(this).val();
             }).get();
             
+            console.log('Ultimate Watermark: Selected IDs:', selectedIds);
+            
             if (selectedIds.length === 0) {
-                UWNotifications.error('Error', 'Please select watermarks to delete.');
+                console.log('Ultimate Watermark: No watermarks selected');
+                if (typeof UWNotifications !== 'undefined') {
+                    UWNotifications.error('Error', 'Please select watermarks to delete.');
+                } else {
+                    alert('Please select watermarks to delete.');
+                }
+                return;
+            }
+
+            // Check if UWNotifications is available
+            if (typeof UWNotifications === 'undefined') {
+                console.error('Ultimate Watermark: UWNotifications not available, using fallback');
+                if (confirm(`Are you sure you want to delete ${selectedIds.length} watermark(s)? This action cannot be undone.`)) {
+                    this.confirmBulkDelete(selectedIds);
+                }
                 return;
             }
 
@@ -522,11 +540,11 @@
                 confirmText: 'Delete All',
                 cancelText: 'Cancel',
                 confirmButtonType: 'danger'
-            }).then(confirmed => {
+            }).then(function(confirmed) {
                 if (confirmed) {
                     this.confirmBulkDelete(selectedIds);
                 }
-            });
+            }.bind(this));
         },
 
         /**
@@ -631,6 +649,114 @@
                     $statusBadge.removeClass('status-active').addClass('status-inactive').text('Inactive');
                 }
             });
+        },
+
+        /**
+         * Confirm and execute bulk delete
+         */
+        confirmBulkDelete: function(selectedIds) {
+            console.log('Ultimate Watermark: confirmBulkDelete called with IDs:', selectedIds);
+            
+            // Show loading state
+            this.showBulkDeleteLoading();
+            
+            // Prepare AJAX data
+            const ajaxData = {
+                action: 'ultimate_watermark_bulk_delete',
+                watermark_ids: selectedIds,
+                nonce: ultimate_watermark_ajax.nonce
+            };
+            
+            console.log('Ultimate Watermark: AJAX data:', ajaxData);
+            console.log('Ultimate Watermark: AJAX URL:', ultimate_watermark_ajax.ajax_url);
+            
+            // Make AJAX request
+            $.ajax({
+                url: ultimate_watermark_ajax.ajax_url,
+                type: 'POST',
+                data: ajaxData,
+                success: (response) => {
+                    console.log('Ultimate Watermark: AJAX success response:', response);
+                    this.hideBulkDeleteLoading();
+                    
+                    if (response.success) {
+                        // Remove deleted rows from table
+                        selectedIds.forEach(id => {
+                            $(`.watermark-checkbox[value="${id}"]`).closest('tr').fadeOut(300, function() {
+                                $(this).remove();
+                            });
+                        });
+                        
+                        // Show success message
+                        if (typeof UWNotifications !== 'undefined') {
+                            UWNotifications.success('Success', response.data.message);
+                        } else {
+                            alert('Success: ' + response.data.message);
+                        }
+                        
+                        // Update table count if needed
+                        this.updateTableCount();
+                    } else {
+                        console.error('Ultimate Watermark: AJAX error response:', response);
+                        if (typeof UWNotifications !== 'undefined') {
+                            UWNotifications.error('Error', response.data.message || 'Failed to delete watermarks');
+                        } else {
+                            alert('Error: ' + (response.data.message || 'Failed to delete watermarks'));
+                        }
+                    }
+                },
+                error: (xhr, status, error) => {
+                    console.error('Ultimate Watermark: AJAX error:', error, xhr.responseText);
+                    this.hideBulkDeleteLoading();
+                    
+                    if (typeof UWNotifications !== 'undefined') {
+                        UWNotifications.error('Error', 'Failed to delete watermarks. Please try again.');
+                    } else {
+                        alert('Error: Failed to delete watermarks. Please try again.');
+                    }
+                }
+            });
+        },
+
+        /**
+         * Show bulk delete loading state
+         */
+        showBulkDeleteLoading: function() {
+            const $buttons = $('.tablenav .bulkactions .button');
+            $buttons.prop('disabled', true);
+            $buttons.addClass('loading');
+            
+            // Update delete button text to show loading
+            $('#bulk-delete').html(`
+                <span class="dashicons dashicons-update" style="animation: spin 1s linear infinite;"></span>
+                Deleting...
+            `);
+        },
+
+        /**
+         * Hide bulk delete loading state
+         */
+        hideBulkDeleteLoading: function() {
+            const $buttons = $('.tablenav .bulkactions .button');
+            $buttons.prop('disabled', false);
+            $buttons.removeClass('loading');
+            
+            // Restore original delete button text
+            $('#bulk-delete').html(`
+                <span class="dashicons dashicons-trash"></span>
+                Delete
+            `);
+        },
+
+        /**
+         * Update table count after deletion
+         */
+        updateTableCount: function() {
+            const remainingRows = $('.watermark-checkbox').length;
+            const $countElement = $('.displaying-num');
+            if ($countElement.length) {
+                $countElement.text(`${remainingRows} items`);
+            }
         },
 
         /**

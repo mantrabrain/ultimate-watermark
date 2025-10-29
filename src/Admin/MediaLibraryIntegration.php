@@ -25,13 +25,18 @@ class MediaLibraryIntegration
         add_action('wp_ajax_ultimate_watermark_apply_automatic', [$this, 'handleAutomaticWatermarking']);
         add_action('wp_ajax_ultimate_watermark_remove', [$this, 'handleRemoveWatermarking']);
         
-        // Add upload toggle
+        // Add upload toggle - try multiple hooks for better compatibility
         add_action('post-upload-ui', [$this, 'addUploadToggle']);
+        add_action('upload-ui-top', [$this, 'addUploadToggle']);
+        add_action('wp_upload_tabs', [$this, 'addUploadToggle']);
         
         // Hook into upload process - try multiple hooks for better compatibility
         add_action('wp_handle_upload', [$this, 'processUploadedImage'], 10, 2);
         add_filter('wp_handle_upload_prefilter', [$this, 'processUploadedImagePrefilter']);
-        add_action('add_attachment', [$this, 'processNewAttachment']);
+        add_action('add_attachment', [$this, 'markForWatermarking']);
+        
+        // Hook into metadata generation to apply watermarks after thumbnails are created
+        add_filter('wp_generate_attachment_metadata', [$this, 'processAfterMetadataGeneration'], 10, 2);
         
         // Add JavaScript to move the toggle after the browse button
         add_action('admin_footer', [$this, 'addUploadToggleScript']);
@@ -44,6 +49,9 @@ class MediaLibraryIntegration
         add_action('delete_attachment', [$this, 'cleanupImageUsage']);
         
         // MediaLibraryIntegration hooks registered
+        
+        // Add watermark protection
+        $this->initWatermarkProtection();
     }
 
     /**
@@ -190,7 +198,6 @@ class MediaLibraryIntegration
                 return true;
             }
         } catch (\Exception $e) {
-            error_log('Ultimate Watermark: Error removing watermark from attachment ' . $attachment_id . ': ' . $e->getMessage());
         }
 
         return false;
@@ -226,55 +233,67 @@ class MediaLibraryIntegration
             return false;
         }
 
-        // Create backup if it doesn't exist
-        error_log('Ultimate Watermark: Checking backup for attachment ' . $attachment_id . ' at path: ' . $original_path);
-        $backup_path = BackupManager::getBackupPath($original_path, $attachment_id);
-        if (!$backup_path) {
-            error_log('Ultimate Watermark: No existing backup found, creating new backup...');
-            $backup_path = BackupManager::createBackup($original_path, $attachment_id);
-            if (!$backup_path) {
-                error_log('Ultimate Watermark: Failed to create backup for ' . $original_path);
-                return false;
-            } else {
-                error_log('Ultimate Watermark: Backup created successfully: ' . $backup_path);
-            }
-        } else {
-            error_log('Ultimate Watermark: Using existing backup: ' . $backup_path);
-        }
-
-        // Create watermarked version
-        $upload_dir = wp_upload_dir();
-        $watermarked_dir = $upload_dir['basedir'] . '/watermarked';
+        // Generate all image sizes first (before watermarking)
+        wp_generate_attachment_metadata($attachment_id, $original_path);
         
-        if (!file_exists($watermarked_dir)) {
-            wp_mkdir_p($watermarked_dir);
+        // Create backup BEFORE applying watermarks (same as upload flow)
+        $this->createBackupForWatermarking($attachment_id);
+        
+        // Get watermark data to check size filtering
+        $watermark_data = WatermarkHelper::getActiveWatermarkById($watermark_id);
+        if (!$watermark_data) {
+            return false;
         }
-
-        $file_info = pathinfo($original_path);
-        $watermarked_filename = $file_info['filename'] . '_watermarked.' . $file_info['extension'];
-        $watermarked_path = $watermarked_dir . '/' . $watermarked_filename;
-
-        // Apply watermark using WatermarkService with watermark ID
-        try {
-            $success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($original_path, $watermark_id, $watermarked_path);
-            
-            if ($success && file_exists($watermarked_path)) {
-                // Replace original with watermarked version
-                copy($watermarked_path, $original_path);
-                unlink($watermarked_path); // Clean up temp file
-                
-                // Update attachment metadata
-                wp_generate_attachment_metadata($attachment_id, $original_path);
-                
-                // Track watermark usage
-                WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id);
-                
-                return true;
+        
+        $watermark_sizes = $watermark_data['watermark_sizes'] ?? [];
+        error_log('Ultimate Watermark: Bulk action - Watermark ID: ' . $watermark_id);
+        error_log('Ultimate Watermark: Bulk action - Watermark sizes: ' . print_r($watermark_sizes, true));
+        
+        // Get all registered image sizes
+        $image_sizes = get_intermediate_image_sizes();
+        $image_sizes[] = 'full';
+        
+        // If no specific sizes, apply to all
+        if (empty($watermark_sizes)) {
+            error_log('Ultimate Watermark: Bulk action - No specific sizes defined, applying to all sizes');
+            $watermark_sizes = $image_sizes;
+        } else {
+            error_log('Ultimate Watermark: Bulk action - Specific sizes defined, applying only to: ' . print_r($watermark_sizes, true));
+        }
+        
+        $success_count = 0;
+        
+        // Apply watermarks to each size based on their rules (same logic as upload flow)
+        foreach ($image_sizes as $size) {
+            error_log('Ultimate Watermark: Bulk action - Checking size: ' . $size . ' against watermark sizes: ' . print_r($watermark_sizes, true));
+            if (in_array($size, $watermark_sizes)) {
+                error_log('Ultimate Watermark: Bulk action - Size ' . $size . ' matches watermark rules');
+                $image_path = $this->getImagePathForSize($attachment_id, $size);
+                if ($image_path && file_exists($image_path)) {
+                    try {
+                        error_log('Ultimate Watermark: Bulk action - Applying watermark to ' . $image_path . ' with watermark ID ' . $watermark_id);
+                        $success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($image_path, $watermark_id, $image_path);
+                        if ($success) {
+                            error_log('Ultimate Watermark: Bulk action - Successfully applied watermark to ' . $image_path);
+                            $success_count++;
+                        } else {
+                            error_log('Ultimate Watermark: Bulk action - Failed to apply watermark to ' . $image_path);
+                        }
+                    } catch (\Exception $e) {
+                        error_log('Ultimate Watermark: Bulk action - Error applying watermark to ' . $image_path . ': ' . $e->getMessage());
+                    }
+                }
+            } else {
+                error_log('Ultimate Watermark: Bulk action - Size ' . $size . ' does NOT match watermark rules');
             }
-        } catch (\Exception $e) {
-            error_log('Ultimate Watermark: Error applying watermark to attachment ' . $attachment_id . ': ' . $e->getMessage());
         }
-
+        
+        // Track watermark usage if any sizes were successfully watermarked
+        if ($success_count > 0) {
+            WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id);
+            return true;
+        }
+        
         return false;
     }
 
@@ -360,9 +379,9 @@ class MediaLibraryIntegration
         // Get active automatic watermarks
         $automatic_watermarks = WatermarkHelper::getActiveAutomaticWatermarks();
         
-        if (empty($automatic_watermarks)) {
-            return; // No automatic watermarks available
-        }
+        // Always show the toggle, but with different messages based on availability
+        $has_automatic_watermarks = !empty($automatic_watermarks);
+        
 
         ?>
         <div id="ultimate-watermark-upload-toggle" style="
@@ -427,8 +446,8 @@ class MediaLibraryIntegration
                 display: none;
             ">
                 <?php 
-                $watermark_count = count($automatic_watermarks);
-                if ($watermark_count > 0) {
+                if ($has_automatic_watermarks) {
+                    $watermark_count = count($automatic_watermarks);
                     echo '<div style="margin-bottom: 8px;">';
                     if ($watermark_count > 1) {
                         printf(
@@ -454,7 +473,12 @@ class MediaLibraryIntegration
                     }
                     echo '</div>';
                 } else {
-                    esc_html_e('No automatic watermarks available.', 'ultimate-watermark');
+                    echo '<div style="margin-bottom: 8px; color: #d97706;">';
+                    esc_html_e('No automatic watermarks are currently configured.', 'ultimate-watermark');
+                    echo '</div>';
+                    echo '<div style="font-size: 11px; color: #6b7280;">';
+                    esc_html_e('To enable automatic watermarking, create a watermark and enable "Automatic Watermarking" in its settings.', 'ultimate-watermark');
+                    echo '</div>';
                 }
                 ?>
             </div>
@@ -522,6 +546,7 @@ class MediaLibraryIntegration
                 const isEnabled = $toggle.is(':checked');
                 sessionStorage.setItem('ultimate_watermark_auto_apply', isEnabled ? '1' : '0');
                 console.log('Ultimate Watermark: Toggle state updated to:', isEnabled);
+                console.log('Ultimate Watermark: SessionStorage set to:', sessionStorage.getItem('ultimate_watermark_auto_apply'));
             }
             
             // Show/hide info based on toggle state
@@ -544,13 +569,30 @@ class MediaLibraryIntegration
             updateToggleState();
             
             // Intercept form submission to add toggle state
-            $('form[enctype="multipart/form-data"]').on('submit', function() {
+            // Try multiple form selectors to catch different upload forms
+            $('form[enctype="multipart/form-data"], form#file-form, .media-frame form').on('submit', function() {
                 const isEnabled = $toggle.is(':checked');
                 if (isEnabled) {
+                    // Remove any existing hidden input first
+                    $(this).find('input[name="ultimate_watermark_auto_apply"]').remove();
+                    // Add the hidden input
                     $(this).append('<input type="hidden" name="ultimate_watermark_auto_apply" value="1">');
                 }
                 console.log('Ultimate Watermark: Form submitted with auto-apply:', isEnabled);
             });
+            
+            // Also try to intercept the plupload queue
+            if (typeof wp !== 'undefined' && wp.media && wp.media.view) {
+                // Hook into plupload queue events
+                $(document).on('wp-plupload-queue-added', function() {
+                    const isEnabled = $toggle.is(':checked');
+                    if (isEnabled) {
+                        // Add to sessionStorage for the upload hooks to pick up
+                        sessionStorage.setItem('ultimate_watermark_auto_apply', '1');
+                        console.log('Ultimate Watermark: Plupload queue added with auto-apply enabled');
+                    }
+                });
+            }
         });
         </script>
         <?php
@@ -561,13 +603,9 @@ class MediaLibraryIntegration
      */
     public function processUploadedImage(array $upload, string $context): array
     {
-        error_log('Ultimate Watermark: processUploadedImage called - Context: ' . $context);
-        error_log('Ultimate Watermark: Upload file: ' . ($upload['file'] ?? 'N/A'));
-        error_log('Ultimate Watermark: POST data: ' . print_r($_POST, true));
         
         // Only process in 'upload' context (not during import, etc.)
         if ($context !== 'upload') {
-            error_log('Ultimate Watermark: Skipping - not upload context');
             return $upload;
         }
 
@@ -577,52 +615,41 @@ class MediaLibraryIntegration
         // Check POST data first (this should be set by the upload form)
         if (isset($_POST['ultimate_watermark_auto_apply']) && $_POST['ultimate_watermark_auto_apply'] === '1') {
             $auto_apply_enabled = true;
-            error_log('Ultimate Watermark: Auto-apply enabled via POST data');
         } else {
-            error_log('Ultimate Watermark: Auto-apply disabled - toggle is OFF');
             return $upload;
         }
 
-        error_log('Ultimate Watermark: Auto-apply is enabled');
 
         // Check if it's an image
         if (!wp_attachment_is_image($upload['file'])) {
-            error_log('Ultimate Watermark: Skipping - not an image');
             return $upload;
         }
+        
 
-        error_log('Ultimate Watermark: Processing image file');
 
         // Determine image size context
         $image_size = $this->determineImageSizeContext($upload['file']);
         
         // Get all active automatic watermarks with rule filtering
         $automatic_watermarks = WatermarkHelper::getActiveAutomaticWatermarks('upload', null, $image_size);
-        error_log('Ultimate Watermark: Found ' . count($automatic_watermarks) . ' automatic watermarks (after rule filtering)');
         
         if (empty($automatic_watermarks)) {
-            error_log('Ultimate Watermark: No automatic watermarks found');
             return $upload;
         }
 
         // Apply all automatic watermarks
         $watermarked = false;
         foreach ($automatic_watermarks as $watermark) {
-            error_log('Ultimate Watermark: Applying watermark: ' . $watermark['name']);
             if ($this->applyWatermarkToFile($upload['file'], $watermark)) {
                 $watermarked = true;
-                error_log('Ultimate Watermark: Successfully applied watermark: ' . $watermark['name']);
             } else {
-                error_log('Ultimate Watermark: Failed to apply watermark: ' . $watermark['name']);
             }
         }
 
         if ($watermarked) {
             // Update file size in upload array
             $upload['size'] = filesize($upload['file']);
-            error_log('Ultimate Watermark: Watermarking completed successfully');
         } else {
-            error_log('Ultimate Watermark: No watermarks were applied');
         }
 
         return $upload;
@@ -633,9 +660,6 @@ class MediaLibraryIntegration
      */
     public function processUploadedImagePrefilter(array $file): array
     {
-        error_log('Ultimate Watermark: processUploadedImagePrefilter called');
-        error_log('Ultimate Watermark: File data: ' . print_r($file, true));
-        error_log('Ultimate Watermark: POST data: ' . print_r($_POST, true));
         
         return $file;
     }
@@ -643,68 +667,253 @@ class MediaLibraryIntegration
     /**
      * Process new attachment after upload
      */
-    public function processNewAttachment(int $attachment_id): void
+    public function markForWatermarking(int $attachment_id): void
     {
-        error_log('Ultimate Watermark: processNewAttachment called for ID: ' . $attachment_id);
-        error_log('Ultimate Watermark: POST data: ' . print_r($_POST, true));
+        error_log('Ultimate Watermark: markForWatermarking called for attachment ID: ' . $attachment_id);
+        // Mark this attachment for watermarking
+        update_post_meta($attachment_id, '_ulwm_watermarked', true);
+        error_log('Ultimate Watermark: Marked attachment ' . $attachment_id . ' for watermarking');
+        return;
         
+        // OLD CODE - DISABLED
         // Check if auto-apply is enabled
         $auto_apply_enabled = false;
         
         // Check POST data first (this should be set by the upload form)
         if (isset($_POST['ultimate_watermark_auto_apply']) && $_POST['ultimate_watermark_auto_apply'] === '1') {
             $auto_apply_enabled = true;
-            error_log('Ultimate Watermark: Auto-apply enabled via POST data in processNewAttachment');
         } else {
-            error_log('Ultimate Watermark: Auto-apply disabled in processNewAttachment - toggle is OFF');
-            return;
+            error_log('Ultimate Watermark: POST data not set, checking admin context');
+            // Check if we're in admin and have automatic watermarks available
+            if (is_admin() && current_user_can('upload_files')) {
+                $automatic_watermarks = WatermarkHelper::getActiveAutomaticWatermarks('upload', null, 'full');
+                error_log('Ultimate Watermark: Found ' . count($automatic_watermarks) . ' automatic watermarks in admin context');
+                if (!empty($automatic_watermarks)) {
+                    $auto_apply_enabled = true;
+                    error_log('Ultimate Watermark: Auto-apply enabled via admin context');
+                }
+            }
+            
+            if (!$auto_apply_enabled) {
+                error_log('Ultimate Watermark: Auto-apply not enabled, skipping watermark application');
+                return;
+            }
         }
         
-        error_log('Ultimate Watermark: Auto-apply is enabled in processNewAttachment');
 
         // Get attachment file path
         $file_path = get_attached_file($attachment_id);
         if (!$file_path || !file_exists($file_path)) {
-            error_log('Ultimate Watermark: File not found for attachment: ' . $attachment_id);
             return;
         }
 
         // Check if it's an image
         if (!wp_attachment_is_image($attachment_id)) {
-            error_log('Ultimate Watermark: Attachment is not an image: ' . $attachment_id);
             return;
         }
 
-        error_log('Ultimate Watermark: Processing attachment: ' . $file_path);
 
         // Determine image size context
         $image_size = $this->determineImageSizeContext($file_path);
         
         // Get all active automatic watermarks with rule filtering
+        error_log('Ultimate Watermark: Getting automatic watermarks for upload context, attachment: ' . $attachment_id . ', image_size: ' . $image_size);
         $automatic_watermarks = WatermarkHelper::getActiveAutomaticWatermarks('upload', $attachment_id, $image_size);
-        error_log('Ultimate Watermark: Found ' . count($automatic_watermarks) . ' automatic watermarks (after rule filtering)');
+        error_log('Ultimate Watermark: Found ' . count($automatic_watermarks) . ' automatic watermarks for upload context');
         
         if (empty($automatic_watermarks)) {
-            error_log('Ultimate Watermark: No automatic watermarks found');
+            error_log('Ultimate Watermark: No automatic watermarks found for upload context, skipping');
             return;
         }
-
-        // Apply all automatic watermarks
+        
+        // Set a flag to prevent regeneration after watermarking
+        update_post_meta($attachment_id, '_ulwm_watermarked', true);
+        
+        // Get all registered image sizes
+        $image_sizes = get_intermediate_image_sizes();
+        $image_sizes[] = 'full'; // Include full size
+        
+        // Create backups of ALL original images BEFORE any watermarking
+        $backup_paths = [];
+        foreach ($image_sizes as $size) {
+            $original_path = $this->getImagePathForSize($attachment_id, $size);
+            if ($original_path && file_exists($original_path)) {
+                $backup_paths[$size] = $original_path;
+            }
+        }
+        
+        // Create backup for all sizes at once
+        if (!empty($backup_paths)) {
+            BackupManager::createBackup($backup_paths['full'] ?? reset($backup_paths), $attachment_id, 0, $backup_paths);
+        }
+        
+        // Apply watermarks to each size based on their rules
+        // IMPORTANT: Apply watermarks sequentially so each watermark is applied to the previously watermarked image
         $watermarked = false;
+        $current_image_paths = []; // Track current image paths for each size
+        
+        error_log('Ultimate Watermark: Starting watermark application loop for ' . count($automatic_watermarks) . ' watermarks');
+        
+        // Initialize with original image paths
+        foreach ($image_sizes as $size) {
+            $current_image_paths[$size] = $this->getImagePathForSize($attachment_id, $size);
+        }
+        
+        error_log('Ultimate Watermark: Initialized current image paths for ' . count($current_image_paths) . ' sizes');
+        
         foreach ($automatic_watermarks as $watermark) {
-            error_log('Ultimate Watermark: Applying watermark: ' . $watermark['name']);
-            if ($this->applyWatermarkToFile($file_path, $watermark)) {
-                $watermarked = true;
-                error_log('Ultimate Watermark: Successfully applied watermark: ' . $watermark['name']);
+            error_log('Ultimate Watermark: Processing watermark ID: ' . ($watermark['id'] ?? 'unknown'));
+            
+            // Get watermark size rules
+            $watermark_sizes = $watermark['watermark_sizes'] ?? [];
+            error_log('Ultimate Watermark: Raw watermark_sizes: ' . print_r($watermark_sizes, true));
+            
+            if (is_string($watermark_sizes)) {
+                $watermark_sizes = maybe_unserialize($watermark_sizes);
+                error_log('Ultimate Watermark: Unserialized watermark_sizes: ' . print_r($watermark_sizes, true));
+            }
+            if (!is_array($watermark_sizes)) {
+                $watermark_sizes = [];
+                error_log('Ultimate Watermark: Set watermark_sizes to empty array');
+            }
+            
+            error_log('Ultimate Watermark: Final watermark_sizes: ' . print_r($watermark_sizes, true));
+            
+            
+            // If no sizes specified, apply to all sizes
+            if (empty($watermark_sizes)) {
+                $watermark_sizes = $image_sizes;
+                error_log('Ultimate Watermark: No sizes specified, using all sizes: ' . print_r($watermark_sizes, true));
             } else {
-                error_log('Ultimate Watermark: Failed to apply watermark: ' . $watermark['name']);
+                error_log('Ultimate Watermark: Using specified sizes: ' . print_r($watermark_sizes, true));
+            }
+            
+            error_log('Ultimate Watermark: About to start applying watermark to sizes');
+            
+            // Apply watermark to each size that matches the rules
+            error_log('Ultimate Watermark: Starting foreach loop for image_sizes: ' . print_r($image_sizes, true));
+            foreach ($image_sizes as $size) {
+                error_log('Ultimate Watermark: Checking size: ' . $size);
+                if (in_array($size, $watermark_sizes)) {
+                    error_log('Ultimate Watermark: Size ' . $size . ' matches watermark rules');
+                    $current_image_path = $current_image_paths[$size];
+                    error_log('Ultimate Watermark: Current image path for ' . $size . ': ' . $current_image_path);
+                    
+                    if ($current_image_path && file_exists($current_image_path)) {
+                        error_log('Ultimate Watermark: File exists, proceeding with watermark application');
+                        if ($this->applyWatermarkToFileSequentially($current_image_path, $watermark, $attachment_id, $size)) {
+                            $watermarked = true;
+                            // Update the current image path to the newly watermarked file
+                            $current_image_paths[$size] = $current_image_path;
+                        } else {
+                        }
+                    } else {
+                    }
+                } else {
+                }
             }
         }
 
-        if ($watermarked) {
-            error_log('Ultimate Watermark: Watermarking completed successfully for attachment: ' . $attachment_id);
-        } else {
-            error_log('Ultimate Watermark: No watermarks were applied to attachment: ' . $attachment_id);
+    }
+
+    /**
+     * Apply watermark to specific attachment size
+     */
+    private function applyWatermarkToAttachmentSize(int $attachment_id, int $watermark_id, string $size): bool
+    {
+        // Check if attachment is an image
+        if (!wp_attachment_is_image($attachment_id)) {
+            return false;
+        }
+
+        // Get the image path for the specific size
+        $image_path = $this->getImagePathForSize($attachment_id, $size);
+        if (!$image_path || !file_exists($image_path)) {
+            return false;
+        }
+
+        // Create backup for this specific size
+        $backup_path = BackupManager::createBackup($image_path, $attachment_id, $watermark_id);
+        if (!$backup_path) {
+            return false;
+        }
+
+        // Apply watermark using WatermarkService
+        try {
+            $success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($image_path, $watermark_id, $image_path);
+            
+            if ($success) {
+                // Track watermark usage
+                WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id);
+                return true;
+            } else {
+                return false;
+            }
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Get image path for specific size
+     */
+    private function getImagePathForSize(int $attachment_id, string $size): ?string
+    {
+        if ($size === 'full') {
+            return get_attached_file($attachment_id);
+        }
+        
+        $metadata = wp_get_attachment_metadata($attachment_id);
+        if (!$metadata || !isset($metadata['sizes'][$size]['file'])) {
+            return null;
+        }
+        
+        $upload_dir = wp_upload_dir();
+        $file_path = $upload_dir['basedir'] . '/' . dirname($metadata['file']) . '/' . $metadata['sizes'][$size]['file'];
+        
+        return file_exists($file_path) ? $file_path : null;
+    }
+
+    /**
+     * Apply watermark to file sequentially (for stacking multiple watermarks)
+     */
+    private function applyWatermarkToFileSequentially(string $file_path, array $watermark, int $attachment_id, string $size): bool
+    {
+        error_log('Ultimate Watermark: applyWatermarkToFileSequentially called with file: ' . $file_path . ', size: ' . $size . ', watermark ID: ' . ($watermark['id'] ?? 'unknown'));
+        
+        if (!file_exists($file_path)) {
+            error_log('Ultimate Watermark: File does not exist: ' . $file_path);
+            return false;
+        }
+
+        try {
+            $watermark_id = $watermark['id'] ?? 0;
+            error_log('Ultimate Watermark: Watermark ID: ' . $watermark_id);
+            
+            // Check file permissions
+            if (!is_writable($file_path)) {
+                error_log('Ultimate Watermark: File is not writable: ' . $file_path);
+                return false;
+            }
+            
+            error_log('Ultimate Watermark: About to call WatermarkService::applyWatermark');
+            // Apply watermark using the same service as manual watermarking
+            $success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermark($file_path, $watermark);
+            error_log('Ultimate Watermark: WatermarkService::applyWatermark result: ' . ($success ? 'SUCCESS' : 'FAILED'));
+            
+            if ($success) {
+                // Track watermark usage
+                error_log('Ultimate Watermark: Tracking watermark usage');
+                WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id);
+                return true;
+            } else {
+                error_log('Ultimate Watermark: Watermark application failed');
+                return false;
+            }
+        } catch (\Exception $e) {
+            error_log('Ultimate Watermark: Exception in applyWatermarkToFileSequentially: ' . $e->getMessage());
+            error_log('Ultimate Watermark: Exception trace: ' . $e->getTraceAsString());
+            return false;
         }
     }
 
@@ -713,53 +922,39 @@ class MediaLibraryIntegration
      */
     private function applyWatermarkToFile(string $file_path, array $watermark): bool
     {
-        error_log('Ultimate Watermark: applyWatermarkToFile called for: ' . $file_path);
         
         if (!file_exists($file_path)) {
-            error_log('Ultimate Watermark: File does not exist: ' . $file_path);
             return false;
         }
 
-        // Create backup if it doesn't exist
-        $backup_path = BackupManager::getBackupPath($file_path);
+        // Always create backup of original files before watermarking
+        $watermark_id = $watermark['id'] ?? 0;
+        $backup_path = BackupManager::createBackup($file_path, 0, $watermark_id);
         if (!$backup_path) {
-            $backup_path = BackupManager::createBackup($file_path);
-            if (!$backup_path) {
-                error_log('Ultimate Watermark: Failed to create backup for ' . $file_path);
-                return false;
-            }
+            return false;
         }
 
         // Create temporary watermarked file
         $temp_dir = wp_upload_dir()['basedir'] . '/temp-watermark';
         if (!file_exists($temp_dir)) {
             wp_mkdir_p($temp_dir);
-            error_log('Ultimate Watermark: Created temp directory: ' . $temp_dir);
         }
 
         $file_info = pathinfo($file_path);
         $temp_file = $temp_dir . '/' . uniqid() . '_watermarked.' . $file_info['extension'];
-        error_log('Ultimate Watermark: Temp file: ' . $temp_file);
 
         // Apply watermark using WatermarkService
         try {
-            error_log('Ultimate Watermark: Calling WatermarkService::applyWatermark');
             $success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermark($file_path, $watermark, $temp_file);
-            error_log('Ultimate Watermark: WatermarkService result: ' . ($success ? 'SUCCESS' : 'FAILED'));
             
             if ($success && file_exists($temp_file)) {
-                error_log('Ultimate Watermark: Temp file created successfully, replacing original');
                 // Replace original with watermarked version
                 copy($temp_file, $file_path);
                 unlink($temp_file); // Clean up temp file
-                error_log('Ultimate Watermark: Watermark applied successfully');
                 return true;
             } else {
-                error_log('Ultimate Watermark: Watermark application failed or temp file not created');
             }
         } catch (\Exception $e) {
-            error_log('Ultimate Watermark: Exception in applyWatermarkToFile: ' . $e->getMessage());
-            error_log('Ultimate Watermark: Exception trace: ' . $e->getTraceAsString());
         }
 
         return false;
@@ -858,7 +1053,7 @@ class MediaLibraryIntegration
     public function addUploadToggleScript(): void
     {
         $screen = get_current_screen();
-        if (!$screen || $screen->id !== 'media') {
+        if (!$screen || ($screen->id !== 'media' && $screen->id !== 'upload')) {
             return;
         }
         ?>
@@ -1116,4 +1311,143 @@ class MediaLibraryIntegration
     {
         WatermarkUsageTracker::cleanupImageUsage($attachment_id);
     }
+    
+    /**
+     * Initialize watermark protection to prevent regeneration
+     */
+    private function initWatermarkProtection(): void
+    {
+        // No longer needed - we let WordPress generate thumbnails naturally
+    }
+    
+    /**
+     * Process after metadata generation to apply watermarks
+     */
+    public function processAfterMetadataGeneration($metadata, $attachment_id)
+    {
+        error_log('Ultimate Watermark: processAfterMetadataGeneration called for attachment ID: ' . $attachment_id);
+        
+        // Check if this image should be watermarked
+        if (get_post_meta($attachment_id, '_ulwm_watermarked', true)) {
+            error_log('Ultimate Watermark: Attachment ' . $attachment_id . ' is marked for watermarking, processing now');
+            
+            try {
+                // Increase memory limit for watermark processing
+                $original_memory_limit = ini_get('memory_limit');
+                ini_set('memory_limit', '512M');
+                
+                // Create backup BEFORE applying watermarks
+                $this->createBackupForWatermarking($attachment_id);
+                
+                // Apply watermarks to the generated thumbnails
+                $this->applyWatermarksToGeneratedImages($attachment_id);
+                
+                // Restore original memory limit
+                ini_set('memory_limit', $original_memory_limit);
+                
+                // Remove the flag to prevent re-processing
+                delete_post_meta($attachment_id, '_ulwm_watermarked');
+                
+            } catch (\Exception $e) {
+                error_log('Ultimate Watermark: Error in watermark processing: ' . $e->getMessage());
+                // Restore original memory limit
+                ini_set('memory_limit', $original_memory_limit);
+            }
+        }
+        
+        return $metadata;
+    }
+    
+    /**
+     * Create backup for watermarking
+     */
+    private function createBackupForWatermarking(int $attachment_id): void
+    {
+        error_log('Ultimate Watermark: Creating backup for attachment ' . $attachment_id);
+        
+        // Get all registered image sizes
+        $image_sizes = get_intermediate_image_sizes();
+        $image_sizes[] = 'full';
+        
+        // Create backups of ALL original images BEFORE any watermarking
+        $backup_paths = [];
+        foreach ($image_sizes as $size) {
+            $original_path = $this->getImagePathForSize($attachment_id, $size);
+            if ($original_path && file_exists($original_path)) {
+                $backup_paths[$size] = $original_path;
+                error_log('Ultimate Watermark: Found image for size ' . $size . ': ' . $original_path);
+            }
+        }
+        
+        // Create backup for all sizes at once
+        if (!empty($backup_paths)) {
+            $full_size_path = $backup_paths['full'] ?? reset($backup_paths);
+            error_log('Ultimate Watermark: Creating backup for full size: ' . $full_size_path);
+            
+            $result = BackupManager::createBackup($full_size_path, $attachment_id, 0, $backup_paths);
+            if ($result) {
+                error_log('Ultimate Watermark: Backup created successfully');
+            } else {
+                error_log('Ultimate Watermark: Failed to create backup');
+            }
+        } else {
+            error_log('Ultimate Watermark: No image paths found for backup');
+        }
+    }
+    
+    /**
+     * Apply watermarks to generated images
+     */
+    private function applyWatermarksToGeneratedImages(int $attachment_id): void
+    {
+        // Get all active automatic watermarks
+        $automatic_watermarks = WatermarkHelper::getActiveAutomaticWatermarks('upload', $attachment_id, 'full');
+        
+        if (empty($automatic_watermarks)) {
+            return;
+        }
+        
+        // Get all registered image sizes
+        $image_sizes = get_intermediate_image_sizes();
+        $image_sizes[] = 'full';
+        
+        // Apply watermarks to each size based on their rules
+        foreach ($automatic_watermarks as $watermark) {
+            $watermark_id = isset($watermark['ID']) ? $watermark['ID'] : $watermark['id'];
+            $watermark_sizes = $watermark['watermark_sizes'] ?? [];
+            
+            error_log('Ultimate Watermark: Watermark ID: ' . $watermark_id);
+            error_log('Ultimate Watermark: Watermark sizes: ' . print_r($watermark_sizes, true));
+            error_log('Ultimate Watermark: Available image sizes: ' . print_r($image_sizes, true));
+            
+            // If no specific sizes, apply to all
+            if (empty($watermark_sizes)) {
+                error_log('Ultimate Watermark: No specific sizes defined, applying to all sizes');
+                $watermark_sizes = $image_sizes;
+            } else {
+                error_log('Ultimate Watermark: Specific sizes defined, applying only to: ' . print_r($watermark_sizes, true));
+            }
+            
+            foreach ($image_sizes as $size) {
+                error_log('Ultimate Watermark: Checking size: ' . $size . ' against watermark sizes: ' . print_r($watermark_sizes, true));
+                if (in_array($size, $watermark_sizes)) {
+                    error_log('Ultimate Watermark: Size ' . $size . ' matches watermark rules');
+                    $image_path = $this->getImagePathForSize($attachment_id, $size);
+                    if ($image_path && file_exists($image_path)) {
+                        // Use WatermarkService directly (same as preview)
+                        try {
+                            error_log('Ultimate Watermark: Applying watermark to ' . $image_path . ' with watermark ID ' . $watermark_id);
+                            \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($image_path, $watermark_id, $image_path);
+                            error_log('Ultimate Watermark: Successfully applied watermark to ' . $image_path);
+                        } catch (\Exception $e) {
+                            error_log('Ultimate Watermark: Error applying watermark to ' . $image_path . ': ' . $e->getMessage());
+                        }
+                    }
+                } else {
+                    error_log('Ultimate Watermark: Size ' . $size . ' does NOT match watermark rules');
+                }
+            }
+        }
+    }
+    
 }

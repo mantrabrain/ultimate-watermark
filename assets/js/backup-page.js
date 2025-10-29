@@ -31,6 +31,14 @@ class BackupPageManager {
             }
         });
 
+        // Toggle children button
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.uw-toggle-children')) {
+                e.preventDefault();
+                this.handleToggleChildren(e.target.closest('.uw-toggle-children'));
+            }
+        });
+
         // Bulk actions
         document.addEventListener('click', (e) => {
             if (e.target.id === 'select-all-header') {
@@ -43,6 +51,7 @@ class BackupPageManager {
             }
             
             if (e.target.id === 'bulk-delete-btn') {
+                console.log('Ultimate Watermark: Bulk delete button clicked');
                 e.preventDefault();
                 this.handleBulkDelete();
             }
@@ -92,9 +101,9 @@ class BackupPageManager {
                 confirmText: 'Delete',
                 cancelText: 'Cancel',
                 confirmButtonType: 'danger'
-            }).then(confirmed => {
-                console.log('Ultimate Watermark: Confirmation result:', confirmed);
-                if (confirmed) {
+            }).then(action => {
+                console.log('Ultimate Watermark: Confirmation result:', action);
+                if (action === 'confirm') {
                     this.confirmDeleteBackup(attachmentId, backupRow);
                 }
             }).catch(error => {
@@ -183,27 +192,33 @@ class BackupPageManager {
         if (typeof UWNotifications === 'undefined') {
             console.error('Ultimate Watermark: UWNotifications not available, using fallback');
             if (confirm('Are you sure you want to restore this image from backup? This will replace the current watermarked image with the original backup.')) {
-                this.confirmRestoreBackup(attachmentId, backupRow);
+                this.confirmRestoreBackup(attachmentId, backupRow, false);
             }
             return;
         }
 
-        // Show custom confirmation
+        // Show custom confirmation with 3 buttons using UWNotifications
         UWNotifications.confirm({
             title: 'Restore Image',
-            message: 'Are you sure you want to restore this image from backup? This will replace the current watermarked image with the original backup.',
+            message: 'What would you like to do with this backup?',
             type: 'warning',
-            confirmText: 'Restore',
+            confirmText: 'Restore Only',
             cancelText: 'Cancel',
-            confirmButtonType: 'primary'
-        }).then(confirmed => {
-            if (confirmed) {
-                this.confirmRestoreBackup(attachmentId, backupRow);
+            confirmButtonType: 'primary',
+            thirdButtonText: 'Restore & Delete',
+            thirdButtonType: 'danger',
+            thirdButtonAction: 'restore_and_delete'
+        }).then(action => {
+            if (action === 'confirm') {
+                this.confirmRestoreBackup(attachmentId, backupRow, false);
+            } else if (action === 'restore_and_delete') {
+                this.confirmRestoreBackup(attachmentId, backupRow, true);
             }
         });
     }
 
-    confirmRestoreBackup(attachmentId, backupRow) {
+
+    confirmRestoreBackup(attachmentId, backupRow, deleteAfterRestore = false) {
         // Show loading state
         this.showLoadingState(backupRow);
 
@@ -211,6 +226,7 @@ class BackupPageManager {
         const formData = new FormData();
         formData.append('action', 'ultimate_watermark_restore_backup');
         formData.append('attachment_id', attachmentId);
+        formData.append('delete_after_restore', deleteAfterRestore ? '1' : '0');
         formData.append('nonce', ultimateWatermarkBackup.nonce);
 
         fetch(ultimateWatermarkBackup.ajaxurl, {
@@ -222,7 +238,11 @@ class BackupPageManager {
             this.hideLoadingState(backupRow);
             
             if (data.success) {
-                UWNotifications.success('Success', data.data.message || 'Image restored successfully from backup.');
+                const message = deleteAfterRestore 
+                    ? 'Image restored successfully and backup deleted.' 
+                    : 'Image restored successfully from backup.';
+                UWNotifications.success('Success', data.data.message || message);
+                
                 // Remove the backup row since it's no longer needed
                 this.removeBackupRow(backupRow);
             } else {
@@ -247,6 +267,22 @@ class BackupPageManager {
         if (headerCheckbox) headerCheckbox.checked = checked;
         
         this.updateBulkButtons();
+    }
+
+    handleToggleChildren(button) {
+        const attachmentId = button.dataset.attachmentId;
+        const childRows = document.querySelectorAll(`.uw-backup-child-row[data-parent-id="${attachmentId}"]`);
+        const isExpanded = button.classList.contains('expanded');
+        
+        if (isExpanded) {
+            // Collapse
+            childRows.forEach(row => row.style.display = 'none');
+            button.classList.remove('expanded');
+        } else {
+            // Expand
+            childRows.forEach(row => row.style.display = 'table-row');
+            button.classList.add('expanded');
+        }
     }
 
     updateBulkButtons() {
@@ -302,8 +338,8 @@ class BackupPageManager {
             confirmText: 'Restore All',
             cancelText: 'Cancel',
             confirmButtonType: 'primary'
-        }).then(confirmed => {
-            if (confirmed) {
+        }).then(action => {
+            if (action === 'confirm') {
                 this.confirmBulkRestore(attachmentIds, checkedBoxes);
             }
         });
@@ -356,10 +392,15 @@ class BackupPageManager {
     }
 
     handleBulkDelete() {
+        console.log('Ultimate Watermark: Bulk delete clicked');
         const checkedBoxes = document.querySelectorAll('.uw-backup-checkbox:checked');
         const attachmentIds = Array.from(checkedBoxes).map(cb => cb.value);
         
+        console.log('Ultimate Watermark: Checked boxes:', checkedBoxes.length);
+        console.log('Ultimate Watermark: Attachment IDs:', attachmentIds);
+        
         if (attachmentIds.length === 0) {
+            console.log('Ultimate Watermark: No items selected');
             if (typeof UWNotifications !== 'undefined') {
                 UWNotifications.error('Error', 'Please select at least one backup to delete.');
             } else {
@@ -385,25 +426,30 @@ class BackupPageManager {
             confirmText: 'Delete All',
             cancelText: 'Cancel',
             confirmButtonType: 'danger'
-        }).then(confirmed => {
-            if (confirmed) {
+        }).then(action => {
+            if (action === 'confirm') {
                 this.confirmBulkDelete(attachmentIds, checkedBoxes);
             }
         });
     }
 
     confirmBulkDelete(attachmentIds, checkedBoxes) {
+        console.log('Ultimate Watermark: Confirming bulk delete for IDs:', attachmentIds);
+        
         // Show loading state for all selected rows
         checkedBoxes.forEach(checkbox => {
             const row = checkbox.closest('.uw-backup-row');
             this.showLoadingState(row);
         });
 
-        // Make AJAX request
+        // Make AJAX request - send IDs as array fields to avoid JSON parsing issues
         const formData = new FormData();
         formData.append('action', 'ultimate_watermark_bulk_delete_backup');
-        formData.append('attachment_ids', JSON.stringify(attachmentIds));
+        attachmentIds.forEach(id => formData.append('attachment_ids[]', id));
         formData.append('nonce', ultimateWatermarkBackup.nonce);
+        
+        console.log('Ultimate Watermark: Making AJAX request to:', ultimateWatermarkBackup.ajaxurl);
+        console.log('Ultimate Watermark: Form data (ids):', attachmentIds);
 
         fetch(ultimateWatermarkBackup.ajaxurl, {
             method: 'POST',
@@ -411,7 +457,9 @@ class BackupPageManager {
         })
         .then(response => response.json())
         .then(data => {
+            console.log('Ultimate Watermark: Bulk delete response:', data);
             if (data.success) {
+                console.log('Ultimate Watermark: Bulk delete successful');
                 UWNotifications.success('Success', data.data.message || `${attachmentIds.length} backup(s) deleted successfully.`);
                 // Remove all deleted backup rows
                 checkedBoxes.forEach(checkbox => {
@@ -419,6 +467,7 @@ class BackupPageManager {
                     this.removeBackupRow(row);
                 });
             } else {
+                console.log('Ultimate Watermark: Bulk delete failed:', data.data.message);
                 UWNotifications.error('Error', data.data.message || 'Failed to delete backups.');
                 // Hide loading state for all rows
                 checkedBoxes.forEach(checkbox => {

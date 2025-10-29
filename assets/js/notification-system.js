@@ -166,10 +166,11 @@ class NotificationSystem {
                 }
                 
                 .uw-modal-header {
-                    padding: 24px 24px 0 24px !important;
+                    padding: 24px 24px 10px 24px !important;
                     display: flex !important;
                     align-items: center !important;
                     gap: 12px !important;
+                    border-bottom:1px solid #ddd;
                 }
                 
                 .uw-modal-icon {
@@ -228,7 +229,7 @@ class NotificationSystem {
                 .uw-modal-actions {
                     display: flex !important;
                     gap: 12px !important;
-                    justify-content: flex-end !important;
+                
                 }
                 
                 .uw-modal-btn {
@@ -391,7 +392,11 @@ class NotificationSystem {
                 type = 'warning',
                 confirmText = 'Confirm',
                 cancelText = 'Cancel',
-                confirmButtonType = 'primary'
+                confirmButtonType = 'primary',
+                // Support for third button
+                thirdButtonText = null,
+                thirdButtonType = 'secondary',
+                thirdButtonAction = 'third'
             } = options;
 
             const iconMap = {
@@ -400,6 +405,28 @@ class NotificationSystem {
                 warning: 'dashicons-warning',
                 info: 'dashicons-info'
             };
+
+            // Build buttons HTML
+            let buttonsHTML = `
+                <button class="uw-modal-btn uw-modal-btn-secondary" data-action="cancel">
+                    <span class="dashicons dashicons-no-alt"></span>
+                    ${cancelText}
+                </button>
+                <button class="uw-modal-btn uw-modal-btn-${confirmButtonType}" data-action="confirm">
+                    <span class="dashicons dashicons-yes-alt"></span>
+                    ${confirmText}
+                </button>
+            `;
+
+            // Add third button if specified
+            if (thirdButtonText) {
+                buttonsHTML += `
+                    <button class="uw-modal-btn uw-modal-btn-${thirdButtonType}" data-action="${thirdButtonAction}">
+                        <span class="dashicons dashicons-trash"></span>
+                        ${thirdButtonText}
+                    </button>
+                `;
+            }
 
             const modal = document.createElement('div');
             modal.className = 'uw-modal';
@@ -413,14 +440,7 @@ class NotificationSystem {
                 <div class="uw-modal-body">
                     <p class="uw-modal-message">${message}</p>
                     <div class="uw-modal-actions">
-                        <button class="uw-modal-btn uw-modal-btn-secondary" data-action="cancel">
-                            <span class="dashicons dashicons-no-alt"></span>
-                            ${cancelText}
-                        </button>
-                        <button class="uw-modal-btn uw-modal-btn-${confirmButtonType}" data-action="confirm">
-                            <span class="dashicons dashicons-yes-alt"></span>
-                            ${confirmText}
-                        </button>
+                        ${buttonsHTML}
                     </div>
                 </div>
             `;
@@ -438,7 +458,7 @@ class NotificationSystem {
                     setTimeout(() => {
                         this.modalContainer.innerHTML = '';
                     }, 200);
-                    resolve(action === 'confirm');
+                    resolve(action);
                 }
             };
 
@@ -449,7 +469,7 @@ class NotificationSystem {
                     setTimeout(() => {
                         this.modalContainer.innerHTML = '';
                     }, 200);
-                    resolve(false);
+                    resolve('cancel');
                     document.removeEventListener('keydown', handleKeydown);
                 }
             };
