@@ -388,7 +388,7 @@ class MediaLibraryIntegration
                         height: 26px;
                     ">
                         <input type="checkbox" id="ultimate-watermark-auto-apply" name="ultimate_watermark_auto_apply" value="1" 
-                               style="opacity: 0; width: 0; height: 0; position: absolute;" checked>
+                               style="opacity: 0; width: 0; height: 0; position: absolute;">
                         <label for="ultimate-watermark-auto-apply" class="uw-toggle-track" style="
                             display: block;
                             width: 100%;
@@ -528,7 +528,6 @@ class MediaLibraryIntegration
             // Store toggle state in sessionStorage for upload hooks
             function updateToggleState() {
                 const isEnabled = $toggle.is(':checked');
-                console.log('Ultimate Watermark - Toggle state changed:', isEnabled);
                 sessionStorage.setItem('ultimate_watermark_auto_apply', isEnabled ? '1' : '0');
                 
                 // Also send to server via AJAX to store in session
@@ -536,10 +535,6 @@ class MediaLibraryIntegration
                     action: 'ultimate_watermark_update_toggle_state',
                     enabled: isEnabled ? '1' : '0',
                     nonce: '<?php echo wp_create_nonce('ultimate_watermark_toggle'); ?>'
-                }).done(function(response) {
-                    console.log('Ultimate Watermark - Toggle state saved to server:', response);
-                }).fail(function() {
-                    console.log('Ultimate Watermark - Failed to save toggle state to server');
                 });
             }
             
@@ -553,26 +548,37 @@ class MediaLibraryIntegration
                 updateToggleState();
             });
             
-            // Initialize state
+            // Initialize state - toggle is OFF by default
             if ($toggle.is(':checked')) {
                 $info.show();
+            } else {
+                $info.hide();
             }
             updateToggleState();
             
-            // Also update on page load
-            updateToggleState();
+            // Add visual indicator of current state
+            const $statusIndicator = $('<div id="toggle-status" style="margin-top: 10px; padding: 5px; border-radius: 4px; font-size: 12px; text-align: center;"></div>');
+            $info.after($statusIndicator);
+            
+            function updateStatusIndicator() {
+                const isEnabled = $toggle.is(':checked');
+                $statusIndicator.text(isEnabled ? '✅ Watermarking ENABLED' : '❌ Watermarking DISABLED')
+                    .css('background', isEnabled ? '#d4edda' : '#f8d7da')
+                    .css('color', isEnabled ? '#155724' : '#721c24');
+            }
+            
+            $toggle.on('change', updateStatusIndicator);
+            updateStatusIndicator();
             
             // Intercept form submission to add toggle state
             // Try multiple form selectors to catch different upload forms
             $('form[enctype="multipart/form-data"], form#file-form, .media-frame form').on('submit', function() {
                 const isEnabled = $toggle.is(':checked');
-                console.log('Ultimate Watermark - Form submission detected, toggle enabled:', isEnabled);
                 if (isEnabled) {
                     // Remove any existing hidden input first
                     $(this).find('input[name="ultimate_watermark_auto_apply"]').remove();
                     // Add the hidden input
                     $(this).append('<input type="hidden" name="ultimate_watermark_auto_apply" value="1">');
-                    console.log('Ultimate Watermark - Added hidden input to form');
                 }
             });
             
@@ -638,37 +644,31 @@ class MediaLibraryIntegration
      */
     public function markForWatermarking(int $attachment_id): void
     {
-        // Debug logging
-        error_log('Ultimate Watermark - markForWatermarking called for attachment: ' . $attachment_id);
-        error_log('Ultimate Watermark - POST data: ' . print_r($_POST, true));
-        
         // Check if auto-apply is enabled via toggle
         $auto_apply_enabled = false;
         
         // Check POST data first (this should be set by the upload form when toggle is ON)
         if (isset($_POST['ultimate_watermark_auto_apply']) && $_POST['ultimate_watermark_auto_apply'] === '1') {
             $auto_apply_enabled = true;
-            error_log('Ultimate Watermark - Toggle enabled via POST data');
         } else {
             // Check WordPress option as fallback (set by JavaScript)
             $option_value = get_option('ultimate_watermark_auto_apply_toggle', '0');
             if ($option_value === '1') {
                 $auto_apply_enabled = true;
-                error_log('Ultimate Watermark - Toggle enabled via WordPress option');
-            } else {
-                error_log('Ultimate Watermark - Toggle disabled - no POST or option data found');
             }
         }
         
         // If toggle is OFF, don't apply watermarks
         if (!$auto_apply_enabled) {
-            error_log('Ultimate Watermark - Skipping watermarking - toggle is OFF');
             return;
         }
         
         // Mark this attachment for watermarking only if toggle is ON
         update_post_meta($attachment_id, '_ulwm_watermarked', true);
-        error_log('Ultimate Watermark - Marked attachment for watermarking');
+        
+        // Reset the toggle after use to prevent accidental watermarking of subsequent uploads
+        update_option('ultimate_watermark_auto_apply_toggle', '0');
+        
         return;
     }
 

@@ -70,6 +70,7 @@ class AdminManager
         add_action('wp_ajax_ultimate_watermark_bulk_delete_backup', [$this, 'handleBulkDeleteBackup']);
         add_action('wp_ajax_ultimate_watermark_save_settings', [$this, 'handleSaveSettings']);
         add_action('wp_ajax_ultimate_watermark_update_toggle_state', [$this, 'handleUpdateToggleState']);
+        add_action('wp_ajax_ultimate_watermark_get_analytics_data', [$this, 'handleGetAnalyticsData']);
         // Remove asset enqueuing from here - let AssetManager handle it
     }
 
@@ -626,7 +627,7 @@ class AdminManager
             
             wp_send_json_success(['message' => 'Settings saved successfully']);
             
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             wp_send_json_error(['message' => 'An error occurred while saving settings']);
         }
     }
@@ -648,19 +649,209 @@ class AdminManager
 
         // Get enabled state
         $enabled = $_POST['enabled'] ?? '0';
-        error_log('Ultimate Watermark - AJAX toggle state update: ' . $enabled);
 
-        // Store in session
-        if (!session_id()) {
-            session_start();
-        }
-        $_SESSION['ultimate_watermark_auto_apply'] = $enabled;
-        error_log('Ultimate Watermark - Session data set: ' . print_r($_SESSION['ultimate_watermark_auto_apply'], true));
+        // Store in WordPress option
+        update_option('ultimate_watermark_auto_apply_toggle', $enabled);
 
         // Send success response
         wp_send_json_success([
             'enabled' => $enabled === '1'
         ]);
+    }
+
+    /**
+     * Handle get analytics data
+     */
+    public function handleGetAnalyticsData(): void
+    {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_analytics')) {
+            wp_die('Security check failed');
+        }
+
+        // Check permissions
+        if (!current_user_can('manage_options')) {
+            wp_die('Insufficient permissions');
+        }
+
+        // Get timeframe
+        $timeframe = $_POST['timeframe'] ?? '30';
+        $days = (int) $timeframe;
+
+        // Get analytics data
+        $analytics_page = new \MantraBrain\UltimateWatermark\Admin\Pages\AnalyticsPage();
+        
+        $data = [
+            'watermark_usage_over_time' => $this->getUsageDataForTimeframe($days),
+            'image_protection_trends' => $this->getProtectionData(),
+            'template_performance' => $this->getTemplatesData(),
+            'image_size_distribution' => $this->getSizesData()
+        ];
+
+        wp_send_json_success($data);
+    }
+
+    /**
+     * Get usage data for specific timeframe
+     */
+    private function getUsageDataForTimeframe(int $days): array
+    {
+        $data = [];
+        $labels = [];
+        
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $date = date('Y-m-d', strtotime("-{$i} days"));
+            $labels[] = date('M j', strtotime($date));
+            
+            // Count watermarks applied on this date
+            $count = $this->getWatermarkCountForDate($date);
+            $data[] = $count;
+        }
+        
+        return [
+            'labels' => $labels,
+            'data' => $data
+        ];
+    }
+
+    /**
+     * Get protection data
+     */
+    private function getProtectionData(): array
+    {
+        $total = $this->getTotalImages();
+        $watermarked = $this->getWatermarkedImages();
+        $unprotected = $total - $watermarked;
+        
+        return [
+            'protected' => $watermarked,
+            'unprotected' => $unprotected
+        ];
+    }
+
+    /**
+     * Get templates data
+     */
+    private function getTemplatesData(): array
+    {
+        $watermarks = get_posts([
+            'post_type' => 'ultimate_watermark',
+            'post_status' => 'publish',
+            'numberposts' => 5,
+            'meta_key' => 'watermark_usage_count',
+            'orderby' => 'meta_value_num',
+            'order' => 'DESC'
+        ]);
+        
+        $labels = [];
+        $data = [];
+        
+        foreach ($watermarks as $watermark) {
+            $usage_count = get_post_meta($watermark->ID, 'watermark_usage_count', true) ?: 0;
+            $labels[] = $watermark->post_title ?: 'Untitled';
+            $data[] = (int) $usage_count;
+        }
+        
+        return [
+            'labels' => $labels,
+            'data' => $data
+        ];
+    }
+
+    /**
+     * Get sizes data
+     */
+    private function getSizesData(): array
+    {
+        $sizes = ['thumbnail', 'medium', 'large', 'full'];
+        $labels = [];
+        $data = [];
+        
+        foreach ($sizes as $size) {
+            $count = $this->getWatermarkedImagesBySize($size);
+            $labels[] = ucfirst($size);
+            $data[] = $count;
+        }
+        
+        return [
+            'labels' => $labels,
+            'data' => $data
+        ];
+    }
+
+    /**
+     * Get total images count
+     */
+    private function getTotalImages(): int
+    {
+        $attachments = get_posts([
+            'post_type' => 'attachment',
+            'post_mime_type' => 'image',
+            'numberposts' => -1,
+            'post_status' => 'inherit',
+        ]);
+        return count($attachments);
+    }
+
+    /**
+     * Get watermarked images count
+     */
+    private function getWatermarkedImages(): int
+    {
+        $watermarked = get_posts([
+            'post_type' => 'attachment',
+            'post_mime_type' => 'image',
+            'numberposts' => -1,
+            'post_status' => 'inherit',
+            'meta_query' => [
+                [
+                    'key' => 'applied_watermarks',
+                    'compare' => 'EXISTS'
+                ]
+            ]
+        ]);
+        return count($watermarked);
+    }
+
+    /**
+     * Get watermark count for specific date
+     */
+    private function getWatermarkCountForDate(string $date): int
+    {
+        global $wpdb;
+        
+        $count = $wpdb->get_var($wpdb->prepare("
+            SELECT COUNT(DISTINCT p.ID) 
+            FROM {$wpdb->postmeta} pm
+            INNER JOIN {$wpdb->posts} p ON pm.post_id = p.ID
+            WHERE pm.meta_key = 'applied_watermarks'
+            AND pm.meta_value != ''
+            AND p.post_type = 'attachment'
+            AND p.post_mime_type LIKE 'image/%'
+            AND DATE(p.post_date) = %s
+        ", $date));
+        
+        return (int) $count;
+    }
+
+    /**
+     * Get watermarked images count by size
+     */
+    private function getWatermarkedImagesBySize(string $size): int
+    {
+        global $wpdb;
+        
+        $count = $wpdb->get_var($wpdb->prepare("
+            SELECT COUNT(DISTINCT p.ID)
+            FROM {$wpdb->postmeta} pm
+            INNER JOIN {$wpdb->posts} p ON pm.post_id = p.ID
+            WHERE pm.meta_key = 'watermarks_by_size'
+            AND pm.meta_value LIKE %s
+            AND p.post_type = 'attachment'
+            AND p.post_mime_type LIKE 'image/%'
+        ", '%"' . $size . '":%'));
+        
+        return (int) $count;
     }
 
 }

@@ -215,10 +215,6 @@ class AnalyticsPage
         <script>
         // Analytics data for JavaScript
         window.ultimateWatermarkAnalytics = {
-            usageData: <?php echo json_encode($this->getUsageData()); ?>,
-            protectionData: <?php echo json_encode($this->getProtectionData()); ?>,
-            templatesData: <?php echo json_encode($this->getTemplatesData()); ?>,
-            sizesData: <?php echo json_encode($this->getSizesData()); ?>,
             ajaxUrl: '<?php echo admin_url('admin-ajax.php'); ?>',
             nonce: '<?php echo wp_create_nonce('ultimate_watermark_analytics'); ?>'
         };
@@ -253,9 +249,8 @@ class AnalyticsPage
             'post_status' => 'inherit',
             'meta_query' => [
                 [
-                    'key' => 'ulwm-is-watermarked',
-                    'value' => '1',
-                    'compare' => '='
+                    'key' => 'applied_watermarks',
+                    'compare' => 'EXISTS'
                 ]
             ]
         ]);
@@ -327,9 +322,8 @@ class AnalyticsPage
                 ],
                 'meta_query' => [
                     [
-                        'key' => 'ulwm-is-watermarked',
-                        'value' => '1',
-                        'compare' => '='
+                        'key' => 'applied_watermarks',
+                        'compare' => 'EXISTS'
                     ]
                 ],
                 'numberposts' => -1,
@@ -431,8 +425,8 @@ class AnalyticsPage
                 INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
                 WHERE p.post_type = 'attachment' 
                 AND p.post_mime_type LIKE 'image/%'
-                AND pm.meta_key = 'ulwm-is-watermarked'
-                AND pm.meta_value = '1'
+                AND pm.meta_key = 'applied_watermarks'
+                AND pm.meta_value != ''
             "));
             
             $labels[] = ucfirst($size);
@@ -632,4 +626,5 @@ class AnalyticsPage
         
         return $size;
     }
+
 }
