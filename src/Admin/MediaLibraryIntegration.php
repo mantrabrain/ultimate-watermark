@@ -267,6 +267,8 @@ class MediaLibraryIntegration
                         $success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($image_path, $watermark_id, $image_path);
                         if ($success) {
                             $success_count++;
+                            // Track watermark usage for this specific size
+                            WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id, $size);
                         }
                     } catch (\Exception $e) {
                         // Silent fail for production
@@ -275,13 +277,8 @@ class MediaLibraryIntegration
             }
         }
         
-        // Track watermark usage if any sizes were successfully watermarked
-        if ($success_count > 0) {
-            WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id);
-            return true;
-        }
-        
-        return false;
+        // Return true if any sizes were successfully watermarked
+        return $success_count > 0;
     }
 
 
@@ -627,7 +624,6 @@ class MediaLibraryIntegration
      */
     public function markForWatermarking(int $attachment_id): void
     {
-        
         // Check if auto-apply is enabled via toggle
         $auto_apply_enabled = false;
         
@@ -676,8 +672,8 @@ class MediaLibraryIntegration
             $success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($image_path, $watermark_id, $image_path);
             
             if ($success) {
-                // Track watermark usage
-                WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id);
+                // Track watermark usage for this specific size
+                WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id, $size);
                 return true;
             } else {
                 return false;
@@ -1141,10 +1137,8 @@ class MediaLibraryIntegration
      */
     public function processAfterMetadataGeneration($metadata, $attachment_id)
     {
-        
         // Check if this image should be watermarked
         if (get_post_meta($attachment_id, '_ulwm_watermarked', true)) {
-            
             try {
                 // Increase memory limit for watermark processing
                 $original_memory_limit = ini_get('memory_limit');
@@ -1232,6 +1226,7 @@ class MediaLibraryIntegration
             // If no specific sizes, apply to all
             if (empty($watermark_sizes)) {
                 $watermark_sizes = $image_sizes;
+            }
             
             foreach ($image_sizes as $size) {
                 if (in_array($size, $watermark_sizes)) {
@@ -1240,6 +1235,9 @@ class MediaLibraryIntegration
                         // Use WatermarkService directly (same as preview)
                         try {
                             \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($image_path, $watermark_id, $image_path);
+                            
+                            // Track watermark usage for this specific size
+                            WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id, $size);
                         } catch (\Exception $e) {
                             // Silent fail for production
                         }
@@ -1247,7 +1245,5 @@ class MediaLibraryIntegration
                 }
             }
         }
-    }
-    
     }
 }

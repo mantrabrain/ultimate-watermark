@@ -14,9 +14,10 @@ class WatermarkUsageTracker
      * 
      * @param int $watermark_id Watermark ID
      * @param int $attachment_id Image attachment ID
+     * @param string $image_size Image size (e.g., 'full', 'large', 'medium', 'thumbnail')
      * @return bool Success status
      */
-    public static function incrementUsage(int $watermark_id, int $attachment_id): bool
+    public static function incrementUsage(int $watermark_id, int $attachment_id, string $image_size = 'full'): bool
     {
         try {
             // Increment watermark usage count
@@ -35,6 +36,16 @@ class WatermarkUsageTracker
             if (!in_array($watermark_id, $applied_watermarks)) {
                 $applied_watermarks[] = $watermark_id;
                 update_post_meta($attachment_id, 'applied_watermarks', $applied_watermarks);
+            }
+            
+            // Track watermarks per size
+            $size_watermarks = get_post_meta($attachment_id, 'watermarks_by_size', true) ?: [];
+            if (!isset($size_watermarks[$image_size])) {
+                $size_watermarks[$image_size] = [];
+            }
+            if (!in_array($watermark_id, $size_watermarks[$image_size])) {
+                $size_watermarks[$image_size][] = $watermark_id;
+                update_post_meta($attachment_id, 'watermarks_by_size', $size_watermarks);
             }
             
             // Update image watermark count
@@ -122,6 +133,30 @@ class WatermarkUsageTracker
     public static function getAppliedWatermarks(int $attachment_id): array
     {
         return get_post_meta($attachment_id, 'applied_watermarks', true) ?: [];
+    }
+    
+    /**
+     * Get watermarks applied to specific image size
+     * 
+     * @param int $attachment_id Image attachment ID
+     * @param string $image_size Image size (e.g., 'full', 'large', 'medium', 'thumbnail')
+     * @return array Array of watermark IDs for the specific size
+     */
+    public static function getWatermarksBySize(int $attachment_id, string $image_size): array
+    {
+        $size_watermarks = get_post_meta($attachment_id, 'watermarks_by_size', true) ?: [];
+        return $size_watermarks[$image_size] ?? [];
+    }
+    
+    /**
+     * Get all watermarks by size for an image
+     * 
+     * @param int $attachment_id Image attachment ID
+     * @return array Array with size as key and watermark IDs as values
+     */
+    public static function getAllWatermarksBySize(int $attachment_id): array
+    {
+        return get_post_meta($attachment_id, 'watermarks_by_size', true) ?: [];
     }
     
     /**

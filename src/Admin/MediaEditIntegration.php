@@ -112,54 +112,311 @@ class MediaEditIntegration
     {
         $html = '<div class="watermark-status has-watermarks">';
         
-        // List of applied watermarks
-        $html .= '<div class="applied-watermarks-list">';
+        // Get watermarks by size
+        $watermarks_by_size = WatermarkUsageTracker::getAllWatermarksBySize($attachment_id);
         
-        foreach ($watermark_ids as $watermark_id) {
-            $watermark = get_post($watermark_id);
-            if (!$watermark) {
-                continue;
-            }
-
-            $watermark_data = WatermarkHelper::getActiveWatermarkById($watermark_id);
-            if (!$watermark_data) {
-                continue;
-            }
-
-            $type_icon = $watermark_data['watermark_type'] === 'text' ? 'dashicons-format-text' : 'dashicons-format-image';
-            $type_text = ucfirst($watermark_data['watermark_type']);
-            
-            // Create edit link
-            $edit_link = admin_url('admin.php?page=ultimate-watermark-add-watermark&ID=' . $watermark_id);
-            
-            $html .= '
-                <div class="applied-watermark-item" data-watermark-id="' . esc_attr($watermark_id) . '" data-attachment-id="' . esc_attr($attachment_id) . '">
-                    <div class="watermark-item-header">
-                        <span class="dashicons ' . esc_attr($type_icon) . '"></span>
-                        <a href="' . esc_url($edit_link) . '" class="watermark-name-link" target="_blank">
-                            ' . esc_html($watermark->post_title) . '
-                        </a>
-                        <span class="watermark-type">(' . esc_html($type_text) . ')</span>
-                    </div>
-                </div>
-            ';
+        // Get image metadata to get available sizes
+        $metadata = wp_get_attachment_metadata($attachment_id);
+        $available_sizes = ['full']; // Always include full size
+        if ($metadata && isset($metadata['sizes'])) {
+            $available_sizes = array_merge($available_sizes, array_keys($metadata['sizes']));
         }
         
-        $html .= '</div>'; // Close applied-watermarks-list
+        // Sort sizes by priority: full first, then by dimensions
+        $sorted_sizes = $this->sortSizesByPriority($available_sizes, $metadata);
         
-        // Add "Remove All" button
-        $html .= '
-            <div class="watermark-remove-all">
-                <button type="button" class="button button-secondary remove-all-watermarks-btn" 
-                        data-attachment-id="' . esc_attr($attachment_id) . '">
-                    <span class="dashicons dashicons-trash"></span>
-                    ' . esc_html__('Remove All Watermarks', 'ultimate-watermark') . '
-                </button>
-            </div>
-        ';
+        // Header with total count
+        $total_watermarks = count($watermark_ids);
+        $html .= '<div class="watermark-header">';
+        $html .= '<div class="watermark-title">';
+        $html .= '<span class="dashicons dashicons-format-image"></span>';
+        $html .= '<h4>' . esc_html__('Watermark Status', 'ultimate-watermark') . '</h4>';
+        $html .= '</div>';
+        $html .= '<div class="watermark-summary">';
+        $html .= '<span class="total-count">' . $total_watermarks . '</span>';
+        $html .= '<span class="total-label">' . esc_html__('Applied', 'ultimate-watermark') . '</span>';
+        $html .= '</div>';
+        $html .= '</div>';
+        
+        // Size breakdown cards
+        $html .= '<div class="watermark-sizes-grid">';
+        foreach ($sorted_sizes as $size) {
+            $size_watermarks = $watermarks_by_size[$size] ?? [];
+            $watermark_count = count($size_watermarks);
+            
+            // Get size info
+            $size_info = $this->getSizeInfo($size, $metadata);
+            
+            $html .= '<div class="size-card" data-size="' . esc_attr($size) . '">';
+            
+            // Card header with image preview
+            $html .= '<div class="size-card-header">';
+            $html .= '<div class="size-info">';
+            $html .= '<div class="size-image-preview">';
+            $html .= $this->getSizeImagePreview($attachment_id, $size, $size_info);
+            $html .= '</div>';
+            $html .= '<div class="size-details">';
+            $html .= '<span class="size-name">' . esc_html($size_info['name']) . '</span>';
+            $html .= '<span class="size-dimensions">' . esc_html($size_info['dimensions']) . '</span>';
+            $html .= '</div>';
+            $html .= '</div>';
+            
+            // Status badge
+            if ($watermark_count > 0) {
+                $html .= '<div class="status-badge has-watermarks">';
+                $html .= '<span class="count">' . $watermark_count . '</span>';
+                $html .= '<span class="label">' . esc_html__('Applied', 'ultimate-watermark') . '</span>';
+                $html .= '</div>';
+            } else {
+                $html .= '<div class="status-badge no-watermarks">';
+                $html .= '<span class="label">' . esc_html__('None', 'ultimate-watermark') . '</span>';
+                $html .= '</div>';
+            }
+            $html .= '</div>'; // Close size-card-header
+            
+            // Watermark list (collapsible)
+            if (!empty($size_watermarks)) {
+                $html .= '<div class="watermark-details" data-size="' . esc_attr($size) . '">';
+                $html .= '<div class="watermark-list">';
+                foreach ($size_watermarks as $watermark_id) {
+                    $html .= $this->renderWatermarkItem($watermark_id, $attachment_id, $size);
+                }
+                $html .= '</div>';
+                $html .= '</div>';
+            }
+            
+            $html .= '</div>'; // Close size-card
+        }
+        $html .= '</div>'; // Close watermark-sizes-grid
+        
+        // Action buttons
+        $html .= '<div class="watermark-actions">';
+        $html .= '<button type="button" class="button button-primary expand-all-btn">';
+        $html .= '<span class="dashicons dashicons-arrow-down-alt2"></span>';
+        $html .= esc_html__('Show Details', 'ultimate-watermark');
+        $html .= '</button>';
+        $html .= '<button type="button" class="button button-secondary remove-all-watermarks-btn" 
+                        data-attachment-id="' . esc_attr($attachment_id) . '">';
+        $html .= '<span class="dashicons dashicons-trash"></span>';
+        $html .= esc_html__('Remove All', 'ultimate-watermark');
+        $html .= '</button>';
+        $html .= '</div>';
+        
         $html .= '</div>'; // Close watermark-status
         
         return $html;
+    }
+
+    /**
+     * Render individual watermark item
+     */
+    private function renderWatermarkItem(int $watermark_id, int $attachment_id, string $size): string
+    {
+        $watermark = get_post($watermark_id);
+        if (!$watermark) {
+            return '';
+        }
+
+        $watermark_data = WatermarkHelper::getActiveWatermarkById($watermark_id);
+        if (!$watermark_data) {
+            return '';
+        }
+
+        $type_icon = $watermark_data['watermark_type'] === 'text' ? 'dashicons-format-text' : 'dashicons-format-image';
+        $type_text = ucfirst($watermark_data['watermark_type']);
+        
+        // Create edit link
+        $edit_link = admin_url('admin.php?page=ultimate-watermark-add-watermark&ID=' . $watermark_id);
+        
+        return '
+            <div class="watermark-item" data-watermark-id="' . esc_attr($watermark_id) . '" data-attachment-id="' . esc_attr($attachment_id) . '" data-size="' . esc_attr($size) . '">
+                <div class="watermark-item-header">
+                    <span class="dashicons ' . esc_attr($type_icon) . '"></span>
+                    <a href="' . esc_url($edit_link) . '" class="watermark-name-link" target="_blank">
+                        ' . esc_html($watermark->post_title) . '
+                    </a>
+                    <span class="watermark-type">(' . esc_html($type_text) . ')</span>
+                </div>
+            </div>
+        ';
+    }
+    
+    /**
+     * Sort sizes by priority (full first, then by dimensions)
+     */
+    private function sortSizesByPriority(array $sizes, array $metadata = null): array
+    {
+        $sorted = [];
+        $size_data = [];
+        
+        // Separate full size
+        if (in_array('full', $sizes)) {
+            $sorted[] = 'full';
+        }
+        
+        // Get dimensions for other sizes
+        foreach ($sizes as $size) {
+            if ($size === 'full') continue;
+            
+            $width = 0;
+            $height = 0;
+            if ($metadata && isset($metadata['sizes'][$size])) {
+                $width = $metadata['sizes'][$size]['width'] ?? 0;
+                $height = $metadata['sizes'][$size]['height'] ?? 0;
+            }
+            
+            $size_data[$size] = [
+                'width' => $width,
+                'height' => $height,
+                'area' => $width * $height
+            ];
+        }
+        
+        // Sort by area (largest first)
+        uasort($size_data, function($a, $b) {
+            return $b['area'] - $a['area'];
+        });
+        
+        // Add sorted sizes
+        foreach ($size_data as $size => $data) {
+            $sorted[] = $size;
+        }
+        
+        return $sorted;
+    }
+    
+    /**
+     * Get size information
+     */
+    private function getSizeInfo(string $size, array $metadata = null): array
+    {
+        if ($size === 'full') {
+            return [
+                'name' => __('Original Image', 'ultimate-watermark'),
+                'dimensions' => __('Full Resolution', 'ultimate-watermark')
+            ];
+        }
+        
+        $width = 0;
+        $height = 0;
+        if ($metadata && isset($metadata['sizes'][$size])) {
+            $width = $metadata['sizes'][$size]['width'] ?? 0;
+            $height = $metadata['sizes'][$size]['height'] ?? 0;
+        }
+        
+        $name = ucfirst(str_replace('_', ' ', $size));
+        $dimensions = $width && $height ? $width . ' × ' . $height : __('Unknown Size', 'ultimate-watermark');
+        
+        return [
+            'name' => $name,
+            'dimensions' => $dimensions
+        ];
+    }
+    
+    /**
+     * Get size image preview
+     */
+    private function getSizeImagePreview(int $attachment_id, string $size, array $size_info): string
+    {
+        $image_url = '';
+        $image_path = '';
+        
+        if ($size === 'full') {
+            $image_url = wp_get_attachment_url($attachment_id);
+            $image_path = get_attached_file($attachment_id);
+        } else {
+            $image_url = wp_get_attachment_image_url($attachment_id, $size);
+            $image_path = $this->getImagePathForSize($attachment_id, $size);
+        }
+        
+        // Check if image file exists
+        if (!$image_url || !$image_path || !file_exists($image_path)) {
+            // Fallback to icon if image doesn't exist
+            return '<div class="size-icon-fallback"><span class="dashicons dashicons-format-image"></span></div>';
+        }
+        
+        // Get image dimensions for the preview
+        $metadata = wp_get_attachment_metadata($attachment_id);
+        $width = 0;
+        $height = 0;
+        
+        if ($size === 'full') {
+            $width = $metadata['width'] ?? 0;
+            $height = $metadata['height'] ?? 0;
+        } elseif (isset($metadata['sizes'][$size])) {
+            $width = $metadata['sizes'][$size]['width'] ?? 0;
+            $height = $metadata['sizes'][$size]['height'] ?? 0;
+        }
+        
+        return sprintf(
+            '<img src="%s" alt="%s" class="size-preview-image" data-size="%s" data-attachment-id="%d" data-width="%d" data-height="%d" />',
+            esc_url($image_url),
+            esc_attr($size_info['name']),
+            esc_attr($size),
+            $attachment_id,
+            $width,
+            $height
+        );
+    }
+    
+    /**
+     * Get image path for specific size
+     */
+    private function getImagePathForSize(int $attachment_id, string $size): ?string
+    {
+        if ($size === 'full') {
+            return get_attached_file($attachment_id);
+        }
+        
+        $metadata = wp_get_attachment_metadata($attachment_id);
+        if (!$metadata || empty($metadata['sizes'][$size]['file'])) {
+            return null;
+        }
+        
+        $original_path = get_attached_file($attachment_id);
+        if (!$original_path) {
+            return null;
+        }
+        
+        $dir = pathinfo($original_path, PATHINFO_DIRNAME);
+        $size_filename = $metadata['sizes'][$size]['file'];
+        
+        return $dir . '/' . $size_filename;
+    }
+    
+    /**
+     * Get size icon (legacy method)
+     */
+    private function getSizeIcon(string $size): string
+    {
+        $icons = [
+            'full' => '<span class="dashicons dashicons-format-image"></span>',
+            'large' => '<span class="dashicons dashicons-format-image"></span>',
+            'medium' => '<span class="dashicons dashicons-format-image"></span>',
+            'thumbnail' => '<span class="dashicons dashicons-format-image"></span>',
+            'medium_large' => '<span class="dashicons dashicons-format-image"></span>'
+        ];
+        
+        return $icons[$size] ?? '<span class="dashicons dashicons-format-image"></span>';
+    }
+    
+    /**
+     * Get size label with dimensions (legacy method)
+     */
+    private function getSizeLabel(string $size, array $metadata = null): string
+    {
+        if ($size === 'full') {
+            return __('Full Size', 'ultimate-watermark');
+        }
+        
+        if ($metadata && isset($metadata['sizes'][$size])) {
+            $size_data = $metadata['sizes'][$size];
+            $width = $size_data['width'] ?? 0;
+            $height = $size_data['height'] ?? 0;
+            return ucfirst($size) . ' (' . $width . 'x' . $height . ')';
+        }
+        
+        return ucfirst($size);
     }
 
     /**
@@ -372,7 +629,7 @@ class MediaEditIntegration
             'ultimate-watermark-media-edit',
             ULTIMATE_WATERMARK_URL . 'assets/css/media-edit.css',
             [],
-            '1.0.0'
+            '2.0.3'
         );
 
         // Enqueue scripts
@@ -380,7 +637,7 @@ class MediaEditIntegration
             'ultimate-watermark-media-edit',
             ULTIMATE_WATERMARK_URL . 'assets/js/media-edit.js',
             ['jquery'],
-            '1.0.0',
+            '2.0.3',
             true
         );
 
