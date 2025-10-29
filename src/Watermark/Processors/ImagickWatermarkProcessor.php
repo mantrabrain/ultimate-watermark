@@ -11,35 +11,24 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
      */
     public function applyWatermark(string $sourceImagePath, string $outputImagePath, array $watermarkData): bool
     {
-        error_log('Ultimate Watermark: ImagickWatermarkProcessor::applyWatermark called');
-        error_log('Ultimate Watermark: Source: ' . $sourceImagePath);
-        error_log('Ultimate Watermark: Output: ' . $outputImagePath);
-        error_log('Ultimate Watermark: Watermark data: ' . print_r($watermarkData, true));
         
         // Load source image
         $image = new \Imagick($sourceImagePath);
         if (!$image) {
-            error_log('Ultimate Watermark: Failed to load source image');
             return false;
         }
         
         $watermarkType = $watermarkData['watermark_type'] ?? 'text';
-        error_log('Ultimate Watermark: Watermark type: ' . $watermarkType);
         
         if ($watermarkType === 'text') {
-            error_log('Ultimate Watermark: Applying text watermark');
             $this->applyTextWatermark($image, $watermarkData);
         } elseif ($watermarkType === 'image') {
-            error_log('Ultimate Watermark: Applying image watermark');
             $this->applyImageWatermark($image, $watermarkData);
         } else {
-            error_log('Ultimate Watermark: Unknown watermark type: ' . $watermarkType);
         }
         
         // Save watermarked image with quality and format settings
-        error_log('Ultimate Watermark: Saving watermarked image');
         $result = $this->saveImage($image, $outputImagePath, $watermarkData);
-        error_log('Ultimate Watermark: Save result: ' . ($result ? 'SUCCESS' : 'FAILED'));
         $image->destroy();
         
         return $result;
@@ -117,7 +106,6 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
      */
     private function applyTextWatermark(\Imagick $image, array $watermarkData): void
     {
-        error_log('Ultimate Watermark: applyTextWatermark called');
         
         $text = $watermarkData['watermark_text'] ?? 'Watermark';
         $fontSize = $watermarkData['watermark_font_size'] ?? 24;
@@ -126,12 +114,6 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         $rotation = $watermarkData['watermark_rotation'] ?? 0;
         $fontFamily = $watermarkData['watermark_font_family'] ?? 'Arial';
         
-        error_log('Ultimate Watermark: Text: ' . $text);
-        error_log('Ultimate Watermark: Font size: ' . $fontSize);
-        error_log('Ultimate Watermark: Color: ' . print_r($color, true));
-        error_log('Ultimate Watermark: Opacity: ' . $opacity);
-        error_log('Ultimate Watermark: Rotation: ' . $rotation);
-        error_log('Ultimate Watermark: Font family: ' . $fontFamily);
         
         $imageWidth = $image->getImageWidth();
         $imageHeight = $image->getImageHeight();
@@ -338,24 +320,18 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
      */
     private function applyImageWatermark(\Imagick $image, array $watermarkData): void
     {
-        error_log('Ultimate Watermark: applyImageWatermark called');
         
         $watermarkPath = $watermarkData['watermark_image_path'] ?? '';
-        error_log('Ultimate Watermark: Watermark path: ' . $watermarkPath);
         
         if (empty($watermarkPath) || !file_exists($watermarkPath)) {
-            error_log('Ultimate Watermark: Watermark path is empty or file does not exist');
             return;
         }
         
         $watermarkImage = new \Imagick($watermarkPath);
         if (!$watermarkImage) {
-            error_log('Ultimate Watermark: Failed to load watermark image');
             return;
         }
         
-        error_log('Ultimate Watermark: Watermark image loaded successfully');
-        error_log('Ultimate Watermark: Watermark dimensions: ' . $watermarkImage->getImageWidth() . 'x' . $watermarkImage->getImageHeight());
         
         // Check if watermark image has any non-transparent pixels
         $watermarkImage->setImageAlphaChannel(\Imagick::ALPHACHANNEL_DEACTIVATE);
@@ -364,13 +340,10 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         
         // Get image statistics to check if it has content
         $stats = $watermarkImage->getImageChannelStatistics();
-        error_log('Ultimate Watermark: Watermark image statistics: ' . print_r($stats, true));
         
         $rotation = $watermarkData['watermark_rotation'] ?? 0;
         $opacity = $watermarkData['watermark_opacity'] ?? 50;
         
-        error_log('Ultimate Watermark: Rotation: ' . $rotation);
-        error_log('Ultimate Watermark: Opacity: ' . $opacity);
         
         
         // Apply rotation and positioning (opacity will be handled in the rotation method)
@@ -400,9 +373,6 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
             $watermarkHeight = $watermarkImage->getImageHeight();
             $position = $this->calculatePosition($watermarkData, $imageWidth, $imageHeight, $watermarkWidth, $watermarkHeight);
             
-            error_log('Ultimate Watermark: Watermark dimensions after scaling: ' . $watermarkWidth . 'x' . $watermarkHeight);
-            error_log('Ultimate Watermark: Image dimensions: ' . $imageWidth . 'x' . $imageHeight);
-            error_log('Ultimate Watermark: Calculated position: x=' . $position['x'] . ', y=' . $position['y']);
             
             // Apply opacity using composite with alpha
             if ($opacity < 100) {
@@ -410,21 +380,16 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
                 $watermarkImage->evaluateImage(\Imagick::EVALUATE_MULTIPLY, $opacity / 100, \Imagick::CHANNEL_ALPHA);
             }
             
-            error_log('Ultimate Watermark: About to composite watermark at position: x=' . $position['x'] . ', y=' . $position['y']);
             
             // Check if position is within bounds
             if ($position['x'] < 0 || $position['y'] < 0 || 
                 $position['x'] + $watermarkWidth > $imageWidth || 
                 $position['y'] + $watermarkHeight > $imageHeight) {
-                error_log('Ultimate Watermark: WARNING - Watermark position is outside image bounds!');
             }
             
             // Check watermark image properties before compositing
-            error_log('Ultimate Watermark: Watermark image format: ' . $watermarkImage->getImageFormat());
-            error_log('Ultimate Watermark: Watermark image has alpha channel: ' . ($watermarkImage->getImageAlphaChannel() ? 'YES' : 'NO'));
             
             $compositeResult = $image->compositeImage($watermarkImage, \Imagick::COMPOSITE_OVER, $position['x'], $position['y']);
-            error_log('Ultimate Watermark: Composite result: ' . ($compositeResult ? 'SUCCESS' : 'FAILED'));
             return;
         }
         
@@ -766,16 +731,11 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
      */
     public function saveImage(\Imagick $image, string $outputPath, array $watermarkData = []): bool
     {
-        error_log('Ultimate Watermark: saveImage called');
-        error_log('Ultimate Watermark: Output path: ' . $outputPath);
         
         $extension = strtolower(pathinfo($outputPath, PATHINFO_EXTENSION));
         $quality = $watermarkData['watermark_quality'] ?? 90;
         $imageFormat = $watermarkData['image_format'] ?? 'baseline';
         
-        error_log('Ultimate Watermark: Extension: ' . $extension);
-        error_log('Ultimate Watermark: Quality: ' . $quality);
-        error_log('Ultimate Watermark: Format: ' . $imageFormat);
         
         
         switch ($extension) {
@@ -813,17 +773,11 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
                 return false;
         }
         
-        error_log('Ultimate Watermark: About to write image to: ' . $outputPath);
         $result = $image->writeImage($outputPath);
-        error_log('Ultimate Watermark: writeImage result: ' . ($result ? 'SUCCESS' : 'FAILED'));
         
         if ($result) {
-            error_log('Ultimate Watermark: File written successfully, checking if file exists');
             if (file_exists($outputPath)) {
-                error_log('Ultimate Watermark: Output file exists: ' . $outputPath);
-                error_log('Ultimate Watermark: Output file size: ' . filesize($outputPath) . ' bytes');
             } else {
-                error_log('Ultimate Watermark: Output file does not exist after write!');
             }
         }
         

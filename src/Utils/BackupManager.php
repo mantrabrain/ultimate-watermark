@@ -39,9 +39,7 @@ class BackupManager
     public static function isBackupEnabled(): bool
     {
         $settings = self::getBackupSettings();
-        error_log('Ultimate Watermark: Backup settings: ' . print_r($settings, true));
         $enabled = $settings['backup_enabled'];
-        error_log('Ultimate Watermark: Backup enabled: ' . ($enabled ? 'YES' : 'NO'));
         return $enabled;
     }
     
@@ -55,25 +53,19 @@ class BackupManager
      */
     public static function createBackup(string $file_path, int $attachment_id = 0, int $watermark_id = 0, array $additional_paths = []): bool|string|array
     {
-        error_log('Ultimate Watermark: BackupManager::createBackup called with file: ' . $file_path . ', attachment: ' . $attachment_id . ', watermark: ' . $watermark_id);
         
         if (!self::isBackupEnabled()) {
-            error_log('Ultimate Watermark: Backup is disabled');
             return false;
         }
         
-        error_log('Ultimate Watermark: Backup is enabled, proceeding with backup creation');
         
-        // Always create fresh backup of original files
-        // (Remove existing backup if it exists to ensure we backup current originals)
+        // If a backup already exists for this attachment, DO NOT overwrite it.
+        // We only ever keep the first backup (original before any watermarking).
         if ($attachment_id > 0) {
-            $existing_backup = get_post_meta($attachment_id, '_ultimate_watermark_backup_path', true);
-            if ($existing_backup && file_exists($existing_backup)) {
-                // Delete existing backup to ensure fresh backup of current originals
-                unlink($existing_backup);
-                delete_post_meta($attachment_id, '_ultimate_watermark_backup_path');
-                delete_post_meta($attachment_id, '_ultimate_watermark_backup_created');
-                delete_post_meta($attachment_id, '_ultimate_watermark_backup_strategy');
+            $existing_single = get_post_meta($attachment_id, '_ultimate_watermark_backup_path', true);
+            $existing_multi = get_post_meta($attachment_id, '_ultimate_watermark_backup_paths', true);
+            if (($existing_single && file_exists($existing_single)) || (!empty($existing_multi) && is_array($existing_multi))) {
+                return $existing_multi ?: $existing_single;
             }
         }
         
@@ -320,19 +312,26 @@ class BackupManager
      */
     public static function restoreFromBackup(string $file_path, int $attachment_id): bool
     {
-        error_log('Ultimate Watermark: Restoring ALL backups for attachment ID: ' . $attachment_id);
         
         // Get all backup files for this attachment (main + all additional sizes)
         $backups = self::getAttachmentBackups($attachment_id);
         
         if (empty($backups)) {
-            error_log('Ultimate Watermark: No backup files found for attachment ID: ' . $attachment_id);
             return false;
         }
         
-        error_log('Ultimate Watermark: Found ' . count($backups) . ' backup files to restore');
         
         // Restore all backup files (main + all additional sizes)
+        // Ensure the original (full) is restored FIRST
+        usort($backups, function ($a, $b) {
+            $aIsOriginal = str_ends_with($a['filename'], '_original.' . (pathinfo($a['filename'], PATHINFO_EXTENSION)));
+            $bIsOriginal = str_ends_with($b['filename'], '_original.' . (pathinfo($b['filename'], PATHINFO_EXTENSION)));
+            if ($aIsOriginal === $bIsOriginal) {
+                return 0;
+            }
+            return $aIsOriginal ? -1 : 1;
+        });
+
         $restored_count = 0;
         foreach ($backups as $backup) {
             if (self::restoreBackupFile($backup, $attachment_id)) {
@@ -340,12 +339,11 @@ class BackupManager
             }
         }
         
-        error_log('Ultimate Watermark: Restored ' . $restored_count . ' out of ' . count($backups) . ' backup files');
         
-        // If we restored any files, regenerate attachment metadata to update all sizes
+        // DO NOT regenerate attachment metadata after restore
+        // This would regenerate thumbnails from the main image, potentially overwriting our restored files
+        // The restored files should already be in the correct locations
         if ($restored_count > 0) {
-            wp_generate_attachment_metadata($attachment_id, $file_path);
-            error_log('Ultimate Watermark: Regenerated attachment metadata for all sizes');
         }
         
         return $restored_count > 0;
@@ -363,22 +361,33 @@ class BackupManager
         $backup_path = $backup['path'];
         $backup_filename = $backup['filename'];
         
+        
+        // Check if backup file exists and get its size
+        if (file_exists($backup_path)) {
+            $backup_size = filesize($backup_path);
+        } else {
+            return false;
+        }
+        
         // Determine the target file path based on backup type
         $target_path = self::getTargetPathForBackup($backup_filename, $attachment_id);
         
         if (!$target_path) {
-            error_log('Ultimate Watermark: Could not determine target path for backup: ' . $backup_filename);
             return false;
         }
         
-        error_log('Ultimate Watermark: Restoring ' . $backup_path . ' to ' . $target_path);
+        
+        // Check if target file exists before restore
+        if (file_exists($target_path)) {
+            $target_size_before = filesize($target_path);
+        } else {
+        }
         
         // Copy backup file to target location
         if (copy($backup_path, $target_path)) {
-            error_log('Ultimate Watermark: Successfully restored: ' . $target_path);
+            $target_size_after = filesize($target_path);
             return true;
         } else {
-            error_log('Ultimate Watermark: Failed to restore: ' . $target_path);
             return false;
         }
     }
@@ -398,21 +407,22 @@ class BackupManager
         }
 
         // Main original backup always maps to the original path
-        if (substr($backup_filename, -9) === '_original') {
+        // Check if filename ends with _original.{extension}
+        $file_info = pathinfo($backup_filename);
+        $name_without_ext = $file_info['filename'];
+        if (substr($name_without_ext, -9) === '_original') {
             return $original_path;
         }
 
         // Parse filename: {id}_{base}_{size}.{ext}
-        // Example: 112_image1-scaled_large.jpg
-        $file_info = pathinfo($backup_filename);
-        $name_without_ext = $file_info['filename'];
+        // Example: 147_image_thumbnail.webp -> thumbnail
         
-        // Remove attachment ID prefix: 112_image1-scaled_large -> image1-scaled_large
+        // Remove attachment ID prefix: 147_image_thumbnail -> image_thumbnail
         $parts = explode('_', $name_without_ext, 2);
         if (count($parts) < 2) {
             return null;
         }
-        $name_with_size = $parts[1]; // image1-scaled_large
+        $name_with_size = $parts[1]; // image_thumbnail
         
         // Find the last underscore to get the size
         $last_underscore_pos = strrpos($name_with_size, '_');
@@ -420,18 +430,15 @@ class BackupManager
             return null;
         }
         
-        $size_key = substr($name_with_size, $last_underscore_pos + 1); // large
-        error_log('Ultimate Watermark: Extracted size key: ' . $size_key . ' from filename: ' . $backup_filename);
+        $size_key = substr($name_with_size, $last_underscore_pos + 1); // thumbnail
 
         // Use attachment metadata to resolve the actual resized filename
         $metadata = wp_get_attachment_metadata($attachment_id);
         if (!$metadata || empty($metadata['sizes'])) {
-            error_log('Ultimate Watermark: No metadata or sizes found for attachment ' . $attachment_id);
             return null;
         }
 
         if (!isset($metadata['sizes'][$size_key]['file'])) {
-            error_log('Ultimate Watermark: Size key ' . $size_key . ' not found in metadata sizes: ' . print_r(array_keys($metadata['sizes']), true));
             return null;
         }
 
@@ -439,7 +446,6 @@ class BackupManager
         $size_filename = $metadata['sizes'][$size_key]['file'];
         $target_path = $dir . '/' . $size_filename;
         
-        error_log('Ultimate Watermark: Target path for ' . $size_key . ': ' . $target_path);
 
         return $target_path;
     }
@@ -538,7 +544,6 @@ class BackupManager
         $upload_dir = wp_upload_dir();
         $backup_base_dir = $upload_dir['basedir'] . '/ulwm-backup';
         
-        error_log('Ultimate Watermark: Searching for backups of attachment ID: ' . $attachment_id);
         
         // Search in all year/month directories for backup files
         $search_dirs = [];
@@ -567,17 +572,14 @@ class BackupManager
                 continue;
             }
             
-            error_log('Ultimate Watermark: Searching in directory: ' . $backup_dir);
             
             // Look for backup files with pattern: {attachment_id}_*.* (both original and size files)
             $backup_pattern = $backup_dir . '/' . $attachment_id . '_*.*';
             $found_files = glob($backup_pattern);
             $backup_files = array_merge($backup_files, $found_files);
             
-            error_log('Ultimate Watermark: Found ' . count($found_files) . ' files in ' . $backup_dir);
         }
         
-        error_log('Ultimate Watermark: Total backup files found: ' . count($backup_files));
         
         foreach ($backup_files as $backup_file) {
             $backup_info = pathinfo($backup_file);
@@ -651,24 +653,18 @@ class BackupManager
      */
     public static function deleteAttachmentBackups(int $attachment_id): bool
     {
-        error_log('Ultimate Watermark: Deleting ALL backups for attachment ID: ' . $attachment_id);
         
         // Get all backup files for this attachment (main + all additional sizes)
         $backups = self::getAttachmentBackups($attachment_id);
-        error_log('Ultimate Watermark: Found ' . count($backups) . ' backup files to delete');
         
         $deleted = 0;
         foreach ($backups as $backup) {
-            error_log('Ultimate Watermark: Attempting to delete: ' . $backup['path']);
             if (unlink($backup['path'])) {
                 $deleted++;
-                error_log('Ultimate Watermark: Successfully deleted: ' . $backup['path']);
             } else {
-                error_log('Ultimate Watermark: Failed to delete: ' . $backup['path']);
             }
         }
         
-        error_log('Ultimate Watermark: Deleted ' . $deleted . ' out of ' . count($backups) . ' backup files');
         
         // Clean up backup directory if empty (for new centralized structure)
         $upload_dir = wp_upload_dir();
@@ -944,13 +940,11 @@ class BackupManager
      */
     public static function deleteBackupFiles(int $attachment_id): bool
     {
-        error_log('Ultimate Watermark: Deleting backup files for attachment ' . $attachment_id);
         
         // Get all backup files for this attachment
         $backup_files = self::getAttachmentBackups($attachment_id);
         
         if (empty($backup_files)) {
-            error_log('Ultimate Watermark: No backup files found for attachment ' . $attachment_id);
             return true; // No files to delete is considered success
         }
         
@@ -962,9 +956,7 @@ class BackupManager
             if (file_exists($backup_path)) {
                 if (unlink($backup_path)) {
                     $deleted_count++;
-                    error_log('Ultimate Watermark: Deleted backup file: ' . $backup_path);
                 } else {
-                    error_log('Ultimate Watermark: Failed to delete backup file: ' . $backup_path);
                 }
             }
         }
@@ -976,7 +968,6 @@ class BackupManager
         delete_post_meta($attachment_id, '_ultimate_watermark_backup_sizes');
         delete_post_meta($attachment_id, '_ultimate_watermark_backup_paths');
         
-        error_log('Ultimate Watermark: Deleted ' . $deleted_count . ' out of ' . $total_count . ' backup files for attachment ' . $attachment_id);
         
         return $deleted_count > 0;
     }
