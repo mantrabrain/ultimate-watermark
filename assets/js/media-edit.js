@@ -49,45 +49,46 @@
                 // Show loading state
                 this.showLoadingStateAll($button);
             
-            // Make AJAX request
-            $.ajax({
-                url: ultimate_watermark_media_edit.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'ultimate_watermark_remove_all',
-                    attachment_id: attachmentId,
-                    nonce: ultimate_watermark_media_edit.nonce
-                },
-                success: (response) => {
-                    this.hideLoadingStateAll($button);
-                    
-                    if (response.success) {
-                        this.showSuccessStateAll();
+                // Make AJAX request
+                $.ajax({
+                    url: ultimate_watermark_media_edit.ajax_url,
+                    type: 'POST',
+                    data: {
+                        action: 'ultimate_watermark_remove_all',
+                        attachment_id: attachmentId,
+                        nonce: ultimate_watermark_media_edit.nonce
+                    },
+                    success: (response) => {
+                        this.hideLoadingStateAll($button);
                         
-                        // Show success message
-                        UWNotifications.success('Success', ultimate_watermark_media_edit.strings.removed_all || 'All watermarks removed successfully');
-                        
-                        // Update the UI to show "no watermarks" state
-                        setTimeout(() => {
-                            $('#ultimate-watermark-info .watermark-status.has-watermarks').replaceWith(`
-                                <div class="watermark-status no-watermarks">
-                                    <span class="dashicons dashicons-format-image"></span>
-                                    <span class="status-text">${ultimate_watermark_media_edit.strings.no_watermarks || 'No watermarks applied'}</span>
-                                </div>
-                            `);
-                        }, 2000);
-                        
-                    } else {
+                        if (response.success) {
+                            this.showSuccessStateAll();
+                            
+                            // Show success message
+                            UWNotifications.success('Success', ultimate_watermark_media_edit.strings.removed_all || 'All watermarks removed successfully');
+                            
+                            // Update the UI to show "no watermarks" state
+                            setTimeout(() => {
+                                $('#ultimate-watermark-info .watermark-status.has-watermarks').replaceWith(`
+                                    <div class="watermark-status no-watermarks">
+                                        <span class="dashicons dashicons-format-image"></span>
+                                        <span class="status-text">${ultimate_watermark_media_edit.strings.no_watermarks || 'No watermarks applied'}</span>
+                                    </div>
+                                `);
+                            }, 2000);
+                            
+                        } else {
+                            this.showErrorStateAll();
+                            UWNotifications.error('Error', response.data || ultimate_watermark_media_edit.strings.error);
+                        }
+                    },
+                    error: (xhr, status, error) => {
+                        console.error('Ultimate Watermark: AJAX error:', xhr, status, error);
+                        this.hideLoadingStateAll($button);
                         this.showErrorStateAll();
-                        UWNotifications.error('Error', response.data || ultimate_watermark_media_edit.strings.error);
+                        UWNotifications.error('Error', ultimate_watermark_media_edit.strings.error);
                     }
-                },
-                error: (xhr, status, error) => {
-                    console.error('Ultimate Watermark: AJAX error:', xhr, status, error);
-                    this.hideLoadingStateAll($button);
-                    this.showErrorStateAll();
-                    UWNotifications.error('Error', ultimate_watermark_media_edit.strings.error);
-                }
+                });
             });
         },
 
