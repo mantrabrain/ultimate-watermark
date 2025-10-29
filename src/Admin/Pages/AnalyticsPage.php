@@ -419,18 +419,27 @@ class AnalyticsPage
         $data = [];
         
         foreach ($sizes as $size) {
-            $count = $wpdb->get_var($wpdb->prepare("
-                SELECT COUNT(*) 
-                FROM {$wpdb->posts} p
-                INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-                WHERE p.post_type = 'attachment' 
-                AND p.post_mime_type LIKE 'image/%'
-                AND pm.meta_key = 'applied_watermarks'
+            // Get all images with watermarks_by_size meta
+            $results = $wpdb->get_results($wpdb->prepare("
+                SELECT p.ID, pm.meta_value
+                FROM {$wpdb->postmeta} pm
+                INNER JOIN {$wpdb->posts} p ON pm.post_id = p.ID
+                WHERE pm.meta_key = 'watermarks_by_size'
                 AND pm.meta_value != ''
+                AND p.post_type = 'attachment'
+                AND p.post_mime_type LIKE 'image/%'
             "));
             
+            $count = 0;
+            foreach ($results as $result) {
+                $watermarks_by_size = maybe_unserialize($result->meta_value);
+                if (is_array($watermarks_by_size) && isset($watermarks_by_size[$size]) && !empty($watermarks_by_size[$size])) {
+                    $count++;
+                }
+            }
+            
             $labels[] = ucfirst($size);
-            $data[] = intval($count);
+            $data[] = $count;
         }
         
         return [

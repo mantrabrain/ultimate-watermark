@@ -13,6 +13,7 @@
         chartData: {},
 
         init: function() {
+            console.log('Ultimate Watermark Analytics: Initializing...');
             this.loadChartData('30'); // Load initial 30-day data
             this.bindEvents();
         },
@@ -51,6 +52,7 @@
                     });
                 },
                 success: function(response) {
+                    console.log('Ultimate Watermark Analytics: Data received:', response);
                     if (response.success) {
                         UltimateWatermarkAnalytics.chartData[timeframe] = response.data;
                         UltimateWatermarkAnalytics.renderCharts(response.data, chartId);
@@ -84,7 +86,8 @@
         },
 
         renderWatermarkUsageChart: function(chartData) {
-            const ctx = document.getElementById('watermarkUsageChart');
+            const ctx = document.getElementById('usage-chart');
+            console.log('Ultimate Watermark Analytics: Rendering usage chart, canvas found:', !!ctx, 'Data:', chartData);
             if (!ctx) return;
 
             if (this.charts.watermarkUsageChart) {
@@ -135,7 +138,7 @@
         },
 
         renderImageProtectionChart: function(chartData) {
-            const ctx = document.getElementById('imageProtectionChart');
+            const ctx = document.getElementById('protection-chart');
             if (!ctx) return;
 
             if (this.charts.imageProtectionChart) {
@@ -173,7 +176,7 @@
         },
 
         renderTemplatePerformanceChart: function(chartData) {
-            const ctx = document.getElementById('templatePerformanceChart');
+            const ctx = document.getElementById('templates-chart');
             if (!ctx) return;
 
             if (this.charts.templatePerformanceChart) {
@@ -218,7 +221,7 @@
         },
 
         renderImageSizeDistributionChart: function(chartData) {
-            const ctx = document.getElementById('imageSizeDistributionChart');
+            const ctx = document.getElementById('sizes-chart');
             if (!ctx) return;
 
             if (this.charts.imageSizeDistributionChart) {
