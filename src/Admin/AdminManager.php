@@ -676,17 +676,24 @@ class AdminManager
 
         // Get timeframe
         $timeframe = $_POST['timeframe'] ?? '30';
-        $days = (int) $timeframe;
+        $offsetStart = ($timeframe === 'yesterday') ? 1 : 0;
+        $days = ($timeframe === 'today' || $timeframe === 'yesterday') ? 1 : (int) $timeframe;
 
-        // Get analytics data
-        $analytics_page = new \MantraBrain\UltimateWatermark\Admin\Pages\AnalyticsPage();
-        
-        $data = [
-            'watermark_usage_over_time' => $this->getUsageDataForTimeframe($days),
-            'image_protection_trends' => $this->getProtectionData(),
-            'template_performance' => $this->getTemplatesData(),
-            'image_size_distribution' => $this->getSizesData()
-        ];
+        // Try cache (allow bypass on refresh)
+        $cache_key = 'uw_analytics_' . $days . '_' . $offsetStart;
+        $force = isset($_POST['force']) && $_POST['force'] === '1';
+        $data = !$force ? get_transient($cache_key) : false;
+        if ($data === false) {
+            // Build fresh data from DB
+            $data = [
+                'watermark_usage_over_time' => $this->getUsageDataForTimeframe($days, $offsetStart),
+                'image_protection_trends' => $this->getProtectionData($days, $offsetStart),
+                'template_performance' => $this->getTemplatesData($days, $offsetStart),
+                'image_size_distribution' => $this->getSizesData($days, $offsetStart)
+            ];
+            // Refresh cache
+            set_transient($cache_key, $data, 5 * MINUTE_IN_SECONDS);
+        }
 
         wp_send_json_success($data);
     }
@@ -694,13 +701,14 @@ class AdminManager
     /**
      * Get usage data for specific timeframe
      */
-    private function getUsageDataForTimeframe(int $days): array
+    private function getUsageDataForTimeframe(int $days, int $offsetStart = 0): array
     {
         $data = [];
         $labels = [];
         
         for ($i = $days - 1; $i >= 0; $i--) {
-            $date = date('Y-m-d', strtotime("-{$i} days"));
+            $offset = $i + $offsetStart;
+            $date = date('Y-m-d', strtotime("-{$offset} days", current_time('timestamp')));
             $labels[] = date('M j', strtotime($date));
             
             // Count watermarks applied on this date
@@ -717,10 +725,10 @@ class AdminManager
     /**
      * Get protection data
      */
-    private function getProtectionData(): array
+    private function getProtectionData(int $days = 30, int $offsetStart = 0): array
     {
-        $total = $this->getTotalImages();
-        $watermarked = $this->getWatermarkedImages();
+        $total = $this->getTotalImagesForTimeframe($days, $offsetStart);
+        $watermarked = $this->getWatermarkedImagesForTimeframe($days, $offsetStart);
         $unprotected = $total - $watermarked;
         
         return [
@@ -732,7 +740,7 @@ class AdminManager
     /**
      * Get templates data
      */
-    private function getTemplatesData(): array
+    private function getTemplatesData(int $days = 30, int $offsetStart = 0): array
     {
         $watermarks = get_posts([
             'post_type' => 'ultimate_watermark',
@@ -747,9 +755,10 @@ class AdminManager
         $data = [];
         
         foreach ($watermarks as $watermark) {
-            $usage_count = get_post_meta($watermark->ID, 'watermark_usage_count', true) ?: 0;
+            // Get usage count for this timeframe
+            $usage_count = $this->getWatermarkUsageForTimeframe($watermark->ID, $days, $offsetStart);
             $labels[] = $watermark->post_title ?: 'Untitled';
-            $data[] = (int) $usage_count;
+            $data[] = $usage_count;
         }
         
         return [
@@ -761,14 +770,14 @@ class AdminManager
     /**
      * Get sizes data
      */
-    private function getSizesData(): array
+    private function getSizesData(int $days = 30, int $offsetStart = 0): array
     {
         $sizes = ['thumbnail', 'medium', 'large', 'full'];
         $labels = [];
         $data = [];
         
         foreach ($sizes as $size) {
-            $count = $this->getWatermarkedImagesBySize($size);
+            $count = $this->getWatermarkedImagesBySizeForTimeframe($size, $days, $offsetStart);
             $labels[] = ucfirst($size);
             $data[] = $count;
         }
@@ -819,19 +828,24 @@ class AdminManager
     private function getWatermarkCountForDate(string $date): int
     {
         global $wpdb;
-        
-        $count = $wpdb->get_var($wpdb->prepare("
-            SELECT COUNT(DISTINCT p.ID) 
-            FROM {$wpdb->postmeta} pm
-            INNER JOIN {$wpdb->posts} p ON pm.post_id = p.ID
-            WHERE pm.meta_key = 'applied_watermarks'
-            AND pm.meta_value != ''
-            AND p.post_type = 'attachment'
-            AND p.post_mime_type LIKE 'image/%'
-            AND DATE(p.post_date) = %s
-        ", $date));
-        
-        return (int) $count;
+        // Fetch candidate attachments then verify in PHP to avoid timezone/serialization edge cases
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT p.ID, pm.meta_value
+             FROM {$wpdb->posts} p
+             INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID
+             WHERE p.post_type = 'attachment'
+               AND p.post_mime_type LIKE 'image/%'
+               AND pm.meta_key = 'watermark_application_dates'",
+        ));
+        if (empty($rows)) { return 0; }
+        $seen = [];
+        foreach ($rows as $row) {
+            $dates = maybe_unserialize($row->meta_value);
+            if (is_array($dates) && in_array($date, $dates, true)) {
+                $seen[$row->ID] = true;
+            }
+        }
+        return count($seen);
     }
 
     /**
@@ -861,6 +875,117 @@ class AdminManager
         }
         
         return $count;
+    }
+
+    /**
+     * Get total images count for specific timeframe
+     */
+    private function getTotalImagesForTimeframe(int $days, int $offsetStart = 0): int
+    {
+        global $wpdb;
+        // Build exact DATE() matches for each day in the window
+        $likes = [];
+        $params = [];
+        for ($i = 0; $i < $days; $i++) {
+            $offset = $i + $offsetStart;
+            $d = date('Y-m-d', strtotime("-{$offset} days", current_time('timestamp')));
+            $likes[] = "DATE(p.post_date) = %s";
+            $params[] = $d;
+        }
+        if (empty($likes)) { return 0; }
+        $where_dates = implode(' OR ', $likes);
+        $sql = "SELECT COUNT(*) FROM {$wpdb->posts} p WHERE p.post_type='attachment' AND p.post_mime_type LIKE 'image/%' AND ($where_dates)";
+        $count = $wpdb->get_var($wpdb->prepare($sql, $params));
+        return (int) $count;
+    }
+
+    /**
+     * Get watermarked images count for specific timeframe
+     */
+    private function getWatermarkedImagesForTimeframe(int $days, int $offsetStart = 0): int
+    {
+        global $wpdb;
+        // Build OR conditions for dates within range to match serialized array strings
+        $likes = [];
+        $params = [];
+        for ($i = 0; $i < $days; $i++) {
+            $offset = $i + $offsetStart;
+            $d = date('Y-m-d', strtotime("-{$offset} days", current_time('timestamp')));
+            $likes[] = "pm_dates.meta_value LIKE %s";
+            $params[] = '%"' . $wpdb->esc_like($d) . '"%';
+        }
+        $where_dates = implode(' OR ', $likes);
+        $sql = "SELECT COUNT(DISTINCT p.ID)
+                FROM {$wpdb->posts} p
+                INNER JOIN {$wpdb->postmeta} pm_aw ON pm_aw.post_id = p.ID AND pm_aw.meta_key='applied_watermarks'
+                INNER JOIN {$wpdb->postmeta} pm_dates ON pm_dates.post_id = p.ID AND pm_dates.meta_key='watermark_application_dates'
+                WHERE p.post_type='attachment' AND p.post_mime_type LIKE 'image/%' AND ($where_dates)";
+        $count = $wpdb->get_var($wpdb->prepare($sql, $params));
+        return (int) $count;
+    }
+
+    /**
+     * Get watermark usage count for specific timeframe
+     */
+    private function getWatermarkUsageForTimeframe(int $watermark_id, int $days, int $offsetStart = 0): int
+    {
+        global $wpdb;
+        $likes = [];
+        $params = [];
+        for ($i = 0; $i < $days; $i++) {
+            $offset = $i + $offsetStart;
+            $d = date('Y-m-d', strtotime("-{$offset} days", current_time('timestamp')));
+            $likes[] = "pm_dates.meta_value LIKE %s";
+            $params[] = '%"' . $wpdb->esc_like($d) . '"%';
+        }
+        $where_dates = implode(' OR ', $likes);
+        $sql = "SELECT COUNT(DISTINCT p.ID)
+                FROM {$wpdb->posts} p
+                INNER JOIN {$wpdb->postmeta} pm_aw ON pm_aw.post_id = p.ID AND pm_aw.meta_key='applied_watermarks' AND pm_aw.meta_value LIKE %s
+                INNER JOIN {$wpdb->postmeta} pm_dates ON pm_dates.post_id = p.ID AND pm_dates.meta_key='watermark_application_dates'
+                WHERE p.post_type='attachment' AND p.post_mime_type LIKE 'image/%' AND ($where_dates)";
+        array_unshift($params, '%"' . $watermark_id . '"%');
+        $count = $wpdb->get_var($wpdb->prepare($sql, $params));
+        return (int) $count;
+    }
+
+    /**
+     * Get watermarked images count by size for specific timeframe
+     */
+    private function getWatermarkedImagesBySizeForTimeframe(string $size, int $days, int $offsetStart = 0): int
+    {
+        global $wpdb;
+        $likes = [];
+        $params = [];
+        for ($i = 0; $i < $days; $i++) {
+            $offset = $i + $offsetStart;
+            $d = date('Y-m-d', strtotime("-{$offset} days", current_time('timestamp')));
+            $likes[] = "pm_dates.meta_value LIKE %s";
+            $params[] = '%"' . $wpdb->esc_like($d) . '"%';
+        }
+        $where_dates = implode(' OR ', $likes);
+        $sql = "SELECT COUNT(DISTINCT p.ID)
+                FROM {$wpdb->posts} p
+                INNER JOIN {$wpdb->postmeta} pm_size ON pm_size.post_id = p.ID AND pm_size.meta_key='watermarks_by_size'
+                INNER JOIN {$wpdb->postmeta} pm_dates ON pm_dates.post_id = p.ID AND pm_dates.meta_key='watermark_application_dates'
+                WHERE p.post_type='attachment' AND p.post_mime_type LIKE 'image/%' AND ($where_dates)";
+        $count = $wpdb->get_var($wpdb->prepare($sql, $params));
+        if (!$count) { return 0; }
+        // Filter by size in PHP (serialized array check per-row in SQL is heavy). Estimate by scanning candidate IDs.
+        $ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT p.ID
+             FROM {$wpdb->posts} p
+             INNER JOIN {$wpdb->postmeta} pm_size ON pm_size.post_id = p.ID AND pm_size.meta_key='watermarks_by_size'
+             INNER JOIN {$wpdb->postmeta} pm_dates ON pm_dates.post_id = p.ID AND pm_dates.meta_key='watermark_application_dates'
+             WHERE p.post_type='attachment' AND p.post_mime_type LIKE 'image/%' AND ($where_dates)",
+            $params
+        ));
+        $filtered = 0;
+        foreach ((array)$ids as $id) {
+            $by_size = get_post_meta((int)$id, 'watermarks_by_size', true);
+            if (is_array($by_size) && !empty($by_size[$size])) { $filtered++; }
+        }
+        return $filtered;
     }
 
 }

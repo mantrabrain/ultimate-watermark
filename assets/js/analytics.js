@@ -11,22 +11,73 @@
     const UltimateWatermarkAnalytics = {
         charts: {},
         chartData: {},
+        currentTimeframe: '30',
+        forceRefresh: false,
 
         init: function() {
-            console.log('Ultimate Watermark Analytics: Initializing...');
-            this.loadChartData('30'); // Load initial 30-day data
+            this.currentTimeframe = $('#analytics-timeframe').val() || 'today';
+            this.loadChartData(this.currentTimeframe); // Load initial data
             this.bindEvents();
         },
 
         bindEvents: function() {
-            $(document).on('change', '.timeframe-selector', this.handleTimeframeChange.bind(this));
+            $(document).on('change', '#analytics-timeframe', this.handleTimeframeChange.bind(this));
+            $(document).on('click', '#refresh-analytics', this.handleRefreshClick.bind(this));
+            $(document).on('click', '.chart-btn', this.handleChartTypeChange.bind(this));
         },
 
         handleTimeframeChange: function(e) {
             const $selector = $(e.currentTarget);
             const timeframe = $selector.val();
-            const chartId = $selector.data('chart');
-            this.loadChartData(timeframe, chartId);
+            this.currentTimeframe = timeframe;
+            
+            // Clear cached data for this timeframe to force refresh
+            delete this.chartData[timeframe];
+            this.loadChartData(timeframe);
+        },
+
+        handleRefreshClick: function(e) {
+            e.preventDefault();
+            const $btn = $(e.currentTarget);
+            const $icon = $btn.find('.dashicons');
+            const timeframe = $('#analytics-timeframe').val();
+            this.currentTimeframe = timeframe;
+            
+            // Add loading state
+            $btn.prop('disabled', true);
+            $icon.addClass('dashicons-update').removeClass('dashicons-update').addClass('dashicons-update');
+            
+            // Clear all cached data to force refresh
+            this.chartData = {};
+            this.forceRefresh = true;
+            
+            // Reload data
+            this.loadChartData(timeframe);
+            
+            // Remove loading state after a short delay
+            setTimeout(() => {
+                $btn.prop('disabled', false);
+                $icon.removeClass('dashicons-update');
+            }, 1000);
+        },
+
+        handleChartTypeChange: function(e) {
+            e.preventDefault();
+            const $btn = $(e.currentTarget);
+            const chartType = $btn.data('chart');
+            const $container = $btn.closest('.chart-container');
+            
+            // Update active button
+            $container.find('.chart-btn').removeClass('active');
+            $btn.addClass('active');
+            
+            // Re-render the usage chart with new type
+            if ($container.find('#usage-chart').length) {
+                const currentData = this.chartData[this.currentTimeframe] || this.chartData[Object.keys(this.chartData)[0]];
+                if (currentData && currentData.watermark_usage_over_time) {
+                    this.renderWatermarkUsageChart(currentData.watermark_usage_over_time, chartType);
+                }
+            }
         },
 
         loadChartData: function(timeframe, chartId = null) {
@@ -37,37 +88,55 @@
             }
 
             // Fetch data via AJAX
+            const resolvedAjaxUrl = (window.ultimateWatermarkAnalytics && (ultimateWatermarkAnalytics.ajaxUrl || ultimateWatermarkAnalytics.ajaxurl)) || (window.ajaxurl || '');
             $.ajax({
-                url: ultimateWatermarkAnalytics.ajaxurl,
+                url: resolvedAjaxUrl,
                 type: 'POST',
                 data: {
                     action: 'ultimate_watermark_get_analytics_data',
-                    nonce: ultimateWatermarkAnalytics.nonce,
-                    timeframe: timeframe
+                    nonce: window.ultimateWatermarkAnalytics ? ultimateWatermarkAnalytics.nonce : undefined,
+                    timeframe: timeframe,
+                    force: UltimateWatermarkAnalytics.forceRefresh ? '1' : '0'
                 },
                 beforeSend: function() {
                     // Show loading indicators
-                    $('.chart-card .card-content').each(function() {
-                        $(this).append('<div class="chart-loading-overlay"><span class="dashicons dashicons-update spin"></span></div>');
+                    $('.chart-container .chart-content').each(function() {
+                        if (!$(this).find('.chart-loading-overlay').length) {
+                            $(this).append('<div class="chart-loading-overlay"><span class="dashicons dashicons-update spin"></span></div>');
+                        }
                     });
                 },
                 success: function(response) {
-                    console.log('Ultimate Watermark Analytics: Data received:', response);
                     if (response.success) {
                         UltimateWatermarkAnalytics.chartData[timeframe] = response.data;
+                        UltimateWatermarkAnalytics.updateMetricCards(response.data);
                         UltimateWatermarkAnalytics.renderCharts(response.data, chartId);
                     } else {
-                        console.error('Error fetching analytics data:', response.data);
+                        // no-op
                     }
                 },
-                error: function(xhr, status, error) {
-                    console.error('AJAX Error:', status, error);
-                },
+                error: function(xhr, status, error) {},
                 complete: function() {
                     // Hide loading indicators
                     $('.chart-loading-overlay').remove();
+                    UltimateWatermarkAnalytics.forceRefresh = false;
                 }
             });
+        },
+
+        updateMetricCards: function(data) {
+            if (!data || !data.image_protection_trends) return;
+            const prot = data.image_protection_trends;
+            const total = (parseInt(prot.protected || 0, 10) + parseInt(prot.unprotected || 0, 10)) || 0;
+            const protectedCount = parseInt(prot.protected || 0, 10);
+            const rate = total > 0 ? Math.round((protectedCount / total) * 100) : 0;
+
+            const $totalEl = $('#total-images');
+            const $protectedEl = $('#protected-images');
+            const $rateEl = $('#protection-rate');
+            if ($totalEl.length) $totalEl.text(total);
+            if ($protectedEl.length) $protectedEl.text(protectedCount);
+            if ($rateEl.length) $rateEl.text(rate + '%');
         },
 
         renderCharts: function(data, chartId = null) {
@@ -85,27 +154,57 @@
             }
         },
 
-        renderWatermarkUsageChart: function(chartData) {
+        renderWatermarkUsageChart: function(chartData, chartType = 'line') {
             const ctx = document.getElementById('usage-chart');
-            console.log('Ultimate Watermark Analytics: Rendering usage chart, canvas found:', !!ctx, 'Data:', chartData);
+            console.log('Ultimate Watermark Analytics: Rendering usage chart, canvas found:', !!ctx, 'Data:', chartData, 'Type:', chartType);
             if (!ctx) return;
 
             if (this.charts.watermarkUsageChart) {
-                this.charts.watermarkUsageChart.destroy();
+                // Update in place
+                const effectiveType = (Array.isArray(chartData.labels) && chartData.labels.length === 1) ? 'bar' : chartType;
+                this.charts.watermarkUsageChart.config.type = effectiveType;
+                this.charts.watermarkUsageChart.data.labels = chartData.labels;
+                this.charts.watermarkUsageChart.data.datasets[0].data = chartData.data;
+                const ds = this.charts.watermarkUsageChart.data.datasets[0];
+                if (effectiveType === 'bar') {
+                    ds.backgroundColor = 'rgba(34, 197, 94, 0.8)';
+                    ds.borderColor = 'rgba(34, 197, 94, 1)';
+                    ds.borderWidth = 1;
+                    ds.fill = false;
+                    ds.tension = 0;
+                } else {
+                    ds.backgroundColor = 'rgba(99, 102, 241, 0.2)';
+                    ds.borderColor = 'rgba(99, 102, 241, 1)';
+                    ds.borderWidth = 2;
+                    ds.fill = true;
+                    ds.tension = 0.3;
+                }
+                this.charts.watermarkUsageChart.update();
+                return;
             }
 
+            // Different colors for different chart types
+            const colors = chartType === 'bar' ? {
+                backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                borderColor: 'rgba(34, 197, 94, 1)',
+                borderWidth: 1
+            } : {
+                backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                borderColor: 'rgba(99, 102, 241, 1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3
+            };
+
+            const effectiveType = (Array.isArray(chartData.labels) && chartData.labels.length === 1) ? 'bar' : chartType;
             this.charts.watermarkUsageChart = new Chart(ctx, {
-                type: 'line',
+                type: effectiveType,
                 data: {
                     labels: chartData.labels,
                     datasets: [{
                         label: 'Watermarks Applied',
                         data: chartData.data,
-                        backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                        borderColor: 'rgba(99, 102, 241, 1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.3
+                        ...colors
                     }]
                 },
                 options: {
@@ -142,7 +241,10 @@
             if (!ctx) return;
 
             if (this.charts.imageProtectionChart) {
-                this.charts.imageProtectionChart.destroy();
+                this.charts.imageProtectionChart.data.labels = ['Protected', 'Unprotected'];
+                this.charts.imageProtectionChart.data.datasets[0].data = [chartData.protected, chartData.unprotected];
+                this.charts.imageProtectionChart.update();
+                return;
             }
 
             this.charts.imageProtectionChart = new Chart(ctx, {
@@ -151,7 +253,7 @@
                     labels: ['Protected', 'Unprotected'],
                     datasets: [{
                         data: [chartData.protected, chartData.unprotected],
-                        backgroundColor: ['rgba(76, 175, 80, 0.8)', 'rgba(255, 152, 0, 0.8)'],
+                        backgroundColor: ['#3b82f6', '#ef4444'], // Blue for protected, Red for unprotected (matching legend)
                         borderColor: ['#ffffff', '#ffffff'],
                         borderWidth: 2
                     }]
@@ -180,7 +282,10 @@
             if (!ctx) return;
 
             if (this.charts.templatePerformanceChart) {
-                this.charts.templatePerformanceChart.destroy();
+                this.charts.templatePerformanceChart.data.labels = chartData.labels;
+                this.charts.templatePerformanceChart.data.datasets[0].data = chartData.data;
+                this.charts.templatePerformanceChart.update();
+                return;
             }
 
             this.charts.templatePerformanceChart = new Chart(ctx, {
@@ -225,7 +330,10 @@
             if (!ctx) return;
 
             if (this.charts.imageSizeDistributionChart) {
-                this.charts.imageSizeDistributionChart.destroy();
+                this.charts.imageSizeDistributionChart.data.labels = chartData.labels;
+                this.charts.imageSizeDistributionChart.data.datasets[0].data = chartData.data;
+                this.charts.imageSizeDistributionChart.update();
+                return;
             }
 
             this.charts.imageSizeDistributionChart = new Chart(ctx, {

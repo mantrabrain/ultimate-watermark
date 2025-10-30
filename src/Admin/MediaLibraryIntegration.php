@@ -685,7 +685,29 @@ class MediaLibraryIntegration
         // Get the image path for the specific size
         $image_path = $this->getImagePathForSize($attachment_id, $size);
         if (!$image_path || !file_exists($image_path)) {
-            return false;
+            // If full size might be a scaled image in WordPress, try resolving the scaled variant
+            if ($size === 'full') {
+                $alt = $this->getScaledImagePathIfExists($attachment_id);
+                if ($alt && file_exists($alt)) {
+                    $image_path = $alt;
+                } else {
+                    // Try WebP/AVIF variants if original not present
+                    $variant = $this->findExistingVariantPathForAttachment($attachment_id, $size);
+                    if ($variant) {
+                        $image_path = $variant;
+                    } else {
+                        return false;
+                    }
+                }
+            } else {
+                // Try WebP/AVIF variants if original not present
+                $variant = $this->findExistingVariantPathForAttachment($attachment_id, $size);
+                if ($variant) {
+                    $image_path = $variant;
+                } else {
+                    return false;
+                }
+            }
         }
 
         // Apply watermark using WatermarkService
@@ -693,12 +715,25 @@ class MediaLibraryIntegration
             $success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($image_path, $watermark_id, $image_path);
             
             if ($success) {
-                // Track watermark usage for this specific size
+                // Also apply to alternative scaled/original counterpart without double-counting
+                if ($size === 'full') {
+                    $altPath = $this->getAlternateFullImagePath($attachment_id, $image_path);
+                    if ($altPath && file_exists($altPath)) {
+                        // Best-effort apply; ignore result for counting to avoid double increments
+                        \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($altPath, $watermark_id, $altPath);
+                    }
+                }
+                // Apply to alternative format variants (e.g., .webp/.avif) if present
+                foreach ($this->getAlternativeFormatPaths($image_path) as $variantPath) {
+                    if (file_exists($variantPath) && is_writable($variantPath)) {
+                        \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($variantPath, $watermark_id, $variantPath);
+                    }
+                }
+                // Track watermark usage for this specific size (count once)
                 WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id, $size);
                 return true;
-            } else {
-                return false;
             }
+            return false;
         } catch (\Exception $e) {
             return false;
         }
@@ -722,6 +757,76 @@ class MediaLibraryIntegration
         $file_path = $upload_dir['basedir'] . '/' . dirname($metadata['file']) . '/' . $metadata['sizes'][$size]['file'];
         
         return file_exists($file_path) ? $file_path : null;
+    }
+
+    // Resolve WP big image scaled path if present
+    private function getScaledImagePathIfExists(int $attachment_id): ?string
+    {
+        $metadata = wp_get_attachment_metadata($attachment_id);
+        if (!$metadata || empty($metadata['file'])) {
+            return null;
+        }
+        $upload_dir = wp_upload_dir();
+        $scaled_path = $upload_dir['basedir'] . '/' . $metadata['file'];
+        return file_exists($scaled_path) ? $scaled_path : null;
+    }
+
+    // Given one full path, return the alternate counterpart (original vs scaled)
+    private function getAlternateFullImagePath(int $attachment_id, string $currentFullPath): ?string
+    {
+        $upload_dir = wp_upload_dir();
+        $basedir = trailingslashit($upload_dir['basedir']);
+        $metadata = wp_get_attachment_metadata($attachment_id);
+        if (!$metadata) { return null; }
+
+        // If current path equals metadata file (scaled), alternate is original_image
+        $metaFile = !empty($metadata['file']) ? $basedir . $metadata['file'] : null;
+        $originalRel = !empty($metadata['original_image']) ? dirname($metadata['file']) . '/' . $metadata['original_image'] : null;
+        $originalPath = $originalRel ? $basedir . $originalRel : null;
+
+        if ($metaFile && realpath($currentFullPath) === realpath($metaFile)) {
+            return ($originalPath && file_exists($originalPath)) ? $originalPath : null;
+        }
+        // If current is original, alternate is metaFile (scaled)
+        if ($metaFile && file_exists($metaFile)) {
+            return $metaFile;
+        }
+        return null;
+    }
+
+    // Return alternative format files (same basename, different extension)
+    private function getAlternativeFormatPaths(string $path): array
+    {
+        $candidates = [];
+        $info = pathinfo($path);
+        if (empty($info['dirname']) || empty($info['filename'])) { return $candidates; }
+        $base = $info['dirname'] . '/' . $info['filename'];
+        $extensions = ['webp', 'avif'];
+        foreach ($extensions as $ext) {
+            $alt = $base . '.' . $ext;
+            if (strtolower($info['extension'] ?? '') !== $ext && file_exists($alt)) {
+                $candidates[] = $alt;
+            }
+        }
+        return $candidates;
+    }
+
+    // Find existing variant path for an attachment/size if the canonical file is missing
+    private function findExistingVariantPathForAttachment(int $attachment_id, string $size): ?string
+    {
+        $primary = $this->getImagePathForSize($attachment_id, $size);
+        if ($primary && file_exists($primary)) { return $primary; }
+        if ($size === 'full') {
+            $alt = $this->getScaledImagePathIfExists($attachment_id);
+            if ($alt && file_exists($alt)) { return $alt; }
+        }
+        // Try sibling alternative formats based on where the canonical would be
+        if ($primary) {
+            foreach ($this->getAlternativeFormatPaths($primary) as $variant) {
+                if (file_exists($variant)) { return $variant; }
+            }
+        }
+        return null;
     }
 
     /**
@@ -1251,18 +1356,8 @@ class MediaLibraryIntegration
             
             foreach ($image_sizes as $size) {
                 if (in_array($size, $watermark_sizes)) {
-                    $image_path = $this->getImagePathForSize($attachment_id, $size);
-                    if ($image_path && file_exists($image_path)) {
-                        // Use WatermarkService directly (same as preview)
-                        try {
-                            \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($image_path, $watermark_id, $image_path);
-                            
-                            // Track watermark usage for this specific size
-                            WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id, $size);
-                        } catch (\Exception $e) {
-                            // Silent fail for production
-                        }
-                    }
+                    // Reuse the size-specific applier to ensure consistent full-size handling
+                    $this->applyWatermarkToAttachmentSize($attachment_id, $watermark_id, $size);
                 }
             }
         }

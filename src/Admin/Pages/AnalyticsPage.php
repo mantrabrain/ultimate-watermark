@@ -24,8 +24,10 @@ class AnalyticsPage
     {
         $actions = '<div class="analytics-actions">
             <select id="analytics-timeframe" class="analytics-select">
+                <option value="today" selected>' . esc_html__('Today', 'ultimate-watermark') . '</option>
+                <option value="yesterday">' . esc_html__('Yesterday', 'ultimate-watermark') . '</option>
                 <option value="7">' . esc_html__('Last 7 days', 'ultimate-watermark') . '</option>
-                <option value="30" selected>' . esc_html__('Last 30 days', 'ultimate-watermark') . '</option>
+                <option value="30">' . esc_html__('Last 30 days', 'ultimate-watermark') . '</option>
                 <option value="90">' . esc_html__('Last 90 days', 'ultimate-watermark') . '</option>
                 <option value="365">' . esc_html__('Last year', 'ultimate-watermark') . '</option>
             </select>
@@ -62,8 +64,13 @@ class AnalyticsPage
                         <div class="metric-number" id="total-images"><?php echo esc_html($this->getTotalImages()); ?></div>
                         <div class="metric-label"><?php esc_html_e('Total Images', 'ultimate-watermark'); ?></div>
                         <div class="metric-change" id="images-change">
-                            <span class="change-icon dashicons dashicons-arrow-up-alt"></span>
-                            <span class="change-value">+12%</span>
+                            <?php 
+                            $images_change = $this->getImagesChangePercentage();
+                            $change_class = $images_change >= 0 ? 'positive' : 'negative';
+                            $change_icon = $images_change >= 0 ? 'dashicons-arrow-up-alt' : 'dashicons-arrow-down-alt';
+                            ?>
+                            <span class="change-icon dashicons <?php echo esc_attr($change_icon); ?>"></span>
+                            <span class="change-value <?php echo esc_attr($change_class); ?>"><?php echo esc_html($images_change >= 0 ? '+' : '') . esc_html($images_change); ?>%</span>
                         </div>
                     </div>
                 </div>
@@ -76,8 +83,13 @@ class AnalyticsPage
                         <div class="metric-number" id="protected-images"><?php echo esc_html($this->getWatermarkedImages()); ?></div>
                         <div class="metric-label"><?php esc_html_e('Protected Images', 'ultimate-watermark'); ?></div>
                         <div class="metric-change" id="protected-change">
-                            <span class="change-icon dashicons dashicons-arrow-up-alt"></span>
-                            <span class="change-value">+8%</span>
+                            <?php 
+                            $protected_change = $this->getProtectedImagesChangePercentage();
+                            $change_class = $protected_change >= 0 ? 'positive' : 'negative';
+                            $change_icon = $protected_change >= 0 ? 'dashicons-arrow-up-alt' : 'dashicons-arrow-down-alt';
+                            ?>
+                            <span class="change-icon dashicons <?php echo esc_attr($change_icon); ?>"></span>
+                            <span class="change-value <?php echo esc_attr($change_class); ?>"><?php echo esc_html($protected_change >= 0 ? '+' : '') . esc_html($protected_change); ?>%</span>
                         </div>
                     </div>
                 </div>
@@ -90,8 +102,13 @@ class AnalyticsPage
                         <div class="metric-number" id="protection-rate"><?php echo esc_html($this->getProtectionRate()); ?>%</div>
                         <div class="metric-label"><?php esc_html_e('Protection Rate', 'ultimate-watermark'); ?></div>
                         <div class="metric-change" id="rate-change">
-                            <span class="change-icon dashicons dashicons-arrow-up-alt"></span>
-                            <span class="change-value">+3%</span>
+                            <?php 
+                            $rate_change = $this->getProtectionRateChangePercentage();
+                            $change_class = $rate_change >= 0 ? 'positive' : 'negative';
+                            $change_icon = $rate_change >= 0 ? 'dashicons-arrow-up-alt' : 'dashicons-arrow-down-alt';
+                            ?>
+                            <span class="change-icon dashicons <?php echo esc_attr($change_icon); ?>"></span>
+                            <span class="change-value <?php echo esc_attr($change_class); ?>"><?php echo esc_html($rate_change >= 0 ? '+' : '') . esc_html($rate_change); ?>%</span>
                         </div>
                     </div>
                 </div>
@@ -634,6 +651,112 @@ class AnalyticsPage
         }
         
         return $size;
+    }
+
+    /**
+     * Get images change percentage (last 7 days vs previous 7 days)
+     */
+    private function getImagesChangePercentage(): int
+    {
+        $current_period = $this->getImagesCountForPeriod(7);
+        $previous_period = $this->getImagesCountForPeriod(14, 7);
+        
+        if ($previous_period === 0) {
+            return $current_period > 0 ? 100 : 0;
+        }
+        
+        return round((($current_period - $previous_period) / $previous_period) * 100);
+    }
+
+    /**
+     * Get protected images change percentage (last 7 days vs previous 7 days)
+     */
+    private function getProtectedImagesChangePercentage(): int
+    {
+        $current_period = $this->getWatermarkedImagesCountForPeriod(7);
+        $previous_period = $this->getWatermarkedImagesCountForPeriod(14, 7);
+        
+        if ($previous_period === 0) {
+            return $current_period > 0 ? 100 : 0;
+        }
+        
+        return round((($current_period - $previous_period) / $previous_period) * 100);
+    }
+
+    /**
+     * Get protection rate change percentage (last 7 days vs previous 7 days)
+     */
+    private function getProtectionRateChangePercentage(): int
+    {
+        $current_images = $this->getImagesCountForPeriod(7);
+        $current_watermarked = $this->getWatermarkedImagesCountForPeriod(7);
+        $current_rate = $current_images > 0 ? ($current_watermarked / $current_images) * 100 : 0;
+        
+        $previous_images = $this->getImagesCountForPeriod(14, 7);
+        $previous_watermarked = $this->getWatermarkedImagesCountForPeriod(14, 7);
+        $previous_rate = $previous_images > 0 ? ($previous_watermarked / $previous_images) * 100 : 0;
+        
+        if ($previous_rate === 0) {
+            return $current_rate > 0 ? 100 : 0;
+        }
+        
+        return round($current_rate - $previous_rate);
+    }
+
+    /**
+     * Get images count for a specific period
+     */
+    private function getImagesCountForPeriod(int $days_back, int $days_forward = 0): int
+    {
+        $end_date = date('Y-m-d', strtotime("-{$days_forward} days"));
+        $start_date = date('Y-m-d', strtotime("-{$days_back} days"));
+        
+        $attachments = get_posts([
+            'post_type' => 'attachment',
+            'post_mime_type' => 'image',
+            'numberposts' => -1,
+            'post_status' => 'inherit',
+            'date_query' => [
+                [
+                    'after' => $start_date,
+                    'before' => $end_date,
+                    'inclusive' => true,
+                ]
+            ]
+        ]);
+
+        return count($attachments);
+    }
+
+    /**
+     * Get watermarked images count for a specific period
+     */
+    private function getWatermarkedImagesCountForPeriod(int $days_back, int $days_forward = 0): int
+    {
+        $end_date = date('Y-m-d', strtotime("-{$days_forward} days"));
+        $start_date = date('Y-m-d', strtotime("-{$days_back} days"));
+        
+        $watermarked = get_posts([
+            'post_type' => 'attachment',
+            'post_mime_type' => 'image',
+            'numberposts' => -1,
+            'post_status' => 'inherit',
+            'date_query' => [
+                [
+                    'after' => $start_date,
+                    'before' => $end_date,
+                    'inclusive' => true,
+                ]
+            ],
+            'meta_query' => [
+                [
+                    'key' => 'applied_watermarks',
+                    'compare' => 'EXISTS'
+                ]
+            ]
+        ]);
+
+        return count($watermarked);
     }
 
 }

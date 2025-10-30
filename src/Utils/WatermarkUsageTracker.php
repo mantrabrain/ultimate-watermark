@@ -52,6 +52,25 @@ class WatermarkUsageTracker
             $image_watermark_count = get_post_meta($attachment_id, 'watermark_count', true) ?: 0;
             update_post_meta($attachment_id, 'watermark_count', $image_watermark_count + 1);
             
+            // Track watermark application date
+            $current_date = current_time('Y-m-d');
+            $watermark_dates = get_post_meta($attachment_id, 'watermark_application_dates', true) ?: [];
+            if (!in_array($current_date, $watermark_dates)) {
+                $watermark_dates[] = $current_date;
+                update_post_meta($attachment_id, 'watermark_application_dates', $watermark_dates);
+            }
+            
+            // Invalidate analytics cache to reflect changes immediately
+            if (function_exists('delete_transient')) {
+                $timeframes = ['1','7','30','90','365'];
+                $offsets = ['0','1']; // today/yesterday support
+                foreach ($timeframes as $tf) {
+                    foreach ($offsets as $off) {
+                        delete_transient('uw_analytics_' . $tf . '_' . $off);
+                    }
+                }
+            }
+            
             return true;
         } catch (\Exception $e) {
             error_log('Ultimate Watermark: Error incrementing usage for watermark ' . $watermark_id . ' on image ' . $attachment_id . ': ' . $e->getMessage());
