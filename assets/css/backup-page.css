@@ -989,3 +989,163 @@
     transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
+
+/* ===== PAGINATION ===== */
+.uw-pagination-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    background: #fff;
+    border-top: 1px solid #e5e7eb;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.uw-pagination-top {
+    border-top: none;
+    border-bottom: 1px solid #e5e7eb;
+    border-radius: 12px 12px 0 0;
+    margin-bottom: 0;
+}
+
+.uw-pagination-bottom {
+    border-top: 1px solid #e5e7eb;
+    border-radius: 0 0 12px 12px;
+    margin-top: 0;
+}
+
+.uw-pagination-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.uw-pagination-text {
+    font-size: 14px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.uw-pagination-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.uw-pagination-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.uw-pagination-btn:hover:not(:disabled) {
+    background: #f9fafb;
+    border-color: #d1d5db;
+    color: #1f2937;
+}
+
+.uw-pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.uw-pagination-btn .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.uw-pagination-numbers {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.uw-pagination-number {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 12px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.uw-pagination-number:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+    color: #1f2937;
+}
+
+.uw-pagination-number.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #fff;
+}
+
+.uw-pagination-number.active:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+}
+
+.uw-pagination-ellipsis {
+    padding: 0 8px;
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+/* ===== LOADING STATE ===== */
+.uw-loading-row {
+    text-align: center;
+}
+
+.uw-loading-cell {
+    padding: 48px 24px !important;
+    text-align: center;
+}
+
+.uw-loading-spinner {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.uw-loading-spinner .dashicons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    animation: uw-spin 1s linear infinite;
+}
+
+@keyframes uw-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.uw-error-cell {
+    padding: 24px;
+    text-align: center;
+    color: #ef4444;
+    font-size: 14px;
+}

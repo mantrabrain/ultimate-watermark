@@ -219,6 +219,8 @@ class MediaLibraryIntegration
 
     /**
      * Apply watermark to attachment
+     * This method applies watermarks manually (from bulk actions or AJAX)
+     * It MUST respect all rules (post types and image sizes)
      */
     private function applyWatermarkToAttachment(int $attachment_id, int $watermark_id): bool
     {
@@ -239,40 +241,44 @@ class MediaLibraryIntegration
         // Create backup BEFORE applying watermarks (same as upload flow)
         $this->createBackupForWatermarking($attachment_id);
         
-        // Get watermark data to check size filtering
+        // Get watermark data and verify it passes rules
         $watermark_data = WatermarkHelper::getActiveWatermarkById($watermark_id);
         if (!$watermark_data) {
             return false;
         }
         
-        $watermark_sizes = $watermark_data['watermark_sizes'] ?? [];
+        // IMPORTANT: Check post type rules first (manual context)
+        // This ensures the watermark is allowed for this attachment
+        if (!WatermarkHelper::shouldApplyWatermarkByPostType($watermark_data, 'manual', $attachment_id)) {
+            return false; // Watermark doesn't match post type rules
+        }
         
         // Get all registered image sizes
         $image_sizes = get_intermediate_image_sizes();
         $image_sizes[] = 'full';
         
-        // If no specific sizes, apply to all
-        if (empty($watermark_sizes)) {
-            $watermark_sizes = $image_sizes;
-        }
-        
         $success_count = 0;
         
-        // Apply watermarks to each size based on their rules (same logic as upload flow)
+        // Apply watermarks to each size based on their rules
+        // We check rules for EACH size separately
         foreach ($image_sizes as $size) {
-            if (in_array($size, $watermark_sizes)) {
-                $image_path = $this->getImagePathForSize($attachment_id, $size);
-                if ($image_path && file_exists($image_path)) {
-                    try {
-                        $success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($image_path, $watermark_id, $image_path);
-                        if ($success) {
-                            $success_count++;
-                            // Track watermark usage for this specific size
-                            WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id, $size);
-                        }
-                    } catch (\Exception $e) {
-                        // Silent fail for production
+            // Check if this size passes the size rules
+            if (!WatermarkHelper::shouldApplyWatermarkByImageSize($watermark_data, $size)) {
+                continue; // Skip this size - doesn't match size rules
+            }
+            
+            // Size passed the rules, apply watermark
+            $image_path = $this->getImagePathForSize($attachment_id, $size);
+            if ($image_path && file_exists($image_path)) {
+                try {
+                    $success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($image_path, $watermark_id, $image_path);
+                    if ($success) {
+                        $success_count++;
+                        // Track watermark usage for this specific size
+                        WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id, $size);
                     }
+                } catch (\Exception $e) {
+                    // Silent fail for production
                 }
             }
         }
@@ -661,6 +667,32 @@ class MediaLibraryIntegration
         // If toggle is OFF, don't apply watermarks
         if (!$auto_apply_enabled) {
             return;
+        }
+        
+        // CRITICAL: Capture parent post_id if image is uploaded to a page/post
+        // This is needed for rule checking - when watermark is set for "page" post type,
+        // we need to check the parent page, not the attachment itself
+        $parent_post_id = 0;
+        
+        // 1. Check $_POST['post_id'] (standard form upload)
+        if (isset($_POST['post_id']) && $_POST['post_id'] > 0) {
+            $parent_post_id = absint($_POST['post_id']);
+        }
+        // 2. Check $_REQUEST['post_id'] (fallback)
+        elseif (isset($_REQUEST['post_id']) && $_REQUEST['post_id'] > 0) {
+            $parent_post_id = absint($_REQUEST['post_id']);
+        }
+        // 3. Check attachment's post_parent (if already set)
+        else {
+            $attachment = get_post($attachment_id);
+            if ($attachment && $attachment->post_parent > 0) {
+                $parent_post_id = $attachment->post_parent;
+            }
+        }
+        
+        // Store parent post_id in attachment meta for rule checking later
+        if ($parent_post_id > 0) {
+            update_post_meta($attachment_id, '_ulwm_uploaded_to_post_id', $parent_post_id);
         }
         
         // Mark this attachment for watermarking only if toggle is ON
@@ -1332,33 +1364,31 @@ class MediaLibraryIntegration
      */
     private function applyWatermarksToGeneratedImages(int $attachment_id): void
     {
-        // Get all active automatic watermarks
-        $automatic_watermarks = WatermarkHelper::getActiveAutomaticWatermarks('upload', $attachment_id, 'full');
-        
-        if (empty($automatic_watermarks)) {
-            return;
-        }
-        
         // Get all registered image sizes
         $image_sizes = get_intermediate_image_sizes();
         $image_sizes[] = 'full';
         
         // Apply watermarks to each size based on their rules
-        foreach ($automatic_watermarks as $watermark) {
-            $watermark_id = isset($watermark['ID']) ? $watermark['ID'] : $watermark['id'];
-            $watermark_sizes = $watermark['watermark_sizes'] ?? [];
+        // We need to check rules for EACH size separately because rules can specify specific sizes
+        foreach ($image_sizes as $size) {
+            // Get active automatic watermarks filtered by rules for THIS specific size
+            $automatic_watermarks = WatermarkHelper::getActiveAutomaticWatermarks('upload', $attachment_id, $size);
             
-            
-            // If no specific sizes, apply to all
-            if (empty($watermark_sizes)) {
-                $watermark_sizes = $image_sizes;
+            if (empty($automatic_watermarks)) {
+                continue; // No watermarks for this size, skip
             }
             
-            foreach ($image_sizes as $size) {
-                if (in_array($size, $watermark_sizes)) {
-                    // Reuse the size-specific applier to ensure consistent full-size handling
-                    $this->applyWatermarkToAttachmentSize($attachment_id, $watermark_id, $size);
+            // Apply each watermark that passed the rules for this size
+            foreach ($automatic_watermarks as $watermark) {
+                $watermark_id = isset($watermark['ID']) ? $watermark['ID'] : $watermark['id'];
+                
+                // Verify the size rule one more time (double-check)
+                if (!WatermarkHelper::shouldApplyWatermarkByImageSize($watermark, $size)) {
+                    continue;
                 }
+                
+                // Apply watermark to this specific size
+                $this->applyWatermarkToAttachmentSize($attachment_id, $watermark_id, $size);
             }
         }
     }

@@ -141,7 +141,7 @@
 
         renderCharts: function(data, chartId = null) {
             if (!chartId || chartId === 'usage-over-time') {
-                this.renderWatermarkUsageChart(data.watermark_usage_over_time);
+                this.renderWatermarkUsageChart(data.watermark_usage_over_time, 'auto');
             }
             if (!chartId || chartId === 'image-protection') {
                 this.renderImageProtectionChart(data.image_protection_trends);
@@ -156,12 +156,11 @@
 
         renderWatermarkUsageChart: function(chartData, chartType = 'line') {
             const ctx = document.getElementById('usage-chart');
-            console.log('Ultimate Watermark Analytics: Rendering usage chart, canvas found:', !!ctx, 'Data:', chartData, 'Type:', chartType);
             if (!ctx) return;
 
             if (this.charts.watermarkUsageChart) {
                 // Update in place
-                const effectiveType = (Array.isArray(chartData.labels) && chartData.labels.length === 1) ? 'bar' : chartType;
+                const effectiveType = (chartType === 'auto') ? ((Array.isArray(chartData.labels) && chartData.labels.length === 1) ? 'bar' : 'line') : chartType;
                 this.charts.watermarkUsageChart.config.type = effectiveType;
                 this.charts.watermarkUsageChart.data.labels = chartData.labels;
                 this.charts.watermarkUsageChart.data.datasets[0].data = chartData.data;
@@ -196,7 +195,7 @@
                 tension: 0.3
             };
 
-            const effectiveType = (Array.isArray(chartData.labels) && chartData.labels.length === 1) ? 'bar' : chartType;
+            const effectiveType = (chartType === 'auto') ? ((Array.isArray(chartData.labels) && chartData.labels.length === 1) ? 'bar' : 'line') : chartType;
             this.charts.watermarkUsageChart = new Chart(ctx, {
                 type: effectiveType,
                 data: {

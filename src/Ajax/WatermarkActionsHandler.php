@@ -28,8 +28,6 @@ class WatermarkActionsHandler
         add_action('wp_ajax_ultimate_watermark_bulk_activate', [$this, 'handleBulkActivate']);
         add_action('wp_ajax_ultimate_watermark_bulk_deactivate', [$this, 'handleBulkDeactivate']);
         
-        // Add a test endpoint for debugging
-        add_action('wp_ajax_ultimate_watermark_test', [$this, 'handleTest']);
     }
 
     /**
@@ -356,15 +354,4 @@ class WatermarkActionsHandler
         ]);
     }
 
-    /**
-     * Test AJAX endpoint for debugging
-     */
-    public function handleTest(): void
-    {
-        error_log('Ultimate Watermark Test - AJAX endpoint reached');
-        wp_send_json_success([
-            'message' => 'AJAX endpoint is working',
-            'timestamp' => current_time('mysql')
-        ]);
-    }
 }

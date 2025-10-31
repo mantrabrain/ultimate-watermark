@@ -243,14 +243,6 @@
             });
         },
 
-        /**
-         * Test watermark functionality
-         */
-        testWatermark: function(imageId, callback) {
-            this.request('ultimate_watermark_test', {
-                image_id: imageId
-            }, callback);
-        },
 
         /**
          * Apply watermark to image

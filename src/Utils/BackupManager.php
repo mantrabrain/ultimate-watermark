@@ -933,6 +933,127 @@ class BackupManager
     }
     
     /**
+     * Get paginated backup list
+     * 
+     * @param int $page Current page number (1-based)
+     * @param int $per_page Number of items per page
+     * @return array Array with 'backups', 'total', 'total_pages', 'current_page', 'per_page'
+     */
+    public static function getPaginatedBackups(int $page = 1, int $per_page = 10): array
+    {
+        $upload_dir = wp_upload_dir();
+        $backup_base_dir = $upload_dir['basedir'] . '/ulwm-backup';
+        
+        // Build grouped entries per attachment
+        $year_dirs = glob($backup_base_dir . '/*', GLOB_ONLYDIR);
+        $groupedByAttachment = [];
+        
+        if ($year_dirs) {
+            foreach ($year_dirs as $year_dir) {
+                $month_dirs = glob($year_dir . '/*', GLOB_ONLYDIR);
+                
+                if ($month_dirs) {
+                    foreach ($month_dirs as $month_dir) {
+                        $main_files = glob($month_dir . '/*_original.*');
+                        $size_files = glob($month_dir . '/*_*.*');
+                        $backup_files = array_merge($main_files ?: [], $size_files ?: []);
+                        
+                        foreach ($backup_files as $backup_file) {
+                            if (!file_exists($backup_file)) {
+                                continue;
+                            }
+                            $backup_info = pathinfo($backup_file);
+                            $filename_parts = explode('_', $backup_info['filename']);
+                            $attachment_id = isset($filename_parts[0]) ? intval($filename_parts[0]) : 0;
+                            if ($attachment_id <= 0) {
+                                continue;
+                            }
+                            
+                            $backup_type = self::extractBackupTypeFromFilename($backup_info['filename']);
+                            
+                            if (!isset($groupedByAttachment[$attachment_id])) {
+                                $groupedByAttachment[$attachment_id] = [
+                                    'main' => null,
+                                    'additional' => []
+                                ];
+                            }
+                            
+                            if ($backup_type === 'original') {
+                                $groupedByAttachment[$attachment_id]['main'] = $backup_file;
+                            } else {
+                                $groupedByAttachment[$attachment_id]['additional'][] = [
+                                    'type' => $backup_type,
+                                    'path' => $backup_file
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Compose backup list from grouped attachments
+        global $wpdb;
+        $backups = [];
+        
+        foreach ($groupedByAttachment as $attachment_id => $entry) {
+            if (empty($entry['main'])) {
+                continue;
+            }
+            
+            $main_path = $entry['main'];
+            $main_size = file_exists($main_path) ? filesize($main_path) : 0;
+            $additional_total = 0;
+            $additional_count = 0;
+            
+            foreach ($entry['additional'] as $add) {
+                if (file_exists($add['path'])) {
+                    $file_size = filesize($add['path']);
+                    $additional_total += $file_size;
+                    $additional_count++;
+                }
+            }
+            
+            $attachment = $wpdb->get_row($wpdb->prepare("
+                SELECT ID, post_title 
+                FROM {$wpdb->posts} 
+                WHERE ID = %d AND post_type = 'attachment'
+            ", $attachment_id));
+            
+            $backups[] = [
+                'id' => $attachment ? $attachment->ID : $attachment_id,
+                'title' => $attachment ? $attachment->post_title : 'Unknown Image',
+                'backup_path' => $main_path,
+                'url' => str_replace($upload_dir['basedir'], $upload_dir['baseurl'], $main_path),
+                'backup_created' => date('Y-m-d H:i:s', filemtime($main_path)),
+                'size' => $main_size,
+                'additional_sizes' => $additional_count,
+                'total_size' => $main_size + $additional_total
+            ];
+        }
+        
+        // Sort by creation time (newest first)
+        usort($backups, function($a, $b) {
+            return strtotime($b['backup_created']) - strtotime($a['backup_created']);
+        });
+        
+        $total = count($backups);
+        $total_pages = ceil($total / $per_page);
+        $offset = ($page - 1) * $per_page;
+        
+        // Get paginated slice
+        $paginated_backups = array_slice($backups, $offset, $per_page);
+        
+        return [
+            'backups' => $paginated_backups,
+            'total' => $total,
+            'total_pages' => $total_pages,
+            'current_page' => $page,
+            'per_page' => $per_page
+        ];
+    }
+    
+    /**
      * Delete all backup files for an attachment
      * 
      * @param int $attachment_id WordPress attachment ID

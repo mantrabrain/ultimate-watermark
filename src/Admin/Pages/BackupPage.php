@@ -94,65 +94,107 @@ class BackupPage
         echo '</div>';
         echo '</div>';
         
-        // Backups Section
-        if (!empty($stats['recent_backups'])) {
-            echo '<div class="uw-backups-section">';
-            echo '<div class="uw-section-header">';
-            echo '<h3 class="uw-section-title">' . esc_html__('Backup Files', 'ultimate-watermark') . '</h3>';
-            echo '<div class="uw-section-actions">';
-            echo '<span class="uw-backup-count">' . count($stats['recent_backups']) . ' ' . esc_html__('files', 'ultimate-watermark') . '</span>';
-            echo '</div>';
-            echo '</div>';
-            
-            echo '<div class="uw-backups-table-container">';
-            echo '<div class="uw-bulk-actions">';
-            echo '<div class="uw-bulk-controls">';
-            echo '<div class="uw-bulk-buttons">';
-            echo '<button type="button" id="bulk-restore-btn" class="uw-btn uw-btn-primary uw-btn-small" disabled>';
-            echo '<span class="dashicons dashicons-undo"></span>';
-            echo esc_html__('Restore Selected', 'ultimate-watermark');
-            echo '</button>';
-            echo '<button type="button" id="bulk-delete-btn" class="uw-btn uw-btn-danger uw-btn-small" disabled>';
-            echo '<span class="dashicons dashicons-trash"></span>';
-            echo esc_html__('Delete Selected', 'ultimate-watermark');
-            echo '</button>';
-            echo '</div>';
-            echo '</div>';
-            echo '</div>';
-            
-            echo '<table class="uw-backups-table">';
-            echo '<thead>';
-            echo '<tr>';
-            echo '<th class="uw-col-checkbox">';
-            echo '<input type="checkbox" id="select-all-header" class="uw-checkbox">';
-            echo '</th>';
-            echo '<th class="uw-col-name">' . esc_html__('File Name', 'ultimate-watermark') . '</th>';
-            echo '<th class="uw-col-size">' . esc_html__('Size', 'ultimate-watermark') . '</th>';
-            echo '<th class="uw-col-date">' . esc_html__('Created', 'ultimate-watermark') . '</th>';
-            echo '<th class="uw-col-actions">' . esc_html__('Actions', 'ultimate-watermark') . '</th>';
-            echo '</tr>';
-            echo '</thead>';
-            echo '<tbody>';
-            foreach ($stats['recent_backups'] as $backup) {
-                $this->renderBackupTableRow($backup);
-            }
-            echo '</tbody>';
-            echo '</table>';
-            echo '</div>';
-            echo '</div>';
-        } else {
-            echo '<div class="uw-empty-state">';
-            echo '<div class="uw-empty-icon">';
-            echo '<span class="dashicons dashicons-images-alt2"></span>';
-            echo '</div>';
-            echo '<h3 class="uw-empty-title">' . esc_html__('No Backups Yet', 'ultimate-watermark') . '</h3>';
-            echo '<p class="uw-empty-description">' . esc_html__('Backups will appear here when you apply watermarks to your images.', 'ultimate-watermark') . '</p>';
-            echo '<a href="' . esc_url(admin_url('upload.php')) . '" class="uw-btn uw-btn-primary">';
-            echo '<span class="dashicons dashicons-upload"></span>';
-            echo esc_html__('Upload Images', 'ultimate-watermark');
-            echo '</a>';
-            echo '</div>';
-        }
+        // Backups Section - Load initial page via AJAX
+        echo '<div class="uw-backups-section">';
+        echo '<div class="uw-section-header">';
+        echo '<h3 class="uw-section-title">' . esc_html__('Backup Files', 'ultimate-watermark') . '</h3>';
+        echo '<div class="uw-section-actions">';
+        echo '<span class="uw-backup-count">' . esc_html__('Loading...', 'ultimate-watermark') . '</span>';
+        echo '</div>';
+        echo '</div>';
+        
+        echo '<div class="uw-backups-table-container">';
+        
+        // Top pagination
+        echo '<div class="uw-pagination-container uw-pagination-top" id="uw-backups-pagination-top" style="display: none;">';
+        echo '<div class="uw-pagination-info">';
+        echo '<span class="uw-pagination-text"></span>';
+        echo '</div>';
+        echo '<div class="uw-pagination-nav">';
+        echo '<button type="button" class="uw-pagination-btn uw-pagination-prev" data-page="prev" data-position="top" disabled>';
+        echo '<span class="dashicons dashicons-arrow-left-alt2"></span>';
+        echo esc_html__('Previous', 'ultimate-watermark');
+        echo '</button>';
+        echo '<div class="uw-pagination-numbers"></div>';
+        echo '<button type="button" class="uw-pagination-btn uw-pagination-next" data-page="next" data-position="top" disabled>';
+        echo esc_html__('Next', 'ultimate-watermark');
+        echo '<span class="dashicons dashicons-arrow-right-alt2"></span>';
+        echo '</button>';
+        echo '</div>';
+        echo '</div>';
+        
+        echo '<div class="uw-bulk-actions">';
+        echo '<div class="uw-bulk-controls">';
+        echo '<div class="uw-bulk-buttons">';
+        echo '<button type="button" id="bulk-restore-btn" class="uw-btn uw-btn-primary uw-btn-small" disabled>';
+        echo '<span class="dashicons dashicons-undo"></span>';
+        echo esc_html__('Restore Selected', 'ultimate-watermark');
+        echo '</button>';
+        echo '<button type="button" id="bulk-delete-btn" class="uw-btn uw-btn-danger uw-btn-small" disabled>';
+        echo '<span class="dashicons dashicons-trash"></span>';
+        echo esc_html__('Delete Selected', 'ultimate-watermark');
+        echo '</button>';
+        echo '</div>';
+        echo '</div>';
+        echo '</div>';
+        
+        echo '<table class="uw-backups-table">';
+        echo '<thead>';
+        echo '<tr>';
+        echo '<th class="uw-col-checkbox">';
+        echo '<input type="checkbox" id="select-all-header" class="uw-checkbox">';
+        echo '</th>';
+        echo '<th class="uw-col-name">' . esc_html__('File Name', 'ultimate-watermark') . '</th>';
+        echo '<th class="uw-col-size">' . esc_html__('Size', 'ultimate-watermark') . '</th>';
+        echo '<th class="uw-col-date">' . esc_html__('Created', 'ultimate-watermark') . '</th>';
+        echo '<th class="uw-col-actions">' . esc_html__('Actions', 'ultimate-watermark') . '</th>';
+        echo '</tr>';
+        echo '</thead>';
+        echo '<tbody id="uw-backups-tbody">';
+        echo '<tr class="uw-loading-row">';
+        echo '<td colspan="5" class="uw-loading-cell">';
+        echo '<div class="uw-loading-spinner">';
+        echo '<span class="dashicons dashicons-update"></span>';
+        echo '<span>' . esc_html__('Loading backups...', 'ultimate-watermark') . '</span>';
+        echo '</div>';
+        echo '</td>';
+        echo '</tr>';
+        echo '</tbody>';
+        echo '</table>';
+        
+        // Bottom pagination controls
+        echo '<div class="uw-pagination-container uw-pagination-bottom" id="uw-backups-pagination" style="display: none;">';
+        echo '<div class="uw-pagination-info">';
+        echo '<span class="uw-pagination-text"></span>';
+        echo '</div>';
+        echo '<div class="uw-pagination-nav">';
+        echo '<button type="button" class="uw-pagination-btn uw-pagination-prev" data-page="prev" data-position="bottom" disabled>';
+        echo '<span class="dashicons dashicons-arrow-left-alt2"></span>';
+        echo esc_html__('Previous', 'ultimate-watermark');
+        echo '</button>';
+        echo '<div class="uw-pagination-numbers"></div>';
+        echo '<button type="button" class="uw-pagination-btn uw-pagination-next" data-page="next" data-position="bottom" disabled>';
+        echo esc_html__('Next', 'ultimate-watermark');
+        echo '<span class="dashicons dashicons-arrow-right-alt2"></span>';
+        echo '</button>';
+        echo '</div>';
+        echo '</div>';
+        echo '</div>';
+        echo '</div>';
+        
+        // Empty state (hidden initially, shown via JS if no backups)
+        echo '<div class="uw-empty-state" id="uw-empty-backups" style="display: none;">';
+        echo '<div class="uw-empty-icon">';
+        echo '<span class="dashicons dashicons-images-alt2"></span>';
+        echo '</div>';
+        echo '<h3 class="uw-empty-title">' . esc_html__('No Backups Yet', 'ultimate-watermark') . '</h3>';
+        echo '<p class="uw-empty-description">' . esc_html__('Backups will appear here when you apply watermarks to your images.', 'ultimate-watermark') . '</p>';
+        echo '<a href="' . esc_url(admin_url('upload.php')) . '" class="uw-btn uw-btn-primary">';
+        echo '<span class="dashicons dashicons-upload"></span>';
+        echo esc_html__('Upload Images', 'ultimate-watermark');
+        echo '</a>';
+        echo '</div>';
+        
         
         echo '</div>'; // Close uw-backup-page
         

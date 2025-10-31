@@ -373,8 +373,11 @@ class WatermarkHelper
     {
         $watermark_on = $watermark['watermark_on'] ?? 'everywhere';
         
+        // Normalize watermark_on value
+        $watermark_on = strval($watermark_on);
+        
         // If set to "everywhere", apply to all contexts
-        if ($watermark_on === 'everywhere') {
+        if ($watermark_on === 'everywhere' || $watermark_on === '') {
             return true;
         }
         
@@ -382,25 +385,53 @@ class WatermarkHelper
         if ($watermark_on === 'selected_post_types') {
             $allowed_post_types = $watermark['watermark_post_types'] ?? [];
             
+            // Fix double-serialized data
+            if (is_string($allowed_post_types)) {
+                $allowed_post_types = maybe_unserialize($allowed_post_types);
+                // If still a string, try to unserialize again
+                if (is_string($allowed_post_types)) {
+                    $allowed_post_types = maybe_unserialize($allowed_post_types);
+                }
+            }
+            
+            // Ensure it's an array
+            if (!is_array($allowed_post_types)) {
+                $allowed_post_types = [];
+            }
+            
+            // Normalize post types to strings
+            $allowed_post_types = array_map('strval', array_values($allowed_post_types));
+            
+            // If no post types selected, don't apply (safer than applying everywhere)
+            if (empty($allowed_post_types)) {
+                return false;
+            }
+            
             // For upload context, allow if attachment is in allowed post types
-            // This is because uploaded images become attachments
+            // This is because uploaded images become attachments in WordPress
             if ($context === 'upload') {
-                $result = in_array('attachment', $allowed_post_types);
-                return $result;
+                return in_array('attachment', $allowed_post_types, true);
             }
             
             // For manual context, assume it's for media library (attachment post type)
             if ($context === 'manual') {
-                return in_array('attachment', $allowed_post_types);
+                return in_array('attachment', $allowed_post_types, true);
             }
             
-            // For frontend context, we'd need to determine the post type from context
+            // For frontend context, check the post type of the post_id
             if ($context === 'frontend' && $post_id) {
                 $post_type = get_post_type($post_id);
-                return in_array($post_type, $allowed_post_types);
+                if (!$post_type) {
+                    return false;
+                }
+                return in_array(strval($post_type), $allowed_post_types, true);
             }
+            
+            // For other contexts, default to false (safer)
+            return false;
         }
         
+        // Unknown watermark_on value, default to false (safer)
         return false;
     }
 
@@ -418,7 +449,7 @@ class WatermarkHelper
         // Fix double-serialized data
         if (is_string($watermark_sizes)) {
             $watermark_sizes = maybe_unserialize($watermark_sizes);
-            // If still a string, try to unserialize again
+            // If still a string, try to unserialize again (fix double-serialization)
             if (is_string($watermark_sizes)) {
                 $watermark_sizes = maybe_unserialize($watermark_sizes);
             }
@@ -429,52 +460,80 @@ class WatermarkHelper
             $watermark_sizes = [];
         }
         
+        // Normalize array keys (remove numeric keys if any, ensure values are strings)
+        $watermark_sizes = array_map('strval', array_values($watermark_sizes));
+        $image_size = strval($image_size);
+        
         // If no sizes specified, apply to all sizes
         if (empty($watermark_sizes)) {
             return true;
         }
         
-        // Special case for upload context: if watermark is configured for any size, allow it during upload
-        // This is because during upload, we process the full-size image and then generate all sizes
-        if ($image_size === 'full') {
-            // During upload, if the watermark is configured for any size, it should be available
-            // because WordPress will generate all sizes from the uploaded image
-            return true;
+        // Check if the current image size is in the allowed sizes (strict comparison)
+        $result = in_array($image_size, $watermark_sizes, true);
+        
+        // Special case: if watermark_sizes contains 'full', also allow 'scaled' variants
+        // WordPress sometimes creates scaled images (e.g., image-scaled-2048x1536.jpg) for large images
+        if (!$result && in_array('full', $watermark_sizes, true)) {
+            // Check if this is a scaled variant of full size
+            if (strpos($image_size, 'scaled') !== false || preg_match('/-\d+x\d+$/', $image_size)) {
+                return true;
+            }
         }
         
-        // Check if the current image size is in the allowed sizes
-        $result = in_array($image_size, $watermark_sizes);
         return $result;
     }
 
     /**
      * Filter watermarks based on rules
      * 
-     * @param array $watermarks
-     * @param string $context
-     * @param int|null $post_id
-     * @param string $image_size
-     * @return array
+     * This is the core method that applies ALL rule filtering:
+     * 1. Post type rules (watermark_on + watermark_post_types)
+     * 2. Image size rules (watermark_sizes)
+     * 
+     * Both conditions must pass for a watermark to be included.
+     * 
+     * @param array $watermarks Array of watermark data
+     * @param string $context Context where watermark is being applied ('upload', 'manual', 'frontend')
+     * @param int|null $post_id Post/Attachment ID if applicable (for frontend context)
+     * @param string $image_size Image size being processed ('full', 'thumbnail', 'medium', etc.)
+     * @return array Filtered watermarks that match all rules
      */
     public static function filterWatermarksByRules(array $watermarks, string $context = 'upload', ?int $post_id = null, string $image_size = 'full'): array
     {
+        // Validate context
+        $valid_contexts = ['upload', 'manual', 'frontend'];
+        if (!in_array($context, $valid_contexts, true)) {
+            $context = 'upload'; // Default fallback
+        }
+        
+        // Normalize image size
+        $image_size = strval($image_size);
+        if (empty($image_size)) {
+            $image_size = 'full'; // Default fallback
+        }
         
         return array_filter($watermarks, function($watermark) use ($context, $post_id, $image_size) {
+            // Validate watermark data structure
+            if (!is_array($watermark) || empty($watermark)) {
+                return false;
+            }
             
-            // Check post type rules
+            // STEP 1: Check post type rules FIRST (most restrictive filter)
             $post_type_check = self::shouldApplyWatermarkByPostType($watermark, $context, $post_id);
             
             if (!$post_type_check) {
-                return false;
+                return false; // Watermark doesn't match post type rules, exclude it
             }
             
-            // Check image size rules
+            // STEP 2: Check image size rules (size-specific filter)
             $size_check = self::shouldApplyWatermarkByImageSize($watermark, $image_size);
             
             if (!$size_check) {
-                return false;
+                return false; // Watermark doesn't match size rules, exclude it
             }
             
+            // Both checks passed - include this watermark
             return true;
         });
     }

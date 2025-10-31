@@ -7,11 +7,35 @@
 
 class BackupPageManager {
     constructor() {
+        this.perPage = 10;
+        this.totalPages = 0;
+        this.total = 0;
+        // Get initial page from URL parameter
+        this.currentPage = this.getPageFromUrl();
         this.init();
     }
 
     init() {
         this.bindEvents();
+        this.loadBackups(this.currentPage);
+    }
+
+    getPageFromUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        // Use 'paged' instead of 'page' to avoid conflict with WordPress admin page parameter
+        const page = parseInt(urlParams.get('paged')) || 1;
+        return Math.max(1, page);
+    }
+
+    updateUrlParameter(page) {
+        const url = new URL(window.location);
+        // Use 'paged' instead of 'page' to avoid conflict with WordPress admin page parameter
+        if (page > 1) {
+            url.searchParams.set('paged', page);
+        } else {
+            url.searchParams.delete('paged');
+        }
+        window.history.pushState({ paged: page }, '', url);
     }
 
     bindEvents() {
@@ -51,7 +75,6 @@ class BackupPageManager {
             }
             
             if (e.target.id === 'bulk-delete-btn') {
-                console.log('Ultimate Watermark: Bulk delete button clicked');
                 e.preventDefault();
                 this.handleBulkDelete();
             }
@@ -63,15 +86,308 @@ class BackupPageManager {
                 this.updateBulkButtons();
             }
         });
+
+        // Pagination clicks
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.uw-pagination-prev')) {
+                e.preventDefault();
+                if (this.currentPage > 1) {
+                    this.loadBackups(this.currentPage - 1);
+                }
+            }
+            
+            if (e.target.closest('.uw-pagination-next')) {
+                e.preventDefault();
+                if (this.currentPage < this.totalPages) {
+                    this.loadBackups(this.currentPage + 1);
+                }
+            }
+            
+            if (e.target.closest('.uw-pagination-number')) {
+                e.preventDefault();
+                const page = parseInt(e.target.closest('.uw-pagination-number').dataset.page);
+                if (page && page !== this.currentPage) {
+                    this.loadBackups(page);
+                }
+            }
+        });
+
+        // Handle browser back/forward buttons
+        window.addEventListener('popstate', (e) => {
+            const page = this.getPageFromUrl();
+            if (page !== this.currentPage) {
+                this.loadBackups(page);
+            }
+        });
+    }
+
+    loadBackups(page) {
+        const tbody = document.getElementById('uw-backups-tbody');
+        const paginationContainer = document.getElementById('uw-backups-pagination');
+        const paginationContainerTop = document.getElementById('uw-backups-pagination-top');
+        const emptyState = document.getElementById('uw-empty-backups');
+        const loadingRow = tbody.querySelector('.uw-loading-row');
+        
+        if (!loadingRow) {
+            // Show loading state
+            tbody.innerHTML = '<tr class="uw-loading-row"><td colspan="5" class="uw-loading-cell"><div class="uw-loading-spinner"><span class="dashicons dashicons-update"></span><span>Loading backups...</span></div></td></tr>';
+        }
+        
+        // Hide pagination and empty state
+        if (paginationContainer) paginationContainer.style.display = 'none';
+        if (paginationContainerTop) paginationContainerTop.style.display = 'none';
+        if (emptyState) emptyState.style.display = 'none';
+        
+        // Update URL parameter (without triggering popstate)
+        this.updateUrlParameter(page);
+        
+        // Make AJAX request
+        const formData = new FormData();
+        formData.append('action', 'ultimate_watermark_get_paginated_backups');
+        formData.append('page', page);
+        formData.append('per_page', this.perPage);
+        formData.append('nonce', ultimateWatermarkBackup.nonce);
+        
+        fetch(ultimateWatermarkBackup.ajaxurl, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                this.renderBackups(data.data.backups);
+                this.currentPage = data.data.current_page;
+                this.totalPages = data.data.total_pages;
+                this.total = data.data.total;
+                this.renderPagination();
+                this.updateBackupCount();
+                
+                // Scroll to top of table when page changes
+                if (paginationContainerTop) {
+                    paginationContainerTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5" class="uw-error-cell">Error loading backups.</td></tr>';
+            }
+        })
+        .catch(() => {
+            tbody.innerHTML = '<tr><td colspan="5" class="uw-error-cell">Error loading backups.</td></tr>';
+        });
+    }
+
+    renderBackups(backups) {
+        const tbody = document.getElementById('uw-backups-tbody');
+        const emptyState = document.getElementById('uw-empty-backups');
+        
+        if (!backups || backups.length === 0) {
+            tbody.innerHTML = '';
+            if (emptyState) emptyState.style.display = 'block';
+            return;
+        }
+        
+        // Hide empty state
+        if (emptyState) emptyState.style.display = 'none';
+        
+        // Render backup rows
+        let html = '';
+        backups.forEach(backup => {
+            html += this.renderBackupRow(backup);
+        });
+        tbody.innerHTML = html;
+        
+        // Re-bind events for new rows
+        this.updateBulkButtons();
+    }
+
+    renderBackupRow(backup) {
+        const additionalSizes = backup.additional_sizes || 0;
+        const totalSize = backup.total_size || backup.size;
+        
+        let html = '<tr class="uw-backup-row" data-attachment-id="' + backup.id + '">';
+        
+        // Checkbox column
+        html += '<td class="uw-col-checkbox">';
+        html += '<input type="checkbox" class="uw-checkbox uw-backup-checkbox" value="' + backup.id + '">';
+        html += '</td>';
+        
+        // File name column
+        html += '<td class="uw-col-name">';
+        html += '<div class="uw-file-info">';
+        html += '<div class="uw-file-thumbnail">';
+        html += '<img src="' + backup.url + '" alt="' + this.escapeHtml(backup.title) + '" loading="lazy" class="uw-thumbnail-image" data-image-url="' + backup.url + '" data-image-title="' + this.escapeHtml(backup.title) + '">';
+        html += '</div>';
+        html += '<div class="uw-file-details">';
+        html += '<div class="uw-file-name">' + this.escapeHtml(backup.title) + '</div>';
+        html += '<div class="uw-file-path">' + this.escapeHtml(backup.backup_path.split('/').pop()) + '</div>';
+        
+        if (additionalSizes > 0) {
+            html += '<div class="uw-additional-sizes">';
+            html += '<span class="uw-size-count">+' + additionalSizes + ' ' + (additionalSizes === 1 ? 'additional size' : 'additional sizes') + '</span>';
+            html += '<button type="button" class="uw-toggle-children" data-attachment-id="' + backup.id + '">';
+            html += '<span class="dashicons dashicons-arrow-down-alt2"></span>';
+            html += '</button>';
+            html += '</div>';
+        }
+        
+        html += '</div>';
+        html += '</div>';
+        html += '</td>';
+        
+        // Size column
+        html += '<td class="uw-col-size">';
+        html += '<span class="uw-file-size">' + this.formatSize(totalSize) + '</span>';
+        if (additionalSizes > 0) {
+            html += '<div class="uw-size-breakdown">';
+            html += '<span class="uw-main-size">' + this.formatSize(backup.size) + ' main</span>';
+            html += '<span class="uw-additional-size">+' + this.formatSize(totalSize - backup.size) + ' additional</span>';
+            html += '</div>';
+        }
+        html += '</td>';
+        
+        // Date column
+        html += '<td class="uw-col-date">';
+        html += '<div class="uw-date-info">';
+        html += '<div class="uw-date-relative">' + this.getRelativeTime(backup.backup_created) + ' ago</div>';
+        html += '<div class="uw-date-absolute">' + this.formatDate(backup.backup_created) + '</div>';
+        html += '</div>';
+        html += '</td>';
+        
+        // Actions column
+        html += '<td class="uw-col-actions">';
+        html += '<div class="uw-row-actions">';
+        html += '<a href="' + backup.url + '" class="uw-action-btn uw-action-view" target="_blank" title="View backup">';
+        html += '<span class="dashicons dashicons-visibility"></span>';
+        html += '</a>';
+        html += '<button type="button" class="uw-action-btn uw-action-restore restore-backup-btn" data-attachment-id="' + backup.id + '" title="Restore from backup">';
+        html += '<span class="dashicons dashicons-undo"></span>';
+        html += '</button>';
+        html += '<a href="' + ultimateWatermarkBackup.adminUrl + 'post.php?post=' + backup.id + '&action=edit" class="uw-action-btn uw-action-edit" title="Edit original">';
+        html += '<span class="dashicons dashicons-edit"></span>';
+        html += '</a>';
+        html += '<button type="button" class="uw-action-btn uw-action-delete delete-backup-btn" data-attachment-id="' + backup.id + '" title="Delete backup">';
+        html += '<span class="dashicons dashicons-trash"></span>';
+        html += '</button>';
+        html += '</div>';
+        html += '</td>';
+        
+        html += '</tr>';
+        
+        return html;
+    }
+
+    renderPagination() {
+        const paginationContainer = document.getElementById('uw-backups-pagination');
+        const paginationContainerTop = document.getElementById('uw-backups-pagination-top');
+        
+        // Render both top and bottom pagination
+        [paginationContainer, paginationContainerTop].forEach(container => {
+            if (!container) return;
+            
+            if (this.totalPages <= 1) {
+                container.style.display = 'none';
+                return;
+            }
+            
+            container.style.display = 'flex';
+            
+            // Update pagination info
+            const infoText = container.querySelector('.uw-pagination-text');
+            if (infoText) {
+                const start = (this.currentPage - 1) * this.perPage + 1;
+                const end = Math.min(this.currentPage * this.perPage, this.total);
+                infoText.textContent = `Showing ${start}-${end} of ${this.total} backups`;
+            }
+            
+            // Update prev/next buttons
+            const prevBtn = container.querySelector('.uw-pagination-prev');
+            const nextBtn = container.querySelector('.uw-pagination-next');
+            if (prevBtn) prevBtn.disabled = this.currentPage === 1;
+            if (nextBtn) nextBtn.disabled = this.currentPage >= this.totalPages;
+            
+            // Render page numbers
+            const numbersContainer = container.querySelector('.uw-pagination-numbers');
+            if (numbersContainer) {
+                let numbersHtml = '';
+                const maxVisible = 7;
+                let startPage = Math.max(1, this.currentPage - Math.floor(maxVisible / 2));
+                let endPage = Math.min(this.totalPages, startPage + maxVisible - 1);
+                
+                if (endPage - startPage < maxVisible - 1) {
+                    startPage = Math.max(1, endPage - maxVisible + 1);
+                }
+                
+                if (startPage > 1) {
+                    numbersHtml += '<button type="button" class="uw-pagination-number" data-page="1">1</button>';
+                    if (startPage > 2) {
+                        numbersHtml += '<span class="uw-pagination-ellipsis">...</span>';
+                    }
+                }
+                
+                for (let i = startPage; i <= endPage; i++) {
+                    const isActive = i === this.currentPage ? ' active' : '';
+                    numbersHtml += '<button type="button" class="uw-pagination-number' + isActive + '" data-page="' + i + '">' + i + '</button>';
+                }
+                
+                if (endPage < this.totalPages) {
+                    if (endPage < this.totalPages - 1) {
+                        numbersHtml += '<span class="uw-pagination-ellipsis">...</span>';
+                    }
+                    numbersHtml += '<button type="button" class="uw-pagination-number" data-page="' + this.totalPages + '">' + this.totalPages + '</button>';
+                }
+                
+                numbersContainer.innerHTML = numbersHtml;
+            }
+        });
+    }
+
+    updateBackupCount() {
+        const countElement = document.querySelector('.uw-backup-count');
+        if (countElement) {
+            countElement.textContent = this.total + ' ' + (this.total === 1 ? 'file' : 'files');
+        }
+    }
+
+    formatSize(bytes) {
+        if (bytes >= 1024 * 1024) {
+            const mb = bytes / (1024 * 1024);
+            return mb >= 100 ? Math.round(mb) + ' MB' : mb.toFixed(2) + ' MB';
+        } else if (bytes >= 1024) {
+            const kb = bytes / 1024;
+            return kb >= 100 ? Math.round(kb) + ' KB' : kb.toFixed(2) + ' KB';
+        } else {
+            return bytes + ' B';
+        }
+    }
+
+    formatDate(dateString) {
+        const date = new Date(dateString);
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return months[date.getMonth()] + ' ' + date.getDate() + ', ' + date.getFullYear();
+    }
+
+    getRelativeTime(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diff = Math.floor((now - date) / 1000);
+        
+        if (diff < 60) return diff + ' second' + (diff !== 1 ? 's' : '');
+        if (diff < 3600) return Math.floor(diff / 60) + ' minute' + (Math.floor(diff / 60) !== 1 ? 's' : '');
+        if (diff < 86400) return Math.floor(diff / 3600) + ' hour' + (Math.floor(diff / 3600) !== 1 ? 's' : '');
+        if (diff < 604800) return Math.floor(diff / 86400) + ' day' + (Math.floor(diff / 86400) !== 1 ? 's' : '');
+        if (diff < 2592000) return Math.floor(diff / 604800) + ' week' + (Math.floor(diff / 604800) !== 1 ? 's' : '');
+        if (diff < 31536000) return Math.floor(diff / 2592000) + ' month' + (Math.floor(diff / 2592000) !== 1 ? 's' : '');
+        return Math.floor(diff / 31536000) + ' year' + (Math.floor(diff / 31536000) !== 1 ? 's' : '');
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     handleDeleteBackup(button) {
-        console.log('Ultimate Watermark: Delete backup clicked');
         const attachmentId = button.getAttribute('data-attachment-id');
         const backupRow = button.closest('.uw-backup-row');
-        
-        console.log('Ultimate Watermark: Attachment ID:', attachmentId);
-        console.log('Ultimate Watermark: UWNotifications available:', typeof UWNotifications !== 'undefined');
         
         if (!attachmentId) {
             if (typeof UWNotifications !== 'undefined') {
@@ -84,7 +400,6 @@ class BackupPageManager {
 
         // Check if UWNotifications is available
         if (typeof UWNotifications === 'undefined') {
-            console.error('Ultimate Watermark: UWNotifications not available, using fallback');
             if (confirm('Are you sure you want to delete this backup? This action cannot be undone.')) {
                 this.confirmDeleteBackup(attachmentId, backupRow);
             }
@@ -92,7 +407,6 @@ class BackupPageManager {
         }
 
         // Show custom confirmation
-        console.log('Ultimate Watermark: About to show confirmation dialog');
         try {
             UWNotifications.confirm({
                 title: 'Delete Backup',
@@ -102,19 +416,16 @@ class BackupPageManager {
                 cancelText: 'Cancel',
                 confirmButtonType: 'danger'
             }).then(action => {
-                console.log('Ultimate Watermark: Confirmation result:', action);
                 if (action === 'confirm') {
                     this.confirmDeleteBackup(attachmentId, backupRow);
                 }
-            }).catch(error => {
-                console.error('Ultimate Watermark: Confirmation error:', error);
+            }).catch(() => {
                 // Fallback to native confirm
                 if (confirm('Are you sure you want to delete this backup? This action cannot be undone.')) {
                     this.confirmDeleteBackup(attachmentId, backupRow);
                 }
             });
-        } catch (error) {
-            console.error('Ultimate Watermark: Error calling UWNotifications.confirm:', error);
+        } catch {
             // Fallback to native confirm
             if (confirm('Are you sure you want to delete this backup? This action cannot be undone.')) {
                 this.confirmDeleteBackup(attachmentId, backupRow);
@@ -123,8 +434,6 @@ class BackupPageManager {
     }
 
     confirmDeleteBackup(attachmentId, backupRow) {
-        console.log('Ultimate Watermark: Confirming delete backup for ID:', attachmentId);
-        console.log('Ultimate Watermark: Nonce:', ultimateWatermarkBackup.nonce);
         
         // Show loading state
         this.showLoadingState(backupRow);
@@ -141,7 +450,6 @@ class BackupPageManager {
         })
         .then(response => response.json())
         .then(data => {
-            console.log('Ultimate Watermark: Delete backup response:', data);
             this.hideLoadingState(backupRow);
             
             if (data.success) {
@@ -160,9 +468,8 @@ class BackupPageManager {
                 }
             }
         })
-        .catch(error => {
+        .catch(() => {
             this.hideLoadingState(backupRow);
-            console.error('Error deleting backup:', error);
             if (typeof UWNotifications !== 'undefined') {
                 UWNotifications.error('Error', 'An error occurred while deleting the backup.');
             } else {
@@ -172,12 +479,8 @@ class BackupPageManager {
     }
 
     handleRestoreBackup(button) {
-        console.log('Ultimate Watermark: Restore backup clicked');
         const attachmentId = button.getAttribute('data-attachment-id');
         const backupRow = button.closest('.uw-backup-row');
-        
-        console.log('Ultimate Watermark: Attachment ID:', attachmentId);
-        console.log('Ultimate Watermark: UWNotifications available:', typeof UWNotifications !== 'undefined');
         
         if (!attachmentId) {
             if (typeof UWNotifications !== 'undefined') {
@@ -190,7 +493,6 @@ class BackupPageManager {
 
         // Check if UWNotifications is available
         if (typeof UWNotifications === 'undefined') {
-            console.error('Ultimate Watermark: UWNotifications not available, using fallback');
             if (confirm('Are you sure you want to restore this image from backup? This will replace the current watermarked image with the original backup.')) {
                 this.confirmRestoreBackup(attachmentId, backupRow, false);
             }
@@ -249,9 +551,8 @@ class BackupPageManager {
                 UWNotifications.error('Error', data.data.message || 'Failed to restore image from backup.');
             }
         })
-        .catch(error => {
+        .catch(() => {
             this.hideLoadingState(backupRow);
-            console.error('Error restoring backup:', error);
             UWNotifications.error('Error', 'An error occurred while restoring the backup.');
         });
     }
@@ -323,7 +624,6 @@ class BackupPageManager {
 
         // Check if UWNotifications is available
         if (typeof UWNotifications === 'undefined') {
-            console.error('Ultimate Watermark: UWNotifications not available, using fallback');
             if (confirm(`Are you sure you want to restore ${attachmentIds.length} image(s) from backup? This will replace the current watermarked images with the original backups.`)) {
                 this.confirmBulkRestore(attachmentIds, checkedBoxes);
             }
@@ -380,8 +680,7 @@ class BackupPageManager {
                 });
             }
         })
-        .catch(error => {
-            console.error('Error bulk restoring backups:', error);
+        .catch(() => {
             UWNotifications.error('Error', 'An error occurred while restoring the backups.');
             // Hide loading state for all rows
             checkedBoxes.forEach(checkbox => {
@@ -392,15 +691,10 @@ class BackupPageManager {
     }
 
     handleBulkDelete() {
-        console.log('Ultimate Watermark: Bulk delete clicked');
         const checkedBoxes = document.querySelectorAll('.uw-backup-checkbox:checked');
         const attachmentIds = Array.from(checkedBoxes).map(cb => cb.value);
         
-        console.log('Ultimate Watermark: Checked boxes:', checkedBoxes.length);
-        console.log('Ultimate Watermark: Attachment IDs:', attachmentIds);
-        
         if (attachmentIds.length === 0) {
-            console.log('Ultimate Watermark: No items selected');
             if (typeof UWNotifications !== 'undefined') {
                 UWNotifications.error('Error', 'Please select at least one backup to delete.');
             } else {
@@ -411,7 +705,6 @@ class BackupPageManager {
 
         // Check if UWNotifications is available
         if (typeof UWNotifications === 'undefined') {
-            console.error('Ultimate Watermark: UWNotifications not available, using fallback');
             if (confirm(`Are you sure you want to delete ${attachmentIds.length} backup(s)? This action cannot be undone.`)) {
                 this.confirmBulkDelete(attachmentIds, checkedBoxes);
             }
@@ -434,8 +727,6 @@ class BackupPageManager {
     }
 
     confirmBulkDelete(attachmentIds, checkedBoxes) {
-        console.log('Ultimate Watermark: Confirming bulk delete for IDs:', attachmentIds);
-        
         // Show loading state for all selected rows
         checkedBoxes.forEach(checkbox => {
             const row = checkbox.closest('.uw-backup-row');
@@ -447,9 +738,6 @@ class BackupPageManager {
         formData.append('action', 'ultimate_watermark_bulk_delete_backup');
         attachmentIds.forEach(id => formData.append('attachment_ids[]', id));
         formData.append('nonce', ultimateWatermarkBackup.nonce);
-        
-        console.log('Ultimate Watermark: Making AJAX request to:', ultimateWatermarkBackup.ajaxurl);
-        console.log('Ultimate Watermark: Form data (ids):', attachmentIds);
 
         fetch(ultimateWatermarkBackup.ajaxurl, {
             method: 'POST',
@@ -457,9 +745,7 @@ class BackupPageManager {
         })
         .then(response => response.json())
         .then(data => {
-            console.log('Ultimate Watermark: Bulk delete response:', data);
             if (data.success) {
-                console.log('Ultimate Watermark: Bulk delete successful');
                 UWNotifications.success('Success', data.data.message || `${attachmentIds.length} backup(s) deleted successfully.`);
                 // Remove all deleted backup rows
                 checkedBoxes.forEach(checkbox => {
@@ -467,7 +753,6 @@ class BackupPageManager {
                     this.removeBackupRow(row);
                 });
             } else {
-                console.log('Ultimate Watermark: Bulk delete failed:', data.data.message);
                 UWNotifications.error('Error', data.data.message || 'Failed to delete backups.');
                 // Hide loading state for all rows
                 checkedBoxes.forEach(checkbox => {
@@ -476,8 +761,7 @@ class BackupPageManager {
                 });
             }
         })
-        .catch(error => {
-            console.error('Error bulk deleting backups:', error);
+        .catch(() => {
             UWNotifications.error('Error', 'An error occurred while deleting the backups.');
             // Hide loading state for all rows
             checkedBoxes.forEach(checkbox => {
@@ -511,7 +795,8 @@ class BackupPageManager {
         
         setTimeout(() => {
             backupRow.remove();
-            this.updateBackupStats();
+            // Reload current page after deletion
+            this.loadBackups(this.currentPage);
         }, 300);
     }
 
@@ -718,15 +1003,11 @@ class BackupPageManager {
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Ultimate Watermark: Backup page DOM ready');
-    
     // Wait for notification system to be available
     const waitForNotifications = () => {
         if (typeof UWNotifications !== 'undefined') {
-            console.log('Ultimate Watermark: Notification system is available');
             new BackupPageManager();
         } else {
-            console.log('Ultimate Watermark: Waiting for notification system...');
             setTimeout(waitForNotifications, 100);
         }
     };

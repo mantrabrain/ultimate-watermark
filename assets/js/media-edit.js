@@ -92,7 +92,6 @@
                         }
                     },
                     error: (xhr, status, error) => {
-                        console.error('Ultimate Watermark: AJAX error:', xhr, status, error);
                         this.hideLoadingStateAll($button);
                         this.showErrorStateAll();
                         UWNotifications.error('Error', ultimate_watermark_media_edit.strings.error);

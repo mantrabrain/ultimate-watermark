@@ -366,7 +366,6 @@
                     }
                 },
                 error: (xhr, status, error) => {
-                    console.error('Ultimate Watermark: AJAX error:', xhr, status, error);
                     this.hideProcessingIndicator();
                     const actionText = isRemoveAction ? 'remove watermark' : 'apply watermark';
                     UWNotifications.error('Error', `Failed to ${actionText}. Please try again.`);

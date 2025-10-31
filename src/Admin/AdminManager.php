@@ -71,6 +71,7 @@ class AdminManager
         add_action('wp_ajax_ultimate_watermark_save_settings', [$this, 'handleSaveSettings']);
         add_action('wp_ajax_ultimate_watermark_update_toggle_state', [$this, 'handleUpdateToggleState']);
         add_action('wp_ajax_ultimate_watermark_get_analytics_data', [$this, 'handleGetAnalyticsData']);
+        add_action('wp_ajax_ultimate_watermark_get_paginated_backups', [$this, 'handleGetPaginatedBackups']);
         // Remove asset enqueuing from here - let AssetManager handle it
     }
 
@@ -534,6 +535,7 @@ class AdminManager
             // Localize script for AJAX
             wp_localize_script('ultimate-watermark-backup-page', 'ultimateWatermarkBackup', [
                 'ajaxurl' => admin_url('admin-ajax.php'),
+                'adminUrl' => admin_url(),
                 'nonce' => wp_create_nonce('ultimate_watermark_backup_nonce'),
                 'mediaLibraryUrl' => admin_url('upload.php')
             ]);
@@ -696,6 +698,33 @@ class AdminManager
         }
 
         wp_send_json_success($data);
+    }
+
+    /**
+     * Handle AJAX request for paginated backups
+     */
+    public function handleGetPaginatedBackups(): void
+    {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_backup_nonce')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+            return;
+        }
+
+        // Check permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Insufficient permissions.']);
+            return;
+        }
+
+        // Get pagination parameters
+        $page = isset($_POST['page']) ? max(1, intval($_POST['page'])) : 1;
+        $per_page = isset($_POST['per_page']) ? max(1, intval($_POST['per_page'])) : 10;
+
+        // Get paginated backups
+        $result = \MantraBrain\UltimateWatermark\Utils\BackupManager::getPaginatedBackups($page, $per_page);
+
+        wp_send_json_success($result);
     }
 
     /**
@@ -930,6 +959,7 @@ class AdminManager
     private function getWatermarkUsageForTimeframe(int $watermark_id, int $days, int $offsetStart = 0): int
     {
         global $wpdb;
+        // First, get candidate attachment IDs watermarked in the date window
         $likes = [];
         $params = [];
         for ($i = 0; $i < $days; $i++) {
@@ -939,14 +969,22 @@ class AdminManager
             $params[] = '%"' . $wpdb->esc_like($d) . '"%';
         }
         $where_dates = implode(' OR ', $likes);
-        $sql = "SELECT COUNT(DISTINCT p.ID)
-                FROM {$wpdb->posts} p
-                INNER JOIN {$wpdb->postmeta} pm_aw ON pm_aw.post_id = p.ID AND pm_aw.meta_key='applied_watermarks' AND pm_aw.meta_value LIKE %s
-                INNER JOIN {$wpdb->postmeta} pm_dates ON pm_dates.post_id = p.ID AND pm_dates.meta_key='watermark_application_dates'
-                WHERE p.post_type='attachment' AND p.post_mime_type LIKE 'image/%' AND ($where_dates)";
-        array_unshift($params, '%"' . $watermark_id . '"%');
-        $count = $wpdb->get_var($wpdb->prepare($sql, $params));
-        return (int) $count;
+        $ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT p.ID
+             FROM {$wpdb->posts} p
+             INNER JOIN {$wpdb->postmeta} pm_dates ON pm_dates.post_id = p.ID AND pm_dates.meta_key='watermark_application_dates'
+             WHERE p.post_type='attachment' AND p.post_mime_type LIKE 'image/%' AND ($where_dates)",
+            $params
+        ));
+        if (empty($ids)) { return 0; }
+        $count = 0;
+        foreach ($ids as $aid) {
+            $applied = get_post_meta((int)$aid, 'applied_watermarks', true) ?: [];
+            if (is_array($applied) && in_array($watermark_id, $applied, true)) {
+                $count++;
+            }
+        }
+        return $count;
     }
 
     /**

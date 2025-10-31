@@ -20,7 +20,6 @@
             this.initTable();
             this.initModal();
             this.initForm();
-            this.testAjaxConnection();
         },
 
         /**
@@ -505,16 +504,12 @@
          */
         bulkDelete: function(e) {
             e.preventDefault();
-            console.log('Ultimate Watermark: Bulk delete clicked');
             
             const selectedIds = $('.watermark-checkbox:checked').map(function() {
                 return $(this).val();
             }).get();
             
-            console.log('Ultimate Watermark: Selected IDs:', selectedIds);
-            
             if (selectedIds.length === 0) {
-                console.log('Ultimate Watermark: No watermarks selected');
                 if (typeof UWNotifications !== 'undefined') {
                     UWNotifications.error('Error', 'Please select watermarks to delete.');
                 } else {
@@ -525,7 +520,6 @@
 
             // Check if UWNotifications is available
             if (typeof UWNotifications === 'undefined') {
-                console.error('Ultimate Watermark: UWNotifications not available, using fallback');
                 if (confirm(`Are you sure you want to delete ${selectedIds.length} watermark(s)? This action cannot be undone.`)) {
                     this.confirmBulkDelete(selectedIds);
                 }
@@ -655,7 +649,6 @@
          * Confirm and execute bulk delete
          */
         confirmBulkDelete: function(selectedIds) {
-            console.log('Ultimate Watermark: confirmBulkDelete called with IDs:', selectedIds);
             
             // Show loading state
             this.showBulkDeleteLoading();
@@ -667,8 +660,6 @@
                 nonce: ultimate_watermark_ajax.nonce
             };
             
-            console.log('Ultimate Watermark: AJAX data:', ajaxData);
-            console.log('Ultimate Watermark: AJAX URL:', ultimate_watermark_ajax.ajax_url);
             
             // Make AJAX request
             $.ajax({
@@ -676,7 +667,6 @@
                 type: 'POST',
                 data: ajaxData,
                 success: (response) => {
-                    console.log('Ultimate Watermark: AJAX success response:', response);
                     this.hideBulkDeleteLoading();
                     
                     if (response.success) {
@@ -697,7 +687,6 @@
                         // Update table count if needed
                         this.updateTableCount();
                     } else {
-                        console.error('Ultimate Watermark: AJAX error response:', response);
                         if (typeof UWNotifications !== 'undefined') {
                             UWNotifications.error('Error', response.data.message || 'Failed to delete watermarks');
                         } else {
@@ -706,7 +695,6 @@
                     }
                 },
                 error: (xhr, status, error) => {
-                    console.error('Ultimate Watermark: AJAX error:', error, xhr.responseText);
                     this.hideBulkDeleteLoading();
                     
                     if (typeof UWNotifications !== 'undefined') {
@@ -863,26 +851,6 @@
             $table.append(loadingOverlay);
         },
 
-        /**
-         * Test AJAX connection
-         */
-        testAjaxConnection: function() {
-            // Test AJAX connection silently
-            $.ajax({
-                url: ultimate_watermark_ajax.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'ultimate_watermark_test',
-                    nonce: ultimate_watermark_ajax.nonce
-                },
-                success: function(response) {
-                    // Connection successful
-                },
-                error: function(xhr, status, error) {
-                    // Connection failed - silently handle
-                }
-            });
-        },
 
         /**
          * Search watermarks

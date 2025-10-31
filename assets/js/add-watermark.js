@@ -118,7 +118,6 @@
             
             // Add change event listener for font style field
             $(document).on('change', '#watermark_font_style', function() {
-                console.log('Ultimate Watermark: Font style field changed to:', $(this).val());
                 AddWatermarkPage.debouncePreviewUpdate();
             });
             
@@ -277,8 +276,6 @@
             };
             
             // Debug: Log form values
-            console.log('Ultimate Watermark: Form values for conditional fields:', formValues);
-            console.log('Ultimate Watermark: Current watermark type:', formValues.watermark_type);
             
             
             // Check if conditional fields exist
@@ -295,8 +292,6 @@
                 
                 // Debug: Log conditional field processing
                 if (condition && condition.includes('watermark_type')) {
-                    console.log('Ultimate Watermark: Processing conditional field:', condition, 'Field:', $field);
-                    console.log('Ultimate Watermark: Field visibility before:', $field.is(':visible'));
                 }
                 
                 // Process conditional field logic here
@@ -312,12 +307,10 @@
                         if (currentValue === expectedValue) {
                             $field.removeClass('hidden');
                             if (condition.includes('watermark_type')) {
-                                console.log('Ultimate Watermark: Showing field for condition:', condition);
                             }
                         } else {
                             $field.addClass('hidden');
                             if (condition.includes('watermark_type')) {
-                                console.log('Ultimate Watermark: Hiding field for condition:', condition);
                             }
                         }
                     }
@@ -1048,7 +1041,6 @@
                 
                 // Debug: Log specific fields we're looking for
                 if (fieldName && (fieldName.includes('font_style') || fieldName.includes('text_decoration'))) {
-                    console.log('Ultimate Watermark: Found field:', fieldName, 'Value:', $field.val(), 'Type:', fieldType, 'Tag:', fieldTag, 'Visible:', $field.is(':visible'), 'Parent visible:', $field.closest('.form-section').is(':visible'), 'Has class hidden:', $field.hasClass('hidden'));
                 }
                 
                 if (!fieldName) return; // Skip fields without names
@@ -1098,11 +1090,6 @@
             });
             
             // Debug: Log form data to see what's being collected
-            console.log('Ultimate Watermark: Form data collected:', JSON.stringify(formData, null, 2));
-            
-            // Debug: Specifically check font style and text decoration fields
-            console.log('Ultimate Watermark: Font style field value:', formData.watermark_font_style);
-            console.log('Ultimate Watermark: Text decoration field value:', formData.watermark_text_decoration);
             
             return formData;
         },
@@ -1131,7 +1118,6 @@
          */
         updatePreviewStats: function(formData) {
             if (!formData) {
-                console.log('Ultimate Watermark: updatePreviewStats called without formData');
                 return;
             }
             $('#preview-position').text(this.formatPosition(formData.watermark_position));
