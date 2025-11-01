@@ -37,40 +37,40 @@ class WatermarkActionsHandler
     {
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_ajax')) {
-            wp_send_json_error('Invalid nonce');
+            wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
             return;
         }
 
         // Check capabilities
         if (!current_user_can('manage_options')) {
-            wp_send_json_error('Insufficient permissions');
+            wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')]);
             return;
         }
 
         $watermark_id = absint($_POST['watermark_id'] ?? 0);
         if (!$watermark_id) {
-            wp_send_json_error('Invalid watermark ID');
+            wp_send_json_error(['message' => __('Invalid watermark ID.', 'ultimate-watermark')]);
             return;
         }
 
         // Get original watermark
         $original_post = get_post($watermark_id);
         if (!$original_post || $original_post->post_type !== 'ultimate_watermark') {
-            wp_send_json_error('Watermark not found');
+            wp_send_json_error(['message' => __('Watermark not found.', 'ultimate-watermark')]);
             return;
         }
 
-        // Create duplicate
+        // Create duplicate - sanitize post data before insertion
         $duplicate_data = [
-            'post_title' => $original_post->post_title . ' (Copy)',
-            'post_content' => $original_post->post_content,
+            'post_title' => sanitize_text_field($original_post->post_title . ' (Copy)'),
+            'post_content' => wp_kses_post($original_post->post_content),
             'post_type' => 'ultimate_watermark',
             'post_status' => 'publish'
         ];
 
         $duplicate_id = wp_insert_post($duplicate_data);
         if (is_wp_error($duplicate_id)) {
-            wp_send_json_error('Failed to create duplicate');
+            wp_send_json_error(['message' => __('Failed to create duplicate.', 'ultimate-watermark')]);
             return;
         }
 
@@ -83,7 +83,7 @@ class WatermarkActionsHandler
         }
 
         wp_send_json_success([
-            'message' => 'Watermark duplicated successfully',
+            'message' => __('Watermark duplicated successfully', 'ultimate-watermark'),
             'duplicate_id' => $duplicate_id
         ]);
     }
@@ -93,37 +93,32 @@ class WatermarkActionsHandler
      */
     public function handleDelete(): void
     {
-        // Add debugging
-        error_log('Ultimate Watermark Delete - POST data: ' . print_r($_POST, true));
-        
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_ajax')) {
-            error_log('Ultimate Watermark Delete - Invalid nonce');
-            wp_send_json_error('Invalid nonce');
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark Delete - Invalid nonce');
+            }
+            wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
             return;
         }
 
         // Check capabilities
         if (!current_user_can('manage_options')) {
-            error_log('Ultimate Watermark Delete - Insufficient permissions');
-            wp_send_json_error('Insufficient permissions');
+            wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')]);
             return;
         }
 
         $watermark_id = absint($_POST['watermark_id'] ?? 0);
-        error_log('Ultimate Watermark Delete - Watermark ID: ' . $watermark_id);
         
         if (!$watermark_id) {
-            error_log('Ultimate Watermark Delete - Invalid watermark ID');
-            wp_send_json_error('Invalid watermark ID');
+            wp_send_json_error(['message' => __('Invalid watermark ID.', 'ultimate-watermark')]);
             return;
         }
 
         // Check if post exists
         $post = get_post($watermark_id);
         if (!$post) {
-            error_log('Ultimate Watermark Delete - Post not found');
-            wp_send_json_error('Watermark not found');
+            wp_send_json_error(['message' => __('Watermark not found.', 'ultimate-watermark')]);
             return;
         }
 
@@ -132,17 +127,16 @@ class WatermarkActionsHandler
         
         // Delete the watermark
         $result = wp_delete_post($watermark_id, true);
-        error_log('Ultimate Watermark Delete - Delete result: ' . print_r($result, true));
         
         if (!$result) {
-            error_log('Ultimate Watermark Delete - Failed to delete');
-            wp_send_json_error('Failed to delete watermark');
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark Delete - Failed to delete watermark ID: ' . $watermark_id);
+            }
+            wp_send_json_error(['message' => __('Failed to delete watermark.', 'ultimate-watermark')]);
             return;
         }
-
-        error_log('Ultimate Watermark Delete - Success');
         wp_send_json_success([
-            'message' => 'Watermark deleted successfully'
+            'message' => __('Watermark deleted successfully.', 'ultimate-watermark')
         ]);
     }
 
@@ -151,59 +145,50 @@ class WatermarkActionsHandler
      */
     public function handleToggle(): void
     {
-        // Add debugging
-        error_log('Ultimate Watermark Toggle - POST data: ' . print_r($_POST, true));
-        
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_ajax')) {
-            error_log('Ultimate Watermark Toggle - Invalid nonce');
-            wp_send_json_error('Invalid nonce');
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark Toggle - Invalid nonce');
+            }
+            wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
             return;
         }
 
         // Check capabilities
         if (!current_user_can('manage_options')) {
-            error_log('Ultimate Watermark Toggle - Insufficient permissions');
-            wp_send_json_error('Insufficient permissions');
+            wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')]);
             return;
         }
 
         $watermark_id = absint($_POST['watermark_id'] ?? 0);
         $status = sanitize_text_field($_POST['status'] ?? '');
         
-        error_log('Ultimate Watermark Toggle - Watermark ID: ' . $watermark_id);
-        error_log('Ultimate Watermark Toggle - Status: ' . $status);
-        
         if (!$watermark_id) {
-            error_log('Ultimate Watermark Toggle - Invalid watermark ID');
-            wp_send_json_error('Invalid watermark ID');
+            wp_send_json_error(['message' => __('Invalid watermark ID.', 'ultimate-watermark')]);
             return;
         }
         
         if (!in_array($status, ['active', 'inactive'])) {
-            error_log('Ultimate Watermark Toggle - Invalid status: ' . $status);
-            wp_send_json_error('Invalid status parameter');
+            wp_send_json_error(['message' => __('Invalid status parameter.', 'ultimate-watermark')]);
             return;
         }
 
         // Update watermark status - always use update_post_meta
         $meta_value = $status === 'active' ? '1' : '0';
         
-        error_log('Ultimate Watermark Toggle - Meta value: ' . $meta_value);
-        
         // Check if post exists and get its details
         $post = get_post($watermark_id);
         if (!$post) {
-            error_log('Ultimate Watermark Toggle - Post not found for ID: ' . $watermark_id);
-            wp_send_json_error('Watermark not found');
+            wp_send_json_error(['message' => __('Watermark not found.', 'ultimate-watermark')]);
             return;
         }
         
-        error_log('Ultimate Watermark Toggle - Post found: ' . $post->post_title . ' (Type: ' . $post->post_type . ')');
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Ultimate Watermark Toggle - Post found: ' . $post->post_title . ' (Type: ' . $post->post_type . ')');
+        }
         
         // Check existing meta value
         $existing_meta = get_post_meta($watermark_id, 'active', true);
-        error_log('Ultimate Watermark Toggle - Existing meta value: ' . var_export($existing_meta, true));
         
         // Try direct database update as last resort
         global $wpdb;
@@ -216,7 +201,9 @@ class WatermarkActionsHandler
             'active'
         ));
         
-        error_log('Ultimate Watermark Toggle - Existing meta ID: ' . ($existing ? $existing : 'NULL'));
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Ultimate Watermark Toggle - Existing meta ID: ' . ($existing ? $existing : 'NULL'));
+        }
         
         if ($existing) {
             // Update existing meta
@@ -227,7 +214,9 @@ class WatermarkActionsHandler
                 array('%s'),
                 array('%d', '%s')
             );
-            error_log('Ultimate Watermark Toggle - Direct update result: ' . ($result !== false ? 'SUCCESS' : 'FAILED'));
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark Toggle - Direct update result: ' . ($result !== false ? 'SUCCESS' : 'FAILED'));
+            }
         } else {
             // Insert new meta
             $result = $wpdb->insert(
@@ -239,20 +228,24 @@ class WatermarkActionsHandler
                 ),
                 array('%d', '%s', '%s')
             );
-            error_log('Ultimate Watermark Toggle - Direct insert result: ' . ($result !== false ? 'SUCCESS' : 'FAILED'));
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark Toggle - Direct insert result: ' . ($result !== false ? 'SUCCESS' : 'FAILED'));
+            }
         }
         
         // Convert to boolean for consistency
         $result = ($result !== false);
         
         if ($result === false) {
-            error_log('Ultimate Watermark Toggle - Failed to update meta');
-            wp_send_json_error('Failed to update watermark status');
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark Toggle - Failed to update meta for watermark ID: ' . $watermark_id);
+            }
+            wp_send_json_error(['message' => __('Failed to update watermark status.', 'ultimate-watermark')]);
             return;
         }
 
         wp_send_json_success([
-            'message' => 'Watermark status updated successfully',
+            'message' => __('Watermark status updated successfully.', 'ultimate-watermark'),
             'status' => $status
         ]);
     }
@@ -264,19 +257,19 @@ class WatermarkActionsHandler
     {
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_ajax')) {
-            wp_send_json_error('Invalid nonce');
+            wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
             return;
         }
 
         // Check capabilities
         if (!current_user_can('manage_options')) {
-            wp_send_json_error('Insufficient permissions');
+            wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')]);
             return;
         }
 
         $watermark_ids = array_map('absint', $_POST['watermark_ids'] ?? []);
         if (empty($watermark_ids)) {
-            wp_send_json_error('No watermarks selected');
+            wp_send_json_error(['message' => __('No watermarks selected.', 'ultimate-watermark')]);
             return;
         }
 
@@ -320,19 +313,19 @@ class WatermarkActionsHandler
     {
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_ajax')) {
-            wp_send_json_error('Invalid nonce');
+            wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
             return;
         }
 
         // Check capabilities
         if (!current_user_can('manage_options')) {
-            wp_send_json_error('Insufficient permissions');
+            wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')]);
             return;
         }
 
         $watermark_ids = array_map('absint', $watermark_ids);
         if (empty($watermark_ids)) {
-            wp_send_json_error('No watermarks selected');
+            wp_send_json_error(['message' => __('No watermarks selected.', 'ultimate-watermark')]);
             return;
         }
 

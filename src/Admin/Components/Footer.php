@@ -30,13 +30,13 @@ class Footer
                     </div>
                     
                     <div class="footer-links">
-                        <a href="https://mantrabrain.com" target="_blank" class="footer-link">
+                        <a href="<?php echo esc_url('https://mantrabrain.com'); ?>" target="_blank" rel="noopener noreferrer" class="footer-link">
                             <?php esc_html_e('MantraBrain', 'ultimate-watermark'); ?>
                         </a>
-                        <a href="https://mantrabrain.com/support" target="_blank" class="footer-link">
+                        <a href="<?php echo esc_url('https://mantrabrain.com/support'); ?>" target="_blank" rel="noopener noreferrer" class="footer-link">
                             <?php esc_html_e('Support', 'ultimate-watermark'); ?>
                         </a>
-                        <a href="https://mantrabrain.com/docs" target="_blank" class="footer-link">
+                        <a href="<?php echo esc_url('https://mantrabrain.com/docs'); ?>" target="_blank" rel="noopener noreferrer" class="footer-link">
                             <?php esc_html_e('Documentation', 'ultimate-watermark'); ?>
                         </a>
                     </div>

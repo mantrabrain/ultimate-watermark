@@ -79,7 +79,7 @@ class WatermarkPage
                         <input type="submit" id="doaction" class="button action" value="<?php esc_attr_e('Apply', 'ultimate-watermark'); ?>">
                     </div>
                     <div class="tablenav-pages">
-                        <span class="displaying-num"><?php echo count($this->getWatermarks()); ?> <?php esc_html_e('items', 'ultimate-watermark'); ?></span>
+                        <span class="displaying-num"><?php echo esc_html(count($this->getWatermarks())); ?> <?php esc_html_e('items', 'ultimate-watermark'); ?></span>
                     </div>
                 </div>
 
@@ -121,7 +121,7 @@ class WatermarkPage
                         <input type="submit" id="doaction2" class="button action" value="<?php esc_attr_e('Apply', 'ultimate-watermark'); ?>">
                     </div>
                     <div class="tablenav-pages">
-                        <span class="displaying-num"><?php echo count($this->getWatermarks()); ?> <?php esc_html_e('items', 'ultimate-watermark'); ?></span>
+                        <span class="displaying-num"><?php echo esc_html(count($this->getWatermarks())); ?> <?php esc_html_e('items', 'ultimate-watermark'); ?></span>
                     </div>
                 </div>
 
@@ -504,8 +504,6 @@ class WatermarkPage
             $active_meta = $post_meta['active'] ?? false;
             $active = ($active_meta === '1' || $active_meta === 'true' || $active_meta === true);
             
-            // Debug logging
-            // Watermark active status checked
             
             $watermarks[] = [
                 'id' => $post->ID,
@@ -641,7 +639,6 @@ class WatermarkPage
      */
     private function getWatermarkPreviewUrl(int $watermark_id, string $watermark_type, int $watermark_image_id = 0): string
     {
-        // Debug logging
         // Check if we have a cached preview
         $cached_preview = get_post_meta($watermark_id, 'preview_url', true);
         if ($cached_preview && file_exists(str_replace(wp_upload_dir()['baseurl'], wp_upload_dir()['basedir'], $cached_preview))) {
@@ -716,10 +713,10 @@ class WatermarkPage
             'preview_mode' => true
         ];
 
-        // Generate preview using WatermarkManager
+        // Generate preview using WatermarkService
         try {
-            if (class_exists('MantraBrain\UltimateWatermark\Watermark\WatermarkManager')) {
-                $preview_result = \MantraBrain\UltimateWatermark\Watermark\WatermarkManager::generatePreview($base_image_path, $watermark_data);
+            if (class_exists('MantraBrain\UltimateWatermark\Watermark\WatermarkService')) {
+                $preview_result = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::generatePreview($base_image_path, $watermark_data);
                 if ($preview_result && file_exists($preview_result)) {
                     // Copy to our preview directory
                     if (copy($preview_result, $preview_path)) {

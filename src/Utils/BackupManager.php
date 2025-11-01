@@ -658,10 +658,21 @@ class BackupManager
         $backups = self::getAttachmentBackups($attachment_id);
         
         $deleted = 0;
+        $upload_dir = wp_upload_dir();
+        $allowed_base = $upload_dir['basedir'];
+        
         foreach ($backups as $backup) {
-            if (unlink($backup['path'])) {
-                $deleted++;
-            } else {
+            $backup_path = $backup['path'];
+            
+            // Security: Validate path to prevent directory traversal
+            if (!empty($backup_path) && strpos($backup_path, $allowed_base) === 0) {
+                // Path is within allowed uploads directory
+                $normalized_path = wp_normalize_path($backup_path);
+                if (file_exists($normalized_path) && is_file($normalized_path)) {
+                    if (unlink($normalized_path)) {
+                        $deleted++;
+                    }
+                }
             }
         }
         
@@ -772,18 +783,19 @@ class BackupManager
         ];
         
         // Get attachments with backup meta
-        $backup_attachments = $wpdb->get_results("
+        // Use prepare for security best practices even with static values
+        $backup_attachments = $wpdb->get_results($wpdb->prepare("
             SELECT p.ID, p.post_title, pm.meta_value as backup_path, pm2.meta_value as backup_created
             FROM {$wpdb->posts} p
             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
             INNER JOIN {$wpdb->postmeta} pm2 ON p.ID = pm2.post_id
-            WHERE p.post_type = 'attachment'
-            AND p.post_mime_type LIKE 'image/%'
-            AND pm.meta_key = '_ultimate_watermark_backup_path'
-            AND pm2.meta_key = '_ultimate_watermark_backup_created'
+            WHERE p.post_type = %s
+            AND p.post_mime_type LIKE %s
+            AND pm.meta_key = %s
+            AND pm2.meta_key = %s
             ORDER BY pm2.meta_value DESC
             LIMIT 10
-        ");
+        ", 'attachment', 'image/%', '_ultimate_watermark_backup_path', '_ultimate_watermark_backup_created'));
         
         
         
@@ -1072,12 +1084,20 @@ class BackupManager
         $deleted_count = 0;
         $total_count = count($backup_files);
         
+        $upload_dir = wp_upload_dir();
+        $allowed_base = $upload_dir['basedir'];
+        
         foreach ($backup_files as $backup) {
-            $backup_path = $backup['path'];
-            if (file_exists($backup_path)) {
-                if (unlink($backup_path)) {
-                    $deleted_count++;
-                } else {
+            $backup_path = $backup['path'] ?? '';
+            
+            // Security: Validate path to prevent directory traversal
+            if (!empty($backup_path) && strpos($backup_path, $allowed_base) === 0) {
+                // Path is within allowed uploads directory
+                $normalized_path = wp_normalize_path($backup_path);
+                if (file_exists($normalized_path) && is_file($normalized_path)) {
+                    if (unlink($normalized_path)) {
+                        $deleted_count++;
+                    }
                 }
             }
         }

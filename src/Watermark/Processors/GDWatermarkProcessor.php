@@ -63,8 +63,10 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         if (file_exists($previewDir)) {
             $existingFiles = glob($previewDir . '/watermark_preview_*.png');
             foreach ($existingFiles as $file) {
-                if (file_exists($file)) {
-                    unlink($file);
+                // Security: Validate path to prevent directory traversal
+                $normalized_file = wp_normalize_path($file);
+                if (strpos($normalized_file, $previewDir) === 0 && file_exists($normalized_file) && is_file($normalized_file)) {
+                    unlink($normalized_file);
                 }
             }
         }

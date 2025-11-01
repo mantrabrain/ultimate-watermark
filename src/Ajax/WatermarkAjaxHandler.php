@@ -61,7 +61,10 @@ class WatermarkAjaxHandler
                 wp_send_json_error(['message' => __('Failed to save watermark.', 'ultimate-watermark')]);
             }
         } catch (\Exception $e) {
-            wp_send_json_error(['message' => $e->getMessage()]);
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark Save Error: ' . $e->getMessage());
+            }
+            wp_send_json_error(['message' => __('Failed to save watermark. Please try again.', 'ultimate-watermark')]);
         }
     }
 

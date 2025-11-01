@@ -469,13 +469,13 @@ class MediaEditIntegration
     {
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_media_edit')) {
-            wp_send_json_error('Invalid nonce');
+            wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
             return;
         }
 
         // Check capabilities
         if (!current_user_can('upload_files')) {
-            wp_send_json_error('Insufficient permissions');
+            wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')]);
             return;
         }
 
@@ -483,20 +483,20 @@ class MediaEditIntegration
         $watermark_id = absint($_POST['watermark_id'] ?? 0);
 
         if (!$attachment_id || !$watermark_id) {
-            wp_send_json_error('Invalid attachment or watermark ID');
+            wp_send_json_error(['message' => __('Invalid attachment or watermark ID.', 'ultimate-watermark')]);
             return;
         }
 
         // Check if attachment is an image
         if (!wp_attachment_is_image($attachment_id)) {
-            wp_send_json_error('Attachment is not an image');
+            wp_send_json_error(['message' => __('Attachment is not an image.', 'ultimate-watermark')]);
             return;
         }
 
         // Check if watermark is actually applied to this image
         $applied_watermarks = WatermarkUsageTracker::getAppliedWatermarks($attachment_id);
         if (!in_array($watermark_id, $applied_watermarks)) {
-            wp_send_json_error('Watermark is not applied to this image');
+            wp_send_json_error(['message' => __('Watermark is not applied to this image.', 'ultimate-watermark')]);
             return;
         }
 
@@ -505,12 +505,12 @@ class MediaEditIntegration
 
         if ($success) {
             wp_send_json_success([
-                'message' => 'Watermark removed successfully',
+                'message' => __('Watermark removed successfully.', 'ultimate-watermark'),
                 'watermark_id' => $watermark_id,
                 'attachment_id' => $attachment_id
             ]);
         } else {
-            wp_send_json_error('Failed to remove watermark. Backup file may not exist.');
+            wp_send_json_error(['message' => __('Failed to remove watermark. Backup file may not exist.', 'ultimate-watermark')]);
         }
     }
 
@@ -552,26 +552,26 @@ class MediaEditIntegration
     {
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_media_edit')) {
-            wp_send_json_error('Invalid nonce');
+            wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
             return;
         }
 
         // Check capabilities
         if (!current_user_can('upload_files')) {
-            wp_send_json_error('Insufficient permissions');
+            wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')]);
             return;
         }
 
         $attachment_id = absint($_POST['attachment_id'] ?? 0);
 
         if (!$attachment_id) {
-            wp_send_json_error('Invalid attachment ID');
+            wp_send_json_error(['message' => __('Invalid attachment ID.', 'ultimate-watermark')]);
             return;
         }
 
         // Check if attachment is an image
         if (!wp_attachment_is_image($attachment_id)) {
-            wp_send_json_error('Attachment is not an image');
+            wp_send_json_error(['message' => __('Attachment is not an image.', 'ultimate-watermark')]);
             return;
         }
 
@@ -579,7 +579,7 @@ class MediaEditIntegration
         $applied_watermarks = WatermarkUsageTracker::getAppliedWatermarks($attachment_id);
         
         if (empty($applied_watermarks)) {
-            wp_send_json_error('No watermarks applied to this image');
+            wp_send_json_error(['message' => __('No watermarks applied to this image.', 'ultimate-watermark')]);
             return;
         }
 
@@ -588,12 +588,12 @@ class MediaEditIntegration
 
         if ($success) {
             wp_send_json_success([
-                'message' => 'All watermarks removed successfully',
+                'message' => __('All watermarks removed successfully.', 'ultimate-watermark'),
                 'attachment_id' => $attachment_id,
                 'removed_count' => count($applied_watermarks)
             ]);
         } else {
-            wp_send_json_error('Failed to remove watermarks. Backup file may not exist.');
+            wp_send_json_error(['message' => __('Failed to remove watermarks. Backup file may not exist.', 'ultimate-watermark')]);
         }
     }
 

@@ -153,8 +153,6 @@ class WatermarkHelper
     public static function getActiveAutomaticWatermarks(string $context = 'upload', ?int $post_id = null, string $image_size = 'full'): array
     {
         $all_active = self::getActiveWatermarks();
-       // echo '<pre>';
-        //print_r($all_active);exit;
         
         // First filter by behavior (automatic watermarking)
         $automatic_watermarks = array_filter($all_active, function($watermark) {

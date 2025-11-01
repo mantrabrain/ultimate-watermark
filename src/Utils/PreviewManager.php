@@ -42,12 +42,17 @@ class PreviewManager
             });
         }
         
+        $upload_dir = wp_upload_dir();
+        $allowed_base = $upload_dir['basedir'] . '/ultimate-watermark';
+        
         foreach ($allFiles as $file) {
-            if (file_exists($file)) {
+            // Security: Validate path to prevent directory traversal
+            $normalized_file = wp_normalize_path($file);
+            if (strpos($normalized_file, $allowed_base) === 0 && file_exists($normalized_file) && is_file($normalized_file)) {
                 // Delete file if it's older than 1 hour or if we're cleaning specific watermark
-                $fileAge = time() - filemtime($file);
+                $fileAge = time() - filemtime($normalized_file);
                 if ($fileAge > 3600 || $watermark_id !== null) { // 1 hour or specific watermark
-                    if (unlink($file)) {
+                    if (unlink($normalized_file)) {
                         $cleanedCount++;
                     }
                 }

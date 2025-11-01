@@ -2,7 +2,7 @@
 
 namespace MantraBrain\UltimateWatermark\Ajax;
 
-use MantraBrain\UltimateWatermark\Watermark\WatermarkManager;
+use MantraBrain\UltimateWatermark\Watermark\WatermarkService;
 use MantraBrain\UltimateWatermark\Watermark\LibraryDetector;
 
 /**
@@ -14,10 +14,10 @@ class WatermarkPreviewHandler
 {
     public function __construct()
     {
+        // Admin-only endpoints - removed wp_ajax_nopriv for security
+        // These endpoints require manage_options capability, so they should only be accessible to logged-in admins
         add_action('wp_ajax_ultimate_watermark_generate_preview', [$this, 'handleGeneratePreview']);
-        add_action('wp_ajax_nopriv_ultimate_watermark_generate_preview', [$this, 'handleGeneratePreview']);
         add_action('wp_ajax_ultimate_watermark_get_library_status', [$this, 'handleGetLibraryStatus']);
-        add_action('wp_ajax_nopriv_ultimate_watermark_get_library_status', [$this, 'handleGetLibraryStatus']);
     }
 
     /**
@@ -27,40 +27,50 @@ class WatermarkPreviewHandler
     {
         // Check if nonce exists
         if (empty($_POST['nonce'])) {
-            wp_send_json_error('No nonce provided');
+            wp_send_json_error(['message' => __('No nonce provided.', 'ultimate-watermark')]);
             return;
         }
         
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'], 'ultimate_watermark_ajax')) {
-            wp_send_json_error('Invalid nonce');
+            wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
             return;
         }
 
         // Check capabilities
         if (!current_user_can('manage_options')) {
-            wp_send_json_error('Insufficient permissions');
+            wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')]);
             return;
         }
 
         // Check if watermarking is available
-        if (!WatermarkManager::isAvailable()) {
-            wp_send_json_error('No image processing library available. Please install GD or Imagick extension.');
+        if (!WatermarkService::isAvailable()) {
+            wp_send_json_error(['message' => __('No image processing library available. Please install GD or Imagick extension.', 'ultimate-watermark')]);
             return;
         }
 
-        // Get watermark data from POST (WatermarkService will handle sanitization)
-        $watermarkData = $_POST;
-        error_log("Ultimate Watermark: AJAX raw data: " . print_r($watermarkData, true));
+        // Get and sanitize watermark data from POST
+        $watermarkData = [];
+        foreach ($_POST as $key => $value) {
+            if ($key !== 'nonce' && $key !== 'action') {
+                if (is_array($value)) {
+                    $watermarkData[$key] = array_map('sanitize_text_field', $value);
+                } else {
+                    $watermarkData[$key] = sanitize_text_field($value);
+                }
+            }
+        }
         
         // Get source image path
         $sourceImagePath = $this->getSourceImagePath();
         if (!$sourceImagePath) {
-            wp_send_json_error('Source image not found');
+            wp_send_json_error(['message' => __('Source image not found.', 'ultimate-watermark')]);
             return;
         }
         
-        error_log("Ultimate Watermark: Source image path: " . $sourceImagePath);
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Ultimate Watermark: Source image path: ' . $sourceImagePath);
+        }
 
         try {
             // Clean up any existing preview images before generating new one
@@ -87,16 +97,19 @@ class WatermarkPreviewHandler
                         'preview_url' => $previewUrl,
                         'preview_path' => $previewPath,
                         'library_used' => \MantraBrain\UltimateWatermark\Watermark\WatermarkService::getCurrentLibrary(),
-                        'message' => 'Preview generated successfully'
+                        'message' => __('Preview generated successfully.', 'ultimate-watermark')
                     ]);
                 } else {
-                    wp_send_json_error('Preview file not found');
+                    wp_send_json_error(['message' => __('Preview file not found.', 'ultimate-watermark')]);
                 }
             } else {
-                wp_send_json_error('Failed to generate preview');
+                wp_send_json_error(['message' => __('Failed to generate preview.', 'ultimate-watermark')]);
             }
         } catch (\Exception $e) {
-            wp_send_json_error('Preview generation failed: ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark Preview Error: ' . $e->getMessage());
+            }
+            wp_send_json_error(['message' => __('Preview generation failed.', 'ultimate-watermark')]);
         }
     }
 
@@ -108,13 +121,13 @@ class WatermarkPreviewHandler
     {
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_ajax')) {
-            wp_send_json_error('Invalid nonce');
+            wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
             return;
         }
 
         // Check capabilities
         if (!current_user_can('manage_options')) {
-            wp_send_json_error('Insufficient permissions');
+            wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')]);
             return;
         }
 
@@ -212,9 +225,14 @@ class WatermarkPreviewHandler
         
         $allFiles = array_merge($previewFiles, $watermarkPreviewFiles, $previewSourceFiles);
         
+        $upload_dir = wp_upload_dir();
+        $allowed_base = $upload_dir['basedir'] . '/ultimate-watermark';
+        
         foreach ($allFiles as $file) {
-            if (file_exists($file)) {
-                unlink($file);
+            // Security: Validate path to prevent directory traversal
+            $normalized_file = wp_normalize_path($file);
+            if (strpos($normalized_file, $allowed_base) === 0 && file_exists($normalized_file) && is_file($normalized_file)) {
+                unlink($normalized_file);
             }
         }
     }

@@ -276,9 +276,9 @@ class AdminManager
         $deleted = \MantraBrain\UltimateWatermark\Utils\BackupManager::deleteAttachmentBackups($attachment_id);
         
         if ($deleted) {
-            wp_send_json_success(['message' => 'Backup deleted successfully.']);
+            wp_send_json_success(['message' => __('Backup deleted successfully.', 'ultimate-watermark')]);
         } else {
-            wp_send_json_error(['message' => 'Failed to delete backup.']);
+            wp_send_json_error(['message' => __('Failed to delete backup.', 'ultimate-watermark')]);
         }
     }
 
@@ -330,7 +330,7 @@ class AdminManager
             
             wp_send_json_success(['message' => $message]);
         } else {
-            wp_send_json_error(['message' => 'Failed to restore image from backup.']);
+            wp_send_json_error(['message' => __('Failed to restore image from backup.', 'ultimate-watermark')]);
         }
     }
 
@@ -352,30 +352,35 @@ class AdminManager
         }
 
         // Be flexible: accept JSON array or comma-separated list. Account for added slashes.
-        $raw_ids = $_POST['attachment_ids'] ?? '';
+        // Sanitize input before processing
+        $raw_ids = isset($_POST['attachment_ids']) ? $_POST['attachment_ids'] : '';
         if (is_string($raw_ids)) {
-            $raw_ids_trim = trim((string) $raw_ids);
+            // Sanitize string input
+            $raw_ids = sanitize_text_field($raw_ids);
+            $raw_ids_trim = trim($raw_ids);
             $raw_ids_trim = function_exists('wp_unslash') ? wp_unslash($raw_ids_trim) : $raw_ids_trim;
             if ($raw_ids_trim !== '' && $raw_ids_trim[0] === '[') {
-                $attachment_ids = json_decode($raw_ids_trim, true);
-                if (!is_array($attachment_ids)) {
+                // Validate JSON before decoding to prevent errors
+                $decoded = json_decode($raw_ids_trim, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $attachment_ids = array_map('absint', $decoded);
+                } else {
                     // Fallback: extract digits from a bracketed string like ["59","58"]
                     preg_match_all('/\\d+/', $raw_ids_trim, $m);
-                    $attachment_ids = isset($m[0]) ? array_map('intval', $m[0]) : [];
+                    $attachment_ids = isset($m[0]) ? array_map('absint', $m[0]) : [];
                 }
             } else {
-                $attachment_ids = array_filter(array_map('intval', array_map('trim', explode(',', $raw_ids_trim))));
+                $attachment_ids = array_filter(array_map('absint', array_map('trim', explode(',', $raw_ids_trim))));
             }
         } elseif (is_array($raw_ids)) {
-            $attachment_ids = array_map('intval', $raw_ids);
+            $attachment_ids = array_map('absint', $raw_ids);
         } else {
             $attachment_ids = [];
         }
 
         // Server-side log to help diagnose if needed
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark: Bulk delete raw ids: ' . print_r($raw_ids, true));
-            error_log('Ultimate Watermark: Bulk delete parsed ids: ' . print_r($attachment_ids, true));
+            error_log('Ultimate Watermark: Bulk delete - ' . count($attachment_ids) . ' attachment(s) selected');
         }
 
         // Normalize IDs
@@ -417,7 +422,7 @@ class AdminManager
             }
             wp_send_json_success(['message' => $message]);
         } else {
-            wp_send_json_error(['message' => 'Failed to restore any images from backup.']);
+            wp_send_json_error(['message' => __('Failed to restore any images from backup.', 'ultimate-watermark')]);
         }
     }
 
@@ -439,28 +444,33 @@ class AdminManager
         }
 
         // Accept either array (attachment_ids[]) or JSON/comma-separated
-        $raw_ids = $_POST['attachment_ids'] ?? ($_POST['attachment_ids'] ?? '');
+        // Sanitize input before processing
+        $raw_ids = isset($_POST['attachment_ids']) ? $_POST['attachment_ids'] : '';
         if (is_array($raw_ids)) {
-            $attachment_ids = array_map('intval', $raw_ids);
+            $attachment_ids = array_map('absint', $raw_ids);
         } else {
-            $raw_ids_trim = trim((string) $raw_ids);
+            // Sanitize string input
+            $raw_ids = sanitize_text_field($raw_ids);
+            $raw_ids_trim = trim($raw_ids);
             $raw_ids_trim = function_exists('wp_unslash') ? wp_unslash($raw_ids_trim) : $raw_ids_trim;
             if ($raw_ids_trim !== '' && $raw_ids_trim[0] === '[') {
-                $attachment_ids = json_decode($raw_ids_trim, true);
-                if (!is_array($attachment_ids)) {
+                // Validate JSON before decoding to prevent errors
+                $decoded = json_decode($raw_ids_trim, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $attachment_ids = array_map('absint', $decoded);
+                } else {
                     preg_match_all('/\\d+/', $raw_ids_trim, $m);
-                    $attachment_ids = isset($m[0]) ? array_map('intval', $m[0]) : [];
+                    $attachment_ids = isset($m[0]) ? array_map('absint', $m[0]) : [];
                 }
             } else {
-                $attachment_ids = array_filter(array_map('intval', array_map('trim', explode(',', $raw_ids_trim))));
+                $attachment_ids = array_filter(array_map('absint', array_map('trim', explode(',', $raw_ids_trim))));
             }
         }
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark: Bulk delete raw ids: ' . print_r($raw_ids, true));
-            error_log('Ultimate Watermark: Bulk delete parsed ids: ' . print_r($attachment_ids, true));
+            error_log('Ultimate Watermark: Bulk delete - ' . count($attachment_ids) . ' attachment(s) selected');
         }
-
+        
         if (is_array($attachment_ids)) {
             $attachment_ids = array_values(array_unique(array_filter(array_map('intval', $attachment_ids), function($v){ return $v > 0; })));
         }
@@ -492,7 +502,7 @@ class AdminManager
             }
             wp_send_json_success(['message' => $message]);
         } else {
-            wp_send_json_error(['message' => 'Failed to delete any backups.']);
+            wp_send_json_error(['message' => __('Failed to delete any backups.', 'ultimate-watermark')]);
         }
     }
 
@@ -560,12 +570,23 @@ class AdminManager
         try {
             // Verify nonce
             if (!wp_verify_nonce($_POST['nonce'], 'ultimate_watermark_settings')) {
-                wp_send_json_error(['message' => 'Security check failed']);
+                wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
                 return;
             }
 
-            // Get form data directly (it's already an array)
-            $form_data = $_POST['form_data'];
+            // Get and sanitize form data
+            if (!isset($_POST['form_data']) || !is_array($_POST['form_data'])) {
+                wp_send_json_error(['message' => __('Invalid form data.', 'ultimate-watermark')]);
+                return;
+            }
+            
+            // Sanitize form data array
+            $form_data = array_map(function($value) {
+                if (is_array($value)) {
+                    return array_map('sanitize_text_field', $value);
+                }
+                return sanitize_text_field($value);
+            }, $_POST['form_data']);
             
             // Get settings page instance to access configuration
             $settings_page = \MantraBrain\UltimateWatermark\Admin\Pages\SettingsPage::getInstance();
@@ -619,7 +640,7 @@ class AdminManager
             );
             
             if ($db_result === false) {
-                wp_send_json_error(['message' => 'Failed to save settings to database']);
+                wp_send_json_error(['message' => __('Failed to save settings to database.', 'ultimate-watermark')]);
                 return;
             }
             
@@ -627,10 +648,13 @@ class AdminManager
             wp_cache_flush();
             wp_cache_delete('ultimate_watermark_options', 'options');
             
-            wp_send_json_success(['message' => 'Settings saved successfully']);
+            wp_send_json_success(['message' => __('Settings saved successfully.', 'ultimate-watermark')]);
             
         } catch (\Exception $e) {
-            wp_send_json_error(['message' => 'An error occurred while saving settings']);
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark Settings Error: ' . $e->getMessage());
+            }
+            wp_send_json_error(['message' => __('An error occurred while saving settings.', 'ultimate-watermark')]);
         }
     }
 
@@ -650,7 +674,11 @@ class AdminManager
         }
 
         // Get enabled state
-        $enabled = $_POST['enabled'] ?? '0';
+        // Sanitize enabled value (must be '0' or '1')
+        $enabled = sanitize_text_field($_POST['enabled'] ?? '0');
+        if (!in_array($enabled, ['0', '1'], true)) {
+            $enabled = '0';
+        }
 
         // Store in WordPress option
         update_option('ultimate_watermark_auto_apply_toggle', $enabled);
@@ -676,8 +704,12 @@ class AdminManager
             wp_die('Insufficient permissions');
         }
 
-        // Get timeframe
-        $timeframe = $_POST['timeframe'] ?? '30';
+        // Sanitize and validate timeframe
+        $timeframe = sanitize_text_field($_POST['timeframe'] ?? '30');
+        $valid_timeframes = ['today', 'yesterday', '7', '30', '90', '365'];
+        if (!in_array($timeframe, $valid_timeframes, true) && !is_numeric($timeframe)) {
+            $timeframe = '30';
+        }
         $offsetStart = ($timeframe === 'yesterday') ? 1 : 0;
         $days = ($timeframe === 'today' || $timeframe === 'yesterday') ? 1 : (int) $timeframe;
 
@@ -717,9 +749,9 @@ class AdminManager
             return;
         }
 
-        // Get pagination parameters
-        $page = isset($_POST['page']) ? max(1, intval($_POST['page'])) : 1;
-        $per_page = isset($_POST['per_page']) ? max(1, intval($_POST['per_page'])) : 10;
+        // Sanitize pagination parameters
+        $page = isset($_POST['page']) ? max(1, absint($_POST['page'])) : 1;
+        $per_page = isset($_POST['per_page']) ? max(1, min(100, absint($_POST['per_page']))) : 10;
 
         // Get paginated backups
         $result = \MantraBrain\UltimateWatermark\Utils\BackupManager::getPaginatedBackups($page, $per_page);

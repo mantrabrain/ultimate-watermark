@@ -24,12 +24,25 @@ class ConfirmationModal
      */
     public static function render(
         string $id = 'confirmation-modal',
-        string $title = 'Confirm Action',
-        string $message = 'Are you sure you want to proceed?',
-        string $confirmText = 'Confirm',
-        string $cancelText = 'Cancel',
+        string $title = '',
+        string $message = '',
+        string $confirmText = '',
+        string $cancelText = '',
         string $confirmClass = 'btn-danger'
     ): void {
+        // Set defaults with translations if not provided
+        if (empty($title)) {
+            $title = __('Confirm Action', 'ultimate-watermark');
+        }
+        if (empty($message)) {
+            $message = __('Are you sure you want to proceed?', 'ultimate-watermark');
+        }
+        if (empty($confirmText)) {
+            $confirmText = __('Confirm', 'ultimate-watermark');
+        }
+        if (empty($cancelText)) {
+            $cancelText = __('Cancel', 'ultimate-watermark');
+        }
         ?>
         <div id="<?php echo esc_attr($id); ?>" class="confirmation-modal" style="display: none;">
             <div class="modal-overlay"></div>

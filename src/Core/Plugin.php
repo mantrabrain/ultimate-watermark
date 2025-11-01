@@ -31,7 +31,7 @@ class Plugin implements PluginInterface
      *
      * @var string
      */
-    public const VERSION = '2.0.0';
+    public const VERSION = ULTIMATE_WATERMARK_VERSION;
 
     /**
      * Plugin directory path

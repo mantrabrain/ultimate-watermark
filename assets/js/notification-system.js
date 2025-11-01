@@ -14,6 +14,20 @@ class NotificationSystem {
         this.init();
     }
 
+    /**
+     * Escape HTML to prevent XSS attacks
+     * @param {string} text - Text to escape
+     * @returns {string} Escaped HTML
+     */
+    escapeHtml(text) {
+        if (typeof text !== 'string') {
+            return '';
+        }
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
     init() {
         this.createToastContainer();
         this.createModalContainer();
@@ -308,13 +322,14 @@ class NotificationSystem {
         // Allow custom icon override
         const icon = options.icon || iconMap[type] || iconMap.info;
         
+        // Security: Escape HTML to prevent XSS
         toast.innerHTML = `
             <div class="uw-toast-icon">
-                <span class="dashicons ${icon}"></span>
+                <span class="dashicons ${this.escapeHtml(icon)}"></span>
             </div>
             <div class="uw-toast-content">
-                <div class="uw-toast-title">${title}</div>
-                <div class="uw-toast-message">${message}</div>
+                <div class="uw-toast-title">${this.escapeHtml(title)}</div>
+                <div class="uw-toast-message">${this.escapeHtml(message)}</div>
             </div>
             <button class="uw-toast-close" onclick="this.parentElement.remove()">
                 <span class="dashicons dashicons-dismiss"></span>
@@ -406,39 +421,40 @@ class NotificationSystem {
                 info: 'dashicons-info'
             };
 
-            // Build buttons HTML
+            // Build buttons HTML - Security: Escape HTML to prevent XSS
             let buttonsHTML = `
                 <button class="uw-modal-btn uw-modal-btn-secondary" data-action="cancel">
                     <span class="dashicons dashicons-no-alt"></span>
-                    ${cancelText}
+                    ${this.escapeHtml(cancelText)}
                 </button>
-                <button class="uw-modal-btn uw-modal-btn-${confirmButtonType}" data-action="confirm">
+                <button class="uw-modal-btn uw-modal-btn-${this.escapeHtml(confirmButtonType)}" data-action="confirm">
                     <span class="dashicons dashicons-yes-alt"></span>
-                    ${confirmText}
+                    ${this.escapeHtml(confirmText)}
                 </button>
             `;
 
             // Add third button if specified
             if (thirdButtonText) {
                 buttonsHTML += `
-                    <button class="uw-modal-btn uw-modal-btn-${thirdButtonType}" data-action="${thirdButtonAction}">
+                    <button class="uw-modal-btn uw-modal-btn-${this.escapeHtml(thirdButtonType)}" data-action="${this.escapeHtml(thirdButtonAction)}">
                         <span class="dashicons dashicons-trash"></span>
-                        ${thirdButtonText}
+                        ${this.escapeHtml(thirdButtonText)}
                     </button>
                 `;
             }
 
             const modal = document.createElement('div');
             modal.className = 'uw-modal';
+            // Security: Escape HTML to prevent XSS
             modal.innerHTML = `
                 <div class="uw-modal-header">
-                    <div class="uw-modal-icon ${type}">
-                        <span class="dashicons ${iconMap[type]}"></span>
+                    <div class="uw-modal-icon ${this.escapeHtml(type)}">
+                        <span class="dashicons ${this.escapeHtml(iconMap[type] || '')}"></span>
                     </div>
-                    <h3 class="uw-modal-title">${title}</h3>
+                    <h3 class="uw-modal-title">${this.escapeHtml(title)}</h3>
                 </div>
                 <div class="uw-modal-body">
-                    <p class="uw-modal-message">${message}</p>
+                    <p class="uw-modal-message">${this.escapeHtml(message)}</p>
                     <div class="uw-modal-actions">
                         ${buttonsHTML}
                     </div>
@@ -500,19 +516,20 @@ class NotificationSystem {
 
             const modal = document.createElement('div');
             modal.className = 'uw-modal';
+            // Security: Escape HTML to prevent XSS
             modal.innerHTML = `
                 <div class="uw-modal-header">
-                    <div class="uw-modal-icon ${type}">
-                        <span class="dashicons ${iconMap[type]}"></span>
+                    <div class="uw-modal-icon ${this.escapeHtml(type)}">
+                        <span class="dashicons ${this.escapeHtml(iconMap[type] || '')}"></span>
                     </div>
-                    <h3 class="uw-modal-title">${title}</h3>
+                    <h3 class="uw-modal-title">${this.escapeHtml(title)}</h3>
                 </div>
                 <div class="uw-modal-body">
-                    <p class="uw-modal-message">${message}</p>
+                    <p class="uw-modal-message">${this.escapeHtml(message)}</p>
                     <div class="uw-modal-actions">
                         <button class="uw-modal-btn uw-modal-btn-primary" data-action="ok">
                             <span class="dashicons dashicons-yes-alt"></span>
-                            ${buttonText}
+                            ${this.escapeHtml(buttonText)}
                         </button>
                     </div>
                 </div>

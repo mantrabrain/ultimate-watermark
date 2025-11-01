@@ -196,11 +196,6 @@ class AddWatermarkPage
             <div class="form-tab-content <?php echo $is_active ? 'active' : ''; ?>" id="tab-<?php echo esc_attr($tab_id); ?>">
                 <?php foreach ($tab_config['sections'] as $section_id => $section_config): ?>
                     <?php 
-                    // Debug: Log section rendering
-                    if ($section_id === 'text_settings') {
-                        error_log("Ultimate Watermark: Rendering text_settings section with condition: " . ($section_config['condition'] ?? 'none'));
-                        error_log("Ultimate Watermark: Watermark data: " . print_r($watermark_data, true));
-                    }
                     ?>
                     <div class="form-section" id="<?php echo esc_attr($section_id); ?>" <?php if (isset($section_config['condition'])): ?>data-condition="<?php echo esc_attr($section_config['condition']); ?>"<?php endif; ?>>
                         <h4><?php echo esc_html($section_config['label']); ?></h4>
@@ -312,7 +307,6 @@ class AddWatermarkPage
                 <?php foreach ($conditional_fields as $field_name => $field_config): ?>
                     <div class="form-row" data-condition="<?php echo esc_attr($field_config['condition']); ?>">
                         <?php 
-                        // Debug: Log conditional field rendering
                         // Rendering conditional field
                         $this->renderField($field_name, $field_config, $watermark_data); 
                         ?>

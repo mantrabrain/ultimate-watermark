@@ -228,7 +228,7 @@ class AnalyticsPage
         </div>
 
         <!-- Chart.js -->
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="<?php echo esc_url('https://cdn.jsdelivr.net/npm/chart.js'); ?>"></script>
         <script>
         // Analytics data for JavaScript
         window.ultimateWatermarkAnalytics = {

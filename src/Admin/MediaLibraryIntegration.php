@@ -5,7 +5,6 @@ namespace MantraBrain\UltimateWatermark\Admin;
 use MantraBrain\UltimateWatermark\Utils\WatermarkHelper;
 use MantraBrain\UltimateWatermark\Utils\WatermarkUsageTracker;
 use MantraBrain\UltimateWatermark\Utils\BackupManager;
-use MantraBrain\UltimateWatermark\Watermark\WatermarkManager;
 
 /**
  * Media Library Integration
@@ -70,8 +69,14 @@ class MediaLibraryIntegration
      */
     public function addWatermarkBulkActions(array $bulk_actions): array
     {
-        // Get active manual watermarks with rule filtering (for media library context)
-        $manual_watermarks = WatermarkHelper::getActiveManualWatermarks('manual', null, 'full');
+        // Get ALL active manual watermarks WITHOUT rule filtering
+        // Rules will be enforced when actually applying the watermark, not when showing options
+        $all_active = WatermarkHelper::getActiveWatermarks();
+        
+        // Filter only by manual watermarking behavior (not by rules)
+        $manual_watermarks = array_filter($all_active, function($watermark) {
+            return $watermark['manual_watermarking'] === '1' || (boolean)$watermark['manual_watermarking'] === true;
+        });
         
         foreach ($manual_watermarks as $watermark) {
             $action_key = 'ultimate_watermark_' . $watermark['id'];
@@ -320,13 +325,13 @@ class MediaLibraryIntegration
     {
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_media')) {
-            wp_send_json_error('Invalid nonce');
+            wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
             return;
         }
 
         // Check capabilities
         if (!current_user_can('upload_files')) {
-            wp_send_json_error('Insufficient permissions');
+            wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')]);
             return;
         }
 
@@ -334,13 +339,13 @@ class MediaLibraryIntegration
         $attachment_ids = array_map('absint', $_POST['attachment_ids'] ?? []);
 
         if (!$watermark_id || empty($attachment_ids)) {
-            wp_send_json_error('Invalid parameters');
+            wp_send_json_error(['message' => __('Invalid parameters.', 'ultimate-watermark')]);
             return;
         }
 
         // Verify watermark exists and is active
         if (!WatermarkHelper::isWatermarkActive($watermark_id)) {
-            wp_send_json_error('Watermark not found or inactive');
+            wp_send_json_error(['message' => __('Watermark not found or inactive.', 'ultimate-watermark')]);
             return;
         }
 
@@ -456,7 +461,7 @@ class MediaLibraryIntegration
                         
                         echo '<div style="margin-bottom: 4px;">';
                         echo '<a href="' . esc_url($edit_url) . '" target="_blank" style="color: #0066cc; text-decoration: none; font-weight: 500;">';
-                        echo '• ' . $watermark_name . ' (' . $watermark_type . ')';
+                        echo '• ' . esc_html($watermark_name) . ' (' . esc_html($watermark_type) . ')';
                         echo '</a>';
                         echo '</div>';
                     }
@@ -629,7 +634,7 @@ class MediaLibraryIntegration
         }
 
         // DON'T apply watermarks here - just return the upload
-        // Watermarks will be applied later in processAfterMetadataGeneration
+        // Watermarks will be applied later by RestApiIntegration
         // This ensures backup is created BEFORE any watermarking
         
         return $upload;
@@ -643,194 +648,6 @@ class MediaLibraryIntegration
         
         return $file;
     }
-
-    /**
-     * Handle REST API attachment upload (for page/post editor)
-     * This is called when image is uploaded via REST API from page/post editor
-     */
-    public function handleRestApiAttachmentUpload(\WP_Post $attachment, \WP_REST_Request $request, bool $creating): void
-    {
-        // CRITICAL: Always log when this hook fires
-        error_log('UW: ========== handleRestApiAttachmentUpload FIRED ==========');
-        error_log('UW: creating = ' . ($creating ? 'true' : 'false'));
-        error_log('UW: attachment ID = ' . $attachment->ID);
-        error_log('UW: attachment post_type = ' . $attachment->post_type);
-        error_log('UW: is_image = ' . (wp_attachment_is_image($attachment->ID) ? 'true' : 'false'));
-        
-        if (!$creating || !wp_attachment_is_image($attachment->ID)) {
-            error_log('UW: Exiting early - creating=false or not image');
-            return;
-        }
-        
-        error_log('UW: handleRestApiAttachmentUpload processing attachment ' . $attachment->ID);
-        
-        // Check if attachment has a parent post (uploaded to a page/post)
-        $parent_post_id = $attachment->post_parent;
-        error_log('UW: attachment->post_parent = ' . $parent_post_id);
-        
-        // Also check REST request parameter 'post'
-        if ($parent_post_id <= 0) {
-            $post_param = $request->get_param('post');
-            error_log('UW: REST request post param = ' . ($post_param ? $post_param : 'NULL'));
-            if ($post_param && is_numeric($post_param) && $post_param > 0) {
-                $parent_post_id = absint($post_param);
-            }
-        }
-        
-        error_log('UW: Final parent_post_id = ' . $parent_post_id);
-        
-        // If we have a parent post, check watermark rules
-        if ($parent_post_id > 0) {
-            // Store parent post_id for later use
-            update_post_meta($attachment->ID, '_ulwm_uploaded_to_post_id', $parent_post_id);
-            error_log('UW: Stored parent_post_id ' . $parent_post_id);
-            
-            // Get parent post to check its post type
-            $parent_post = get_post($parent_post_id);
-            if ($parent_post) {
-                $parent_post_type = $parent_post->post_type;
-                error_log('UW: Parent post type = ' . $parent_post_type);
-                
-                // Get all active automatic watermarks
-                $all_active = WatermarkHelper::getActiveWatermarks();
-                error_log('UW: Found ' . count($all_active) . ' active watermarks');
-                
-                // Filter by automatic watermarking behavior
-                $automatic_watermarks = array_filter($all_active, function($watermark) {
-                    return $watermark['automatic_watermarking'] === '1' || (boolean)$watermark['automatic_watermarking'] === true;
-                });
-                error_log('UW: Found ' . count($automatic_watermarks) . ' automatic watermarks');
-                
-                // Check each watermark's rules against the parent post type
-                foreach ($automatic_watermarks as $watermark) {
-                    $watermark_id = $watermark['id'] ?? 'unknown';
-                    error_log('UW: Checking watermark ID ' . $watermark_id);
-                    
-                    $watermark_on = $watermark['watermark_on'] ?? 'everywhere';
-                    error_log('UW: watermark_on = ' . $watermark_on);
-                    
-                    if ($watermark_on === 'everywhere' || $watermark_on === '') {
-                        // Watermark applies to all post types - mark it
-                        error_log('UW: Watermark applies everywhere - marking');
-                        update_post_meta($attachment->ID, '_ulwm_watermarked', true);
-                        break;
-                    } elseif ($watermark_on === 'selected_post_types') {
-                        $allowed_post_types = $watermark['watermark_post_types'] ?? [];
-                        error_log('UW: allowed_post_types (raw) = ' . print_r($allowed_post_types, true));
-                        
-                        // Fix double-serialized data
-                        if (is_string($allowed_post_types)) {
-                            $allowed_post_types = maybe_unserialize($allowed_post_types);
-                            if (is_string($allowed_post_types)) {
-                                $allowed_post_types = maybe_unserialize($allowed_post_types);
-                            }
-                        }
-                        if (!is_array($allowed_post_types)) {
-                            $allowed_post_types = [];
-                        }
-                        $allowed_post_types = array_map('strval', array_values($allowed_post_types));
-                        error_log('UW: allowed_post_types (processed) = ' . print_r($allowed_post_types, true));
-                        
-                        // Check if parent post type is in allowed types
-                        if (in_array($parent_post_type, $allowed_post_types, true)) {
-                            // This watermark matches - mark for watermarking
-                            error_log('UW: Parent post type ' . $parent_post_type . ' MATCHES - marking for watermarking');
-                            update_post_meta($attachment->ID, '_ulwm_watermarked', true);
-                            break;
-                        } else {
-                            error_log('UW: Parent post type ' . $parent_post_type . ' does NOT match');
-                        }
-                    }
-                }
-                
-                $final_marked = get_post_meta($attachment->ID, '_ulwm_watermarked', true);
-                error_log('UW: Final _ulwm_watermarked = ' . ($final_marked ? 'true' : 'false'));
-            } else {
-                error_log('UW: Parent post ' . $parent_post_id . ' not found');
-            }
-        } else {
-            error_log('UW: No parent_post_id found');
-        }
-    }
-    
-    /**
-     * Handle attachment insert via wp_insert_post (catches ALL methods including REST API)
-     */
-    public function handleAttachmentPostInsert(int $post_id, \WP_Post $post, bool $update): void
-    {
-        // Only process new attachments (not updates) that are images
-        if ($update || $post->post_type !== 'attachment' || !wp_attachment_is_image($post_id)) {
-            return;
-        }
-        
-        error_log('UW: ========== handleAttachmentPostInsert FIRED ==========');
-        error_log('UW: post_id = ' . $post_id);
-        error_log('UW: post_parent = ' . $post->post_parent);
-        error_log('UW: post_type = ' . $post->post_type);
-        
-        // Check if attachment has a parent post (uploaded to a page/post)
-        if ($post->post_parent > 0) {
-            error_log('UW: Attachment has post_parent ' . $post->post_parent . ' - checking watermark rules');
-            
-            // Store parent post_id
-            update_post_meta($post_id, '_ulwm_uploaded_to_post_id', $post->post_parent);
-            
-            // Get parent post to check its post type
-            $parent_post = get_post($post->post_parent);
-            if ($parent_post) {
-                $parent_post_type = $parent_post->post_type;
-                error_log('UW: Parent post type = ' . $parent_post_type);
-                
-                // Get all active automatic watermarks
-                $all_active = WatermarkHelper::getActiveWatermarks();
-                
-                // Filter by automatic watermarking behavior
-                $automatic_watermarks = array_filter($all_active, function($watermark) {
-                    return $watermark['automatic_watermarking'] === '1' || (boolean)$watermark['automatic_watermarking'] === true;
-                });
-                
-                // Check each watermark's rules against the parent post type
-                foreach ($automatic_watermarks as $watermark) {
-                    $watermark_on = $watermark['watermark_on'] ?? 'everywhere';
-                    
-                    if ($watermark_on === 'everywhere' || $watermark_on === '') {
-                        // Watermark applies to all post types - mark it
-                        error_log('UW: Watermark applies everywhere - marking');
-                        update_post_meta($post_id, '_ulwm_watermarked', true);
-                        break;
-                    } elseif ($watermark_on === 'selected_post_types') {
-                        $allowed_post_types = $watermark['watermark_post_types'] ?? [];
-                        
-                        // Fix double-serialized data
-                        if (is_string($allowed_post_types)) {
-                            $allowed_post_types = maybe_unserialize($allowed_post_types);
-                            if (is_string($allowed_post_types)) {
-                                $allowed_post_types = maybe_unserialize($allowed_post_types);
-                            }
-                        }
-                        if (!is_array($allowed_post_types)) {
-                            $allowed_post_types = [];
-                        }
-                        $allowed_post_types = array_map('strval', array_values($allowed_post_types));
-                        
-                        // Check if parent post type is in allowed types
-                        if (in_array($parent_post_type, $allowed_post_types, true)) {
-                            // This watermark matches - mark for watermarking
-                            error_log('UW: Parent post type ' . $parent_post_type . ' MATCHES - marking for watermarking');
-                            update_post_meta($post_id, '_ulwm_watermarked', true);
-                            break;
-                        }
-                    }
-                }
-                
-                $final_marked = get_post_meta($post_id, '_ulwm_watermarked', true);
-                error_log('UW: Final _ulwm_watermarked = ' . ($final_marked ? 'true' : 'false'));
-            }
-        } else {
-            error_log('UW: No post_parent - skipping');
-        }
-    }
-    
     /**
      * Process new attachment after upload
      */
@@ -1104,10 +921,15 @@ class MediaLibraryIntegration
             $success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermark($file_path, $watermark, $temp_file);
             
             if ($success && file_exists($temp_file)) {
-                // Replace original with watermarked version
-                copy($temp_file, $file_path);
-                unlink($temp_file); // Clean up temp file
-                return true;
+                // Security: Validate temp file path
+                $upload_dir = wp_upload_dir();
+                $normalized_temp = wp_normalize_path($temp_file);
+                if (strpos($normalized_temp, $upload_dir['basedir']) === 0 && is_file($normalized_temp)) {
+                    // Replace original with watermarked version
+                    copy($temp_file, $file_path);
+                    unlink($temp_file); // Clean up temp file
+                    return true;
+                }
             }
         } catch (\Exception $e) {
             // Silent fail for production
@@ -1123,13 +945,13 @@ class MediaLibraryIntegration
     {
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_media')) {
-            wp_send_json_error('Invalid nonce');
+            wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
             return;
         }
 
         // Check capabilities
         if (!current_user_can('upload_files')) {
-            wp_send_json_error('Insufficient permissions');
+            wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')]);
             return;
         }
 
@@ -1137,13 +959,13 @@ class MediaLibraryIntegration
         $attachment_ids = array_map('absint', $_POST['attachment_ids'] ?? []);
 
         if (!$watermark_id || empty($attachment_ids)) {
-            wp_send_json_error('Invalid parameters');
+            wp_send_json_error(['message' => __('Invalid parameters.', 'ultimate-watermark')]);
             return;
         }
 
         // Verify watermark exists and is active
         if (!WatermarkHelper::isWatermarkActive($watermark_id)) {
-            wp_send_json_error('Watermark not found or inactive');
+            wp_send_json_error(['message' => __('Watermark not found or inactive.', 'ultimate-watermark')]);
             return;
         }
 
@@ -1170,20 +992,20 @@ class MediaLibraryIntegration
     {
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_media')) {
-            wp_send_json_error('Invalid nonce');
+            wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
             return;
         }
 
         // Check capabilities
         if (!current_user_can('upload_files')) {
-            wp_send_json_error('Insufficient permissions');
+            wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')]);
             return;
         }
 
         $attachment_ids = array_map('absint', $_POST['attachment_ids'] ?? []);
 
         if (empty($attachment_ids)) {
-            wp_send_json_error('No attachments selected');
+            wp_send_json_error(['message' => __('No attachments selected.', 'ultimate-watermark')]);
             return;
         }
 
@@ -1474,102 +1296,6 @@ class MediaLibraryIntegration
     private function initWatermarkProtection(): void
     {
         // No longer needed - we let WordPress generate thumbnails naturally
-    }
-    
-    /**
-     * Process after metadata generation to apply watermarks
-     */
-    public function processAfterMetadataGeneration($metadata, $attachment_id)
-    {
-        // CRITICAL: Always log when this filter fires
-        error_log('UW: ========== processAfterMetadataGeneration FILTER FIRED ==========');
-        error_log('UW: attachment_id = ' . $attachment_id);
-        error_log('UW: is_image = ' . (wp_attachment_is_image($attachment_id) ? 'true' : 'false'));
-        
-        // Check if this image should be watermarked
-        $should_watermark = get_post_meta($attachment_id, '_ulwm_watermarked', true);
-        error_log('UW: _ulwm_watermarked = ' . ($should_watermark ? 'true' : 'false'));
-        
-        // If not marked, check if it was uploaded to a page/post via REST API
-        if (!$should_watermark && wp_attachment_is_image($attachment_id)) {
-            $attachment = get_post($attachment_id);
-            if ($attachment && $attachment->post_parent > 0) {
-                error_log('UW: Checking parent ' . $attachment->post_parent . ' in processAfterMetadataGeneration');
-                $parent_post = get_post($attachment->post_parent);
-                if ($parent_post) {
-                    $parent_post_type = $parent_post->post_type;
-                    error_log('UW: Parent post type = ' . $parent_post_type);
-                    
-                    // Get automatic watermarks and check rules
-                    $all_active = WatermarkHelper::getActiveWatermarks();
-                    $automatic_watermarks = array_filter($all_active, function($watermark) {
-                        return $watermark['automatic_watermarking'] === '1' || (boolean)$watermark['automatic_watermarking'] === true;
-                    });
-                    
-                    foreach ($automatic_watermarks as $watermark) {
-                        $watermark_on = $watermark['watermark_on'] ?? 'everywhere';
-                        
-                        if ($watermark_on === 'everywhere' || $watermark_on === '') {
-                            $should_watermark = true;
-                            break;
-                        } elseif ($watermark_on === 'selected_post_types') {
-                            $allowed_post_types = $watermark['watermark_post_types'] ?? [];
-                            if (is_string($allowed_post_types)) {
-                                $allowed_post_types = maybe_unserialize($allowed_post_types);
-                                if (is_string($allowed_post_types)) {
-                                    $allowed_post_types = maybe_unserialize($allowed_post_types);
-                                }
-                            }
-                            if (!is_array($allowed_post_types)) {
-                                $allowed_post_types = [];
-                            }
-                            $allowed_post_types = array_map('strval', array_values($allowed_post_types));
-                            
-                            if (in_array($parent_post_type, $allowed_post_types, true)) {
-                                $should_watermark = true;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    if ($should_watermark) {
-                        error_log('UW: Marking for watermarking in processAfterMetadataGeneration');
-                        update_post_meta($attachment_id, '_ulwm_watermarked', true);
-                    }
-                }
-            }
-        }
-        
-        if ($should_watermark) {
-            error_log('UW: Applying watermarks to attachment ' . $attachment_id);
-            try {
-                // Increase memory limit for watermark processing
-                $original_memory_limit = ini_get('memory_limit');
-                ini_set('memory_limit', '256M');
-                
-                // Create backup BEFORE applying watermarks
-                $this->createBackupForWatermarking($attachment_id);
-                
-                // Apply watermarks to the generated thumbnails
-                $this->applyWatermarksToGeneratedImages($attachment_id);
-                
-                // Restore original memory limit
-                ini_set('memory_limit', $original_memory_limit);
-                
-                // Remove the flag to prevent re-processing
-                delete_post_meta($attachment_id, '_ulwm_watermarked');
-                
-            } catch (\Exception $e) {
-                // Log error for debugging in production
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('Ultimate Watermark Error: ' . $e->getMessage());
-                }
-                // Restore original memory limit
-                ini_set('memory_limit', $original_memory_limit);
-            }
-        }
-        
-        return $metadata;
     }
     
     /**

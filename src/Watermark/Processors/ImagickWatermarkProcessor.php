@@ -63,8 +63,10 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         if (file_exists($previewDir)) {
             $existingFiles = glob($previewDir . '/watermark_preview_*.png');
             foreach ($existingFiles as $file) {
-                if (file_exists($file)) {
-                    unlink($file);
+                // Security: Validate path to prevent directory traversal
+                $normalized_file = wp_normalize_path($file);
+                if (strpos($normalized_file, $previewDir) === 0 && file_exists($normalized_file) && is_file($normalized_file)) {
+                    unlink($normalized_file);
                 }
             }
         }
@@ -124,12 +126,6 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         $systemFontName = $this->getSystemFontName($fontFamily, $fontWeight, $fontStyle);
         
         
-        // Debug: List available fonts (only once per request)
-        static $fontsListed = false;
-        if (!$fontsListed) {
-            $this->debugAvailableFonts();
-            $fontsListed = true;
-        }
         
         // Create a temporary draw object to get accurate text dimensions
         $tempDraw = new \ImagickDraw();
@@ -613,17 +609,6 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         
     }
     
-    /**
-     * Debug method to list available fonts
-     */
-    private function debugAvailableFonts(): void
-    {
-        try {
-            $imagick = new \Imagick();
-            $fonts = $imagick->queryFonts();
-        } catch (Exception $e) {
-        }
-    }
     
     /**
      * Get system font name for Imagick with weight and style

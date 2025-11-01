@@ -64,11 +64,27 @@ class AssetManager
             true
         );
 
-        // Localize script
+        // Localize script - sanitize settings for JavaScript output
+        $raw_settings = get_option('ultimate_watermark_options', []);
+        $sanitized_settings = [];
+        
+        // Sanitize all setting values before outputting to JavaScript
+        foreach ($raw_settings as $key => $value) {
+            if (is_array($value)) {
+                $sanitized_settings[sanitize_key($key)] = array_map(function($item) {
+                    return is_string($item) ? sanitize_text_field($item) : $item;
+                }, $value);
+            } elseif (is_string($value)) {
+                $sanitized_settings[sanitize_key($key)] = sanitize_text_field($value);
+            } else {
+                $sanitized_settings[sanitize_key($key)] = $value;
+            }
+        }
+        
         wp_localize_script('ultimate-watermark-frontend', 'ultimateWatermark', [
-            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'ajaxUrl' => esc_url(admin_url('admin-ajax.php')),
             'nonce' => wp_create_nonce('ultimate_watermark_nonce'),
-            'settings' => get_option('ultimate_watermark_options', []),
+            'settings' => $sanitized_settings,
             'isLoggedIn' => is_user_logged_in(),
         ]);
     }
