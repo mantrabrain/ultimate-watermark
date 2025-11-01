@@ -941,12 +941,7 @@ class AddWatermarkPage
                                 'type' => 'checkbox_group',
                                 'label' => __('Watermark For (Image Sizes)', 'ultimate-watermark'),
                                 'default' => ['thumbnail', 'medium', 'large'],
-                                'options' => [
-                                    'thumbnail' => __('Thumbnail', 'ultimate-watermark'),
-                                    'medium' => __('Medium', 'ultimate-watermark'),
-                                    'large' => __('Large', 'ultimate-watermark'),
-                                    'full' => __('Full Size', 'ultimate-watermark')
-                                ],
+                                'options' => $this->getImageSizeOptions(),
                                 'column' => 'left',
                                 'sanitize_callback' => [$this, 'sanitizeCheckboxGroup'],
                                 'validate_callback' => [$this, 'validateCheckboxGroup']
@@ -1152,6 +1147,57 @@ class AddWatermarkPage
 
     // Validation callbacks
     public function validateWatermarkType($value) { return in_array($value, ['text', 'image']); }
+    /**
+     * Get all available WordPress image sizes as options
+     * 
+     * @return array Array of size name => label
+     */
+    private function getImageSizeOptions(): array
+    {
+        $options = [];
+        
+        // Get all intermediate image sizes (includes default sizes and custom sizes added by themes/plugins)
+        $image_sizes = get_intermediate_image_sizes();
+        
+        // Get size information for labels (dimensions)
+        $size_info = wp_get_registered_image_subsizes();
+        
+        // Process each size
+        foreach ($image_sizes as $size_name) {
+            // Format label with dimensions if available
+            $label = ucwords(str_replace(['-', '_'], ' ', $size_name));
+            
+            // Add dimensions if available
+            if (isset($size_info[$size_name])) {
+                $width = $size_info[$size_name]['width'] ?? 0;
+                $height = $size_info[$size_name]['height'] ?? 0;
+                
+                if ($width > 0 || $height > 0) {
+                    if ($width > 0 && $height > 0) {
+                        $label .= sprintf(' (%d × %d)', $width, $height);
+                    } elseif ($width > 0) {
+                        $label .= sprintf(' (%dpx width)', $width);
+                    } elseif ($height > 0) {
+                        $label .= sprintf(' (%dpx height)', $height);
+                    }
+                }
+            }
+            
+            $options[$size_name] = $label;
+        }
+        
+        // Always add 'full' size (original image)
+        $options['full'] = __('Full Size (Original Image)', 'ultimate-watermark');
+        
+        // Sort options: put 'full' at the end, others alphabetically
+        $full_option = ['full' => $options['full']];
+        unset($options['full']);
+        ksort($options);
+        $options = array_merge($options, $full_option);
+        
+        return $options;
+    }
+
     public function validateRequired($value) { return !empty($value); }
     public function validateOptional($value) { return true; }
     public function validateRange($value, $min = 0, $max = 100) { return is_numeric($value) && $value >= $min && $value <= $max; }
