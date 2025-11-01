@@ -407,10 +407,52 @@ class WatermarkHelper
                 return false;
             }
             
-            // For upload context, allow if attachment is in allowed post types
-            // This is because uploaded images become attachments in WordPress
+            // For upload context, check both 'attachment' (for media library uploads) 
+            // and parent post type (for uploads from page/post editor)
             if ($context === 'upload') {
-                return in_array('attachment', $allowed_post_types, true);
+                // First check if 'attachment' is in allowed post types (for standalone media library uploads)
+                if (in_array('attachment', $allowed_post_types, true)) {
+                    return true;
+                }
+                
+                // If we have a post_id (attachment_id), check its parent post type
+                // This handles cases where image is uploaded to a page/post
+                if ($post_id && $post_id > 0) {
+                    // Get parent post_id from stored meta (saved during upload)
+                    $parent_post_id = get_post_meta($post_id, '_ulwm_uploaded_to_post_id', true);
+                    
+                    // Fallback: check attachment's post_parent
+                    if (!$parent_post_id || $parent_post_id <= 0) {
+                        $attachment = get_post($post_id);
+                        if ($attachment && $attachment->post_parent > 0) {
+                            $parent_post_id = $attachment->post_parent;
+                        }
+                    }
+                    
+                    // Also check $_POST/$_REQUEST as immediate fallback during upload
+                    if ((!$parent_post_id || $parent_post_id <= 0)) {
+                        if (isset($_POST['post_id']) && $_POST['post_id'] > 0) {
+                            $parent_post_id = absint($_POST['post_id']);
+                        } elseif (isset($_REQUEST['post_id']) && $_REQUEST['post_id'] > 0) {
+                            $parent_post_id = absint($_REQUEST['post_id']);
+                        }
+                    }
+                    
+                    // Check parent post type if we found a parent
+                    if ($parent_post_id > 0) {
+                        $parent_post = get_post($parent_post_id);
+                        if ($parent_post) {
+                            $parent_post_type = $parent_post->post_type;
+                            // Check if parent post type is in allowed types
+                            if (in_array(strval($parent_post_type), $allowed_post_types, true)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                
+                // No match found - return false
+                return false;
             }
             
             // For manual context, assume it's for media library (attachment post type)

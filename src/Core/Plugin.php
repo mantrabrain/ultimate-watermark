@@ -11,6 +11,7 @@ use MantraBrain\UltimateWatermark\Ajax\WatermarkAjaxHandler;
 use MantraBrain\UltimateWatermark\Ajax\WatermarkActionsHandler;
 use MantraBrain\UltimateWatermark\Ajax\WatermarkPreviewHandler;
 use MantraBrain\UltimateWatermark\Components\Toast;
+use MantraBrain\UltimateWatermark\Integration\RestApiIntegration;
 
 /**
  * Main Plugin Class
@@ -113,6 +114,10 @@ class Plugin implements PluginInterface
         
         // Load toast system
         Toast::getInstance()->init();
+        
+        // Load REST API integration (must load regardless of is_admin() for REST API uploads)
+        $rest_api_integration = new RestApiIntegration();
+        $rest_api_integration->init();
         
         // Load admin functionality
         if (is_admin()) {

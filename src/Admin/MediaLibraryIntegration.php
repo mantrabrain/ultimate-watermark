@@ -33,10 +33,9 @@ class MediaLibraryIntegration
         // Hook into upload process - try multiple hooks for better compatibility
         add_action('wp_handle_upload', [$this, 'processUploadedImage'], 10, 2);
         add_filter('wp_handle_upload_prefilter', [$this, 'processUploadedImagePrefilter']);
-        add_action('add_attachment', [$this, 'markForWatermarking']);
-        
-        // Hook into metadata generation to apply watermarks after thumbnails are created
-        add_filter('wp_generate_attachment_metadata', [$this, 'processAfterMetadataGeneration'], 10, 2);
+        // NOTE: add_attachment and REST API hooks moved to RestApiIntegration class
+        // This ensures they work even when is_admin() is false (REST API requests)
+        // For admin uploads, we still check toggle in MediaLibraryIntegration
         
         // Add JavaScript to move the toggle after the browse button
         add_action('admin_footer', [$this, 'addUploadToggleScript']);
@@ -645,6 +644,193 @@ class MediaLibraryIntegration
         return $file;
     }
 
+    /**
+     * Handle REST API attachment upload (for page/post editor)
+     * This is called when image is uploaded via REST API from page/post editor
+     */
+    public function handleRestApiAttachmentUpload(\WP_Post $attachment, \WP_REST_Request $request, bool $creating): void
+    {
+        // CRITICAL: Always log when this hook fires
+        error_log('UW: ========== handleRestApiAttachmentUpload FIRED ==========');
+        error_log('UW: creating = ' . ($creating ? 'true' : 'false'));
+        error_log('UW: attachment ID = ' . $attachment->ID);
+        error_log('UW: attachment post_type = ' . $attachment->post_type);
+        error_log('UW: is_image = ' . (wp_attachment_is_image($attachment->ID) ? 'true' : 'false'));
+        
+        if (!$creating || !wp_attachment_is_image($attachment->ID)) {
+            error_log('UW: Exiting early - creating=false or not image');
+            return;
+        }
+        
+        error_log('UW: handleRestApiAttachmentUpload processing attachment ' . $attachment->ID);
+        
+        // Check if attachment has a parent post (uploaded to a page/post)
+        $parent_post_id = $attachment->post_parent;
+        error_log('UW: attachment->post_parent = ' . $parent_post_id);
+        
+        // Also check REST request parameter 'post'
+        if ($parent_post_id <= 0) {
+            $post_param = $request->get_param('post');
+            error_log('UW: REST request post param = ' . ($post_param ? $post_param : 'NULL'));
+            if ($post_param && is_numeric($post_param) && $post_param > 0) {
+                $parent_post_id = absint($post_param);
+            }
+        }
+        
+        error_log('UW: Final parent_post_id = ' . $parent_post_id);
+        
+        // If we have a parent post, check watermark rules
+        if ($parent_post_id > 0) {
+            // Store parent post_id for later use
+            update_post_meta($attachment->ID, '_ulwm_uploaded_to_post_id', $parent_post_id);
+            error_log('UW: Stored parent_post_id ' . $parent_post_id);
+            
+            // Get parent post to check its post type
+            $parent_post = get_post($parent_post_id);
+            if ($parent_post) {
+                $parent_post_type = $parent_post->post_type;
+                error_log('UW: Parent post type = ' . $parent_post_type);
+                
+                // Get all active automatic watermarks
+                $all_active = WatermarkHelper::getActiveWatermarks();
+                error_log('UW: Found ' . count($all_active) . ' active watermarks');
+                
+                // Filter by automatic watermarking behavior
+                $automatic_watermarks = array_filter($all_active, function($watermark) {
+                    return $watermark['automatic_watermarking'] === '1' || (boolean)$watermark['automatic_watermarking'] === true;
+                });
+                error_log('UW: Found ' . count($automatic_watermarks) . ' automatic watermarks');
+                
+                // Check each watermark's rules against the parent post type
+                foreach ($automatic_watermarks as $watermark) {
+                    $watermark_id = $watermark['id'] ?? 'unknown';
+                    error_log('UW: Checking watermark ID ' . $watermark_id);
+                    
+                    $watermark_on = $watermark['watermark_on'] ?? 'everywhere';
+                    error_log('UW: watermark_on = ' . $watermark_on);
+                    
+                    if ($watermark_on === 'everywhere' || $watermark_on === '') {
+                        // Watermark applies to all post types - mark it
+                        error_log('UW: Watermark applies everywhere - marking');
+                        update_post_meta($attachment->ID, '_ulwm_watermarked', true);
+                        break;
+                    } elseif ($watermark_on === 'selected_post_types') {
+                        $allowed_post_types = $watermark['watermark_post_types'] ?? [];
+                        error_log('UW: allowed_post_types (raw) = ' . print_r($allowed_post_types, true));
+                        
+                        // Fix double-serialized data
+                        if (is_string($allowed_post_types)) {
+                            $allowed_post_types = maybe_unserialize($allowed_post_types);
+                            if (is_string($allowed_post_types)) {
+                                $allowed_post_types = maybe_unserialize($allowed_post_types);
+                            }
+                        }
+                        if (!is_array($allowed_post_types)) {
+                            $allowed_post_types = [];
+                        }
+                        $allowed_post_types = array_map('strval', array_values($allowed_post_types));
+                        error_log('UW: allowed_post_types (processed) = ' . print_r($allowed_post_types, true));
+                        
+                        // Check if parent post type is in allowed types
+                        if (in_array($parent_post_type, $allowed_post_types, true)) {
+                            // This watermark matches - mark for watermarking
+                            error_log('UW: Parent post type ' . $parent_post_type . ' MATCHES - marking for watermarking');
+                            update_post_meta($attachment->ID, '_ulwm_watermarked', true);
+                            break;
+                        } else {
+                            error_log('UW: Parent post type ' . $parent_post_type . ' does NOT match');
+                        }
+                    }
+                }
+                
+                $final_marked = get_post_meta($attachment->ID, '_ulwm_watermarked', true);
+                error_log('UW: Final _ulwm_watermarked = ' . ($final_marked ? 'true' : 'false'));
+            } else {
+                error_log('UW: Parent post ' . $parent_post_id . ' not found');
+            }
+        } else {
+            error_log('UW: No parent_post_id found');
+        }
+    }
+    
+    /**
+     * Handle attachment insert via wp_insert_post (catches ALL methods including REST API)
+     */
+    public function handleAttachmentPostInsert(int $post_id, \WP_Post $post, bool $update): void
+    {
+        // Only process new attachments (not updates) that are images
+        if ($update || $post->post_type !== 'attachment' || !wp_attachment_is_image($post_id)) {
+            return;
+        }
+        
+        error_log('UW: ========== handleAttachmentPostInsert FIRED ==========');
+        error_log('UW: post_id = ' . $post_id);
+        error_log('UW: post_parent = ' . $post->post_parent);
+        error_log('UW: post_type = ' . $post->post_type);
+        
+        // Check if attachment has a parent post (uploaded to a page/post)
+        if ($post->post_parent > 0) {
+            error_log('UW: Attachment has post_parent ' . $post->post_parent . ' - checking watermark rules');
+            
+            // Store parent post_id
+            update_post_meta($post_id, '_ulwm_uploaded_to_post_id', $post->post_parent);
+            
+            // Get parent post to check its post type
+            $parent_post = get_post($post->post_parent);
+            if ($parent_post) {
+                $parent_post_type = $parent_post->post_type;
+                error_log('UW: Parent post type = ' . $parent_post_type);
+                
+                // Get all active automatic watermarks
+                $all_active = WatermarkHelper::getActiveWatermarks();
+                
+                // Filter by automatic watermarking behavior
+                $automatic_watermarks = array_filter($all_active, function($watermark) {
+                    return $watermark['automatic_watermarking'] === '1' || (boolean)$watermark['automatic_watermarking'] === true;
+                });
+                
+                // Check each watermark's rules against the parent post type
+                foreach ($automatic_watermarks as $watermark) {
+                    $watermark_on = $watermark['watermark_on'] ?? 'everywhere';
+                    
+                    if ($watermark_on === 'everywhere' || $watermark_on === '') {
+                        // Watermark applies to all post types - mark it
+                        error_log('UW: Watermark applies everywhere - marking');
+                        update_post_meta($post_id, '_ulwm_watermarked', true);
+                        break;
+                    } elseif ($watermark_on === 'selected_post_types') {
+                        $allowed_post_types = $watermark['watermark_post_types'] ?? [];
+                        
+                        // Fix double-serialized data
+                        if (is_string($allowed_post_types)) {
+                            $allowed_post_types = maybe_unserialize($allowed_post_types);
+                            if (is_string($allowed_post_types)) {
+                                $allowed_post_types = maybe_unserialize($allowed_post_types);
+                            }
+                        }
+                        if (!is_array($allowed_post_types)) {
+                            $allowed_post_types = [];
+                        }
+                        $allowed_post_types = array_map('strval', array_values($allowed_post_types));
+                        
+                        // Check if parent post type is in allowed types
+                        if (in_array($parent_post_type, $allowed_post_types, true)) {
+                            // This watermark matches - mark for watermarking
+                            error_log('UW: Parent post type ' . $parent_post_type . ' MATCHES - marking for watermarking');
+                            update_post_meta($post_id, '_ulwm_watermarked', true);
+                            break;
+                        }
+                    }
+                }
+                
+                $final_marked = get_post_meta($post_id, '_ulwm_watermarked', true);
+                error_log('UW: Final _ulwm_watermarked = ' . ($final_marked ? 'true' : 'false'));
+            }
+        } else {
+            error_log('UW: No post_parent - skipping');
+        }
+    }
+    
     /**
      * Process new attachment after upload
      */
@@ -1295,8 +1481,67 @@ class MediaLibraryIntegration
      */
     public function processAfterMetadataGeneration($metadata, $attachment_id)
     {
+        // CRITICAL: Always log when this filter fires
+        error_log('UW: ========== processAfterMetadataGeneration FILTER FIRED ==========');
+        error_log('UW: attachment_id = ' . $attachment_id);
+        error_log('UW: is_image = ' . (wp_attachment_is_image($attachment_id) ? 'true' : 'false'));
+        
         // Check if this image should be watermarked
-        if (get_post_meta($attachment_id, '_ulwm_watermarked', true)) {
+        $should_watermark = get_post_meta($attachment_id, '_ulwm_watermarked', true);
+        error_log('UW: _ulwm_watermarked = ' . ($should_watermark ? 'true' : 'false'));
+        
+        // If not marked, check if it was uploaded to a page/post via REST API
+        if (!$should_watermark && wp_attachment_is_image($attachment_id)) {
+            $attachment = get_post($attachment_id);
+            if ($attachment && $attachment->post_parent > 0) {
+                error_log('UW: Checking parent ' . $attachment->post_parent . ' in processAfterMetadataGeneration');
+                $parent_post = get_post($attachment->post_parent);
+                if ($parent_post) {
+                    $parent_post_type = $parent_post->post_type;
+                    error_log('UW: Parent post type = ' . $parent_post_type);
+                    
+                    // Get automatic watermarks and check rules
+                    $all_active = WatermarkHelper::getActiveWatermarks();
+                    $automatic_watermarks = array_filter($all_active, function($watermark) {
+                        return $watermark['automatic_watermarking'] === '1' || (boolean)$watermark['automatic_watermarking'] === true;
+                    });
+                    
+                    foreach ($automatic_watermarks as $watermark) {
+                        $watermark_on = $watermark['watermark_on'] ?? 'everywhere';
+                        
+                        if ($watermark_on === 'everywhere' || $watermark_on === '') {
+                            $should_watermark = true;
+                            break;
+                        } elseif ($watermark_on === 'selected_post_types') {
+                            $allowed_post_types = $watermark['watermark_post_types'] ?? [];
+                            if (is_string($allowed_post_types)) {
+                                $allowed_post_types = maybe_unserialize($allowed_post_types);
+                                if (is_string($allowed_post_types)) {
+                                    $allowed_post_types = maybe_unserialize($allowed_post_types);
+                                }
+                            }
+                            if (!is_array($allowed_post_types)) {
+                                $allowed_post_types = [];
+                            }
+                            $allowed_post_types = array_map('strval', array_values($allowed_post_types));
+                            
+                            if (in_array($parent_post_type, $allowed_post_types, true)) {
+                                $should_watermark = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if ($should_watermark) {
+                        error_log('UW: Marking for watermarking in processAfterMetadataGeneration');
+                        update_post_meta($attachment_id, '_ulwm_watermarked', true);
+                    }
+                }
+            }
+        }
+        
+        if ($should_watermark) {
+            error_log('UW: Applying watermarks to attachment ' . $attachment_id);
             try {
                 // Increase memory limit for watermark processing
                 $original_memory_limit = ini_get('memory_limit');
