@@ -73,7 +73,9 @@ class WatermarkUsageTracker
             
             return true;
         } catch (\Exception $e) {
-            error_log('Ultimate Watermark: Error incrementing usage for watermark ' . $watermark_id . ' on image ' . $attachment_id . ': ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark: Error incrementing usage for watermark ' . $watermark_id . ' on image ' . $attachment_id . ': ' . $e->getMessage());
+            }
             return false;
         }
     }
@@ -116,7 +118,9 @@ class WatermarkUsageTracker
             
             return true;
         } catch (\Exception $e) {
-            error_log('Ultimate Watermark: Error decrementing usage for watermark ' . $watermark_id . ' on image ' . $attachment_id . ': ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark: Error decrementing usage for watermark ' . $watermark_id . ' on image ' . $attachment_id . ': ' . $e->getMessage());
+            }
             return false;
         }
     }
@@ -287,7 +291,9 @@ class WatermarkUsageTracker
             
             return true;
         } catch (\Exception $e) {
-            error_log('Ultimate Watermark: Error cleaning up usage for watermark ' . $watermark_id . ': ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark: Error cleaning up usage for watermark ' . $watermark_id . ': ' . $e->getMessage());
+            }
             return false;
         }
     }
@@ -324,7 +330,9 @@ class WatermarkUsageTracker
             
             return true;
         } catch (\Exception $e) {
-            error_log('Ultimate Watermark: Error cleaning up usage for image ' . $attachment_id . ': ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark: Error cleaning up usage for image ' . $attachment_id . ': ' . $e->getMessage());
+            }
             return false;
         }
     }

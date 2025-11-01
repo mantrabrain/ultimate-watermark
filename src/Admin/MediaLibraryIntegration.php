@@ -36,12 +36,18 @@ class MediaLibraryIntegration
         // Add toggle state to plupload upload parameters (most reliable method)
         add_filter('upload_post_params', [$this, 'addToggleToUploadParams']);
         
+        // AJAX handler to temporarily store selected watermark IDs (called before upload)
+        add_action('wp_ajax_ultimate_watermark_set_temp_selected_ids', [$this, 'handleSetTempSelectedIds']);
+        
         // NOTE: add_attachment and REST API hooks moved to RestApiIntegration class
         // This ensures they work even when is_admin() is false (REST API requests)
         // For admin uploads, we still check toggle in MediaLibraryIntegration
         
         // Add JavaScript to move the toggle after the browse button
         add_action('admin_footer', [$this, 'addUploadToggleScript']);
+        
+        // Also output toggle HTML in admin footer for media popup (it will be hidden and moved by JS)
+        add_action('admin_footer', [$this, 'addUploadToggleToFooter'], 999);
         
         // Add confirmation modal to media library
         add_action('admin_footer', [$this, 'addConfirmationModal']);
@@ -372,6 +378,27 @@ class MediaLibraryIntegration
      */
     public function addUploadToggle(): void
     {
+        // Only show on upload page, not on media edit page
+        $screen = get_current_screen();
+        if ($screen) {
+            // Don't show on post.php (media edit page)
+            if ($screen->id === 'attachment' || ($screen->base === 'post' && isset($_GET['post']) && isset($_GET['action']) && $_GET['action'] === 'edit')) {
+                $post = get_post(absint($_GET['post'] ?? 0));
+                if ($post && $post->post_type === 'attachment') {
+                    return; // Skip on media edit page
+                }
+            }
+        }
+        
+        // Also check via global $pagenow
+        global $pagenow;
+        if ($pagenow === 'post.php' && isset($_GET['action']) && $_GET['action'] === 'edit') {
+            $post = get_post(absint($_GET['post'] ?? 0));
+            if ($post && $post->post_type === 'attachment') {
+                return; // Skip on media edit page
+            }
+        }
+        
         // Get ALL active automatic watermarks WITHOUT rule filtering
         // Rules will be enforced when actually applying the watermark, not when showing options
         $all_active = WatermarkHelper::getActiveWatermarks();
@@ -405,7 +432,7 @@ class MediaLibraryIntegration
                         width: 90px;
                         height: 26px;
                     ">
-                        <input type="checkbox" id="ultimate-watermark-auto-apply" name="ultimate_watermark_auto_apply" value="1" 
+                        <input type="checkbox" id="ultimate-watermark-auto-apply" name="ultimate_watermark_auto_apply" value="1"
                                style="opacity: 0; width: 0; height: 0; position: absolute;">
                         <label for="ultimate-watermark-auto-apply" class="uw-toggle-track" style="
                             display: block;
@@ -437,42 +464,58 @@ class MediaLibraryIntegration
                 </div>
             </div>
             
-            <div id="ultimate-watermark-info" style="
-                margin-top: 10px;
-                padding: 8px 12px;
-                background: #e7f3ff;
-                border: 1px solid #b3d9ff;
-                border-radius: 4px;
-                font-size: 12px;
-                color: #0066cc;
-                display: none;
-            ">
+                    <div id="ultimate-watermark-info" style="
+                        margin-top: 10px;
+                        padding: 12px;
+                        background: #e7f3ff;
+                        border: 1px solid #b3d9ff;
+                        border-radius: 4px;
+                        font-size: 12px;
+                        color: #0066cc;
+                        display: none;
+                    ">
                 <?php 
                 if ($has_automatic_watermarks) {
                     $watermark_count = count($automatic_watermarks);
-                    echo '<div style="margin-bottom: 8px;">';
-                    if ($watermark_count > 1) {
-                        printf(
-                            esc_html__('All %d automatic watermarks will be applied to uploaded images:', 'ultimate-watermark'),
-                            $watermark_count
-                        );
-                    } else {
-                        esc_html_e('Automatic watermark will be applied to uploaded images:', 'ultimate-watermark');
-                    }
+                    echo '<div style="margin-bottom: 10px; font-weight: 600;">';
+                    printf(
+                        esc_html__('Select which watermarks to apply (%d available):', 'ultimate-watermark'),
+                        $watermark_count
+                    );
                     echo '</div>';
                     
-                    echo '<div style="margin-left: 10px;">';
+                    echo '<div id="ultimate-watermark-list" style="max-height: 200px; overflow-y: auto;">';
                     foreach ($automatic_watermarks as $watermark) {
+                        $watermark_id = absint($watermark['id']);
                         $watermark_type = $watermark['type'] === 'text' ? __('Text', 'ultimate-watermark') : __('Image', 'ultimate-watermark');
                         $watermark_name = esc_html($watermark['name']);
-                        $edit_url = admin_url('admin.php?page=ultimate-watermark-add-watermark&ID=' . $watermark['id']);
+                        $edit_url = admin_url('admin.php?page=ultimate-watermark-add-watermark&ID=' . $watermark_id);
                         
-                        echo '<div style="margin-bottom: 4px;">';
-                        echo '<a href="' . esc_url($edit_url) . '" target="_blank" style="color: #0066cc; text-decoration: none; font-weight: 500;">';
-                        echo '• ' . esc_html($watermark_name) . ' (' . esc_html($watermark_type) . ')';
+                        echo '<div class="uw-watermark-item" style="display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(0, 102, 204, 0.1);">';
+                        echo '<input type="checkbox" class="uw-watermark-checkbox" id="uw-wm-' . esc_attr($watermark_id) . '" 
+                                     name="ultimate_watermark_ids[]" value="' . esc_attr($watermark_id) . '" 
+                                     data-watermark-id="' . esc_attr($watermark_id) . '"
+                                     style="margin: 0; cursor: pointer;">';
+                        echo '<label for="uw-wm-' . esc_attr($watermark_id) . '" style="flex: 1; cursor: pointer; margin: 0; display: flex; align-items: center; gap: 6px;">';
+                        echo '<span style="font-weight: 500;">' . esc_html($watermark_name) . '</span>';
+                        echo '<span style="color: #6b7280; font-size: 11px;">(' . esc_html($watermark_type) . ')</span>';
+                        echo '</label>';
+                        echo '<a href="' . esc_url($edit_url) . '" target="_blank" 
+                                 style="color: #0066cc; text-decoration: none; font-size: 11px; padding: 2px 6px;" 
+                                 title="' . esc_attr__('Edit watermark', 'ultimate-watermark') . '">';
+                        echo '✎';
                         echo '</a>';
                         echo '</div>';
                     }
+                    echo '</div>';
+                    
+                    echo '<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(0, 102, 204, 0.2); display: flex; gap: 8px;">';
+                    echo '<button type="button" class="uw-select-all" style="padding: 4px 8px; font-size: 11px; cursor: pointer; border: 1px solid #0066cc; background: white; color: #0066cc; border-radius: 3px;">';
+                    esc_html_e('Select All', 'ultimate-watermark');
+                    echo '</button>';
+                    echo '<button type="button" class="uw-deselect-all" style="padding: 4px 8px; font-size: 11px; cursor: pointer; border: 1px solid #0066cc; background: white; color: #0066cc; border-radius: 3px;">';
+                    esc_html_e('Deselect All', 'ultimate-watermark');
+                    echo '</button>';
                     echo '</div>';
                 } else {
                     echo '<div style="margin-bottom: 8px; color: #d97706;">';
@@ -539,13 +582,30 @@ class MediaLibraryIntegration
         </style>
 
         <script>
-        jQuery(document).ready(function($) {
-            const $toggle = $('#ultimate-watermark-auto-apply');
-            const $info = $('#ultimate-watermark-info');
+        (function($) {
+            'use strict';
             
-            // Store toggle state in sessionStorage for upload hooks
-            function updateToggleState() {
+            // Global function to update toggle state
+            window.ultimateWatermarkUpdateToggleState = function() {
+                // Check both regular toggle and popup toggle, prefer the one that's checked or visible
+                let $toggle = $('#ultimate-watermark-auto-apply:checked');
+                if ($toggle.length === 0) {
+                    $toggle = $('#ultimate-watermark-auto-apply-popup:checked');
+                }
+                if ($toggle.length === 0) {
+                    $toggle = $('#ultimate-watermark-auto-apply').first();
+                }
+                if ($toggle.length === 0) {
+                    $toggle = $('#ultimate-watermark-auto-apply-popup').first();
+                }
+                if ($toggle.length === 0) return;
+                
                 const isEnabled = $toggle.is(':checked');
+                
+                // Save to localStorage for persistence across page reloads
+                localStorage.setItem('ultimate_watermark_toggle_state', isEnabled ? '1' : '0');
+                
+                // Also save to sessionStorage for upload hooks
                 sessionStorage.setItem('ultimate_watermark_auto_apply', isEnabled ? '1' : '0');
                 
                 // Send to server via AJAX to store in option (synchronous for immediate use)
@@ -559,108 +619,543 @@ class MediaLibraryIntegration
                         nonce: '<?php echo wp_create_nonce('ultimate_watermark_toggle'); ?>'
                     }
                 });
-            }
+            };
             
-            // Show/hide info based on toggle state
-            $toggle.on('change', function() {
-                if ($(this).is(':checked')) {
-                    $info.slideDown(200);
+            // Load toggle state from localStorage on page load
+            window.loadToggleState = function() {
+                try {
+                    const saved = localStorage.getItem('ultimate_watermark_toggle_state');
+                    const $toggles = $('#ultimate-watermark-auto-apply, #ultimate-watermark-auto-apply-popup');
+                    const $infos = $('#ultimate-watermark-info, #ultimate-watermark-info-popup');
+                    
+                    if (saved === '1') {
+                        // Restore toggle to ON state
+                        $toggles.prop('checked', true);
+                        // Show info boxes when toggle is ON
+                        $infos.show();
+                    } else if (saved === '0') {
+                        // Restore toggle to OFF state
+                        $toggles.prop('checked', false);
+                        // Hide info boxes when toggle is OFF
+                        $infos.hide();
+                    } else {
+                        // Default: OFF
+                        $toggles.prop('checked', false);
+                        $infos.hide();
+                    }
+                } catch (e) {
+                    // If error, default to OFF
+                    $('#ultimate-watermark-auto-apply, #ultimate-watermark-auto-apply-popup').prop('checked', false);
+                    $('#ultimate-watermark-info, #ultimate-watermark-info-popup').hide();
+                }
+            };
+            
+            // Save selected watermark IDs to localStorage
+            window.saveWatermarkSelections = function(sourceInstance) {
+                const selectedIds = [];
+                // Get unique selected IDs from all checkboxes (avoid duplicates)
+                const seenIds = {};
+                
+                // CRITICAL: Only check checkboxes from VISIBLE instances
+                // This prevents duplicate checkboxes (main + popup) from interfering
+                // If sourceInstance is provided, use that; otherwise check all visible info boxes
+                let $checkboxesToCheck;
+                if (sourceInstance) {
+                    // Use the specific instance that triggered the save
+                    $checkboxesToCheck = sourceInstance.find('.uw-watermark-checkbox');
                 } else {
-                    $info.slideUp(200);
+                    // Check only visible info boxes (user is interacting with visible ones)
+                    $checkboxesToCheck = $('#ultimate-watermark-info:visible, #ultimate-watermark-info-popup:visible').find('.uw-watermark-checkbox');
+                    
+                    // If no visible ones, fall back to checking the first instance (main)
+                    if ($checkboxesToCheck.length === 0) {
+                        $checkboxesToCheck = $('#ultimate-watermark-info').find('.uw-watermark-checkbox');
+                    }
                 }
-                updateToggleState();
-            });
-            
-            // Initialize state - toggle is OFF by default
-            if ($toggle.is(':checked')) {
-                $info.show();
-            } else {
-                $info.hide();
-            }
-            updateToggleState();
-            
-            // Add visual indicator of current state
-            const $statusIndicator = $('<div id="toggle-status" style="margin-top: 10px; padding: 5px; border-radius: 4px; font-size: 12px; text-align: center;"></div>');
-            $info.after($statusIndicator);
-            
-            function updateStatusIndicator() {
-                const isEnabled = $toggle.is(':checked');
-                $statusIndicator.text(isEnabled ? '✅ Watermarking ENABLED' : '❌ Watermarking DISABLED')
-                    .css('background', isEnabled ? '#d4edda' : '#f8d7da')
-                    .css('color', isEnabled ? '#155724' : '#721c24');
-            }
-            
-            $toggle.on('change', updateStatusIndicator);
-            updateStatusIndicator();
-            
-            // Intercept form submission to add toggle state
-            // Try multiple form selectors to catch different upload forms
-            $('form[enctype="multipart/form-data"], form#file-form, .media-frame form').on('submit', function() {
-                const isEnabled = $toggle.is(':checked');
-                if (isEnabled) {
-                    // Remove any existing hidden input first
-                    $(this).find('input[name="ultimate_watermark_auto_apply"]').remove();
-                    // Add the hidden input
-                    $(this).append('<input type="hidden" name="ultimate_watermark_auto_apply" value="1">');
-                }
-            });
-            
-            // Hook into WordPress media uploader to add toggle state
-            // This needs to happen when the uploader is initialized, not on document ready
-            if (typeof wp !== 'undefined' && wp.media) {
-                // Hook into media library uploader initialization
-                $(document).on('ready', function() {
-                    // Override wp.Uploader if it exists
-                    if (wp.Uploader && wp.Uploader.prototype) {
-                        var originalInit = wp.Uploader.prototype.init;
-                        wp.Uploader.prototype.init = function() {
-                            originalInit.apply(this, arguments);
-                            
-                            // Hook into plupload before upload
-                            if (this.uploader) {
-                                var self = this;
-                                this.uploader.bind('BeforeUpload', function(up, file) {
-                                    var isEnabled = $toggle.is(':checked');
-                                    if (isEnabled) {
-                                        // Add parameter to multipart_params
-                                        if (!up.settings.multipart_params) {
-                                            up.settings.multipart_params = {};
-                                        }
-                                        up.settings.multipart_params.ultimate_watermark_auto_apply = '1';
-                                        
-                                        // Ensure option is saved (fallback)
-                                        updateToggleState();
-                                    }
-                                });
+                
+                // IMPORTANT: Check each checkbox individually to get current state
+                $checkboxesToCheck.each(function() {
+                    const $checkbox = $(this);
+                    // Check the actual checked property
+                    if ($checkbox.is(':checked') || $checkbox.prop('checked') === true) {
+                        let watermarkId = $checkbox.data('watermark-id');
+                        // Convert to string for consistent comparison
+                        if (watermarkId) {
+                            watermarkId = String(watermarkId);
+                            if (!seenIds[watermarkId]) {
+                                selectedIds.push(watermarkId);
+                                seenIds[watermarkId] = true;
                             }
-                        };
+                        }
                     }
                 });
                 
-                // Alternative: Hook into plupload events directly
-                $(document).on('plupload:init', function(e, uploader) {
-                    uploader.bind('BeforeUpload', function(up, file) {
-                        var isEnabled = $toggle.is(':checked');
-                        if (isEnabled) {
-                            if (!up.settings.multipart_params) {
-                                up.settings.multipart_params = {};
+                // Always save - even if empty array (user unchecked all)
+                // This REPLACES the old value completely, doesn't append
+                localStorage.setItem('ultimate_watermark_selected_ids', JSON.stringify(selectedIds));
+                
+                // CRITICAL: Trigger event to update multipart_params in all plupload instances
+                $(document).trigger('ultimate-watermark-selection-changed');
+                
+                // IMPORTANT: Sync all checkbox instances after saving
+                // This ensures main and popup instances stay in sync
+                const savedIds = selectedIds.map(function(id) { return String(id); });
+                $('.uw-watermark-checkbox').each(function() {
+                    const $checkbox = $(this);
+                    const watermarkId = String($checkbox.data('watermark-id'));
+                    if (savedIds.indexOf(watermarkId) !== -1) {
+                        $checkbox.prop('checked', true);
+                    } else {
+                        $checkbox.prop('checked', false);
+                    }
+                });
+                
+            };
+            
+            // Load saved watermark selections from localStorage
+            window.loadWatermarkSelections = function() {
+                try {
+                    const saved = localStorage.getItem('ultimate_watermark_selected_ids');
+                    if (saved) {
+                        const selectedIds = JSON.parse(saved);
+                        
+                        // Convert all saved IDs to strings for consistent comparison
+                        const selectedIdsAsStrings = selectedIds.map(function(id) {
+                            return String(id);
+                        });
+                        
+                        
+                        // IMPORTANT: Temporarily disable change handlers to prevent saving during load
+                        // This prevents the save function from firing while we're setting checkbox states
+                        $('.uw-watermark-checkbox').off('change.uw-selection');
+                        
+                        // First uncheck ALL checkboxes (both main and popup instances)
+                        // Use both prop and removeAttr for maximum compatibility
+                        $('.uw-watermark-checkbox').each(function() {
+                            const $checkbox = $(this);
+                            $checkbox.prop('checked', false).removeAttr('checked');
+                        });
+                        
+                        // Then check only the saved ones - compare as strings
+                        let checkedCount = 0;
+                        $('.uw-watermark-checkbox').each(function() {
+                            const $checkbox = $(this);
+                            let watermarkId = $checkbox.data('watermark-id');
+                            
+                            // Convert to string for comparison
+                            if (watermarkId) {
+                                watermarkId = String(watermarkId);
+                                if (selectedIdsAsStrings.indexOf(watermarkId) !== -1) {
+                                    $checkbox.prop('checked', true);
+                                    checkedCount++;
+                                } else {
+                                    // Explicitly uncheck if not in saved list
+                                    $checkbox.prop('checked', false).removeAttr('checked');
+                                }
+                            } else {
+                                // No ID, uncheck it
+                                $checkbox.prop('checked', false).removeAttr('checked');
                             }
-                            up.settings.multipart_params.ultimate_watermark_auto_apply = '1';
-                            updateToggleState();
+                        });
+                        
+                        // Re-enable change handlers AFTER loading is complete
+                        // This ensures user changes after load will be saved
+                        // Handlers will be reattached in initToggle() for each instance
+                        
+                    } else {
+                        // No saved selections - leave all unchecked
+                        // User must explicitly select which watermarks to apply
+                        $('.uw-watermark-checkbox').prop('checked', false);
+                    }
+                } catch (e) {
+                    // If error parsing, uncheck all - don't auto-check on error
+                    $('.uw-watermark-checkbox').each(function() {
+                        $(this).prop('checked', false).removeAttr('checked');
+                    });
+                    if (typeof console !== 'undefined' && console.error) {
+                        console.error('Ultimate Watermark: Error loading selections:', e);
+                    }
+                }
+            };
+            
+            // Initialize toggle functionality - works everywhere
+            window.initToggle = function() {
+                // Handle both regular toggle and popup toggle
+                const $toggle = $('#ultimate-watermark-auto-apply, #ultimate-watermark-auto-apply-popup');
+                const $info = $('#ultimate-watermark-info, #ultimate-watermark-info-popup');
+                
+                if ($toggle.length === 0) return;
+                
+                // Load toggle state from localStorage first
+                window.loadToggleState();
+                
+                // Initialize each toggle instance separately
+                $toggle.each(function() {
+                    const $thisToggle = $(this);
+                    const toggleId = $thisToggle.attr('id');
+                    const isPopup = toggleId && toggleId.indexOf('-popup') !== -1;
+                    const $thisInfo = isPopup ? $('#ultimate-watermark-info-popup') : $('#ultimate-watermark-info');
+                    
+                    if ($thisInfo.length === 0) return;
+                
+                    // Get checkboxes reference
+                    const $checkboxes = $thisInfo.find('.uw-watermark-checkbox');
+                    
+                    // Load saved checkbox selections for THIS specific instance
+                    // Do this BEFORE setting up event handlers
+                    if ($checkboxes.length > 0 && !window.watermarkSelectionsLoaded) {
+                        // Temporarily show info box to ensure checkboxes are accessible
+                        const wasHidden = !$thisInfo.is(':visible');
+                        if (wasHidden) {
+                            $thisInfo.show();
+                        }
+                        
+                        // Load selections from localStorage
+                        window.loadWatermarkSelections();
+                        window.watermarkSelectionsLoaded = true;
+                        
+                        // Restore visibility based on toggle state
+                        if (wasHidden && !$thisToggle.is(':checked')) {
+                            $thisInfo.hide();
+                        }
+                    }
+                
+                    // Show/hide info based on toggle state
+                    $thisToggle.off('change.ultimate-watermark').on('change.ultimate-watermark', function() {
+                        if ($(this).is(':checked')) {
+                            $thisInfo.slideDown(200);
+                            // When toggled ON, ensure selections are loaded
+                            if (!window.watermarkSelectionsLoaded && $checkboxes.length > 0) {
+                                window.loadWatermarkSelections();
+                                window.watermarkSelectionsLoaded = true;
+                            }
+                        } else {
+                            $thisInfo.slideUp(200);
+                        }
+                        window.ultimateWatermarkUpdateToggleState();
+                    });
+                    
+                    // Initialize visibility based on toggle state - use multiple checks
+                    function setVisibility() {
+                        if ($thisToggle.is(':checked')) {
+                            $thisInfo.show().css('display', ''); // Remove any inline display:none
+                        } else {
+                            $thisInfo.hide();
+                        }
+                    }
+                    
+                    // Set visibility immediately and again after delays
+                    setVisibility();
+                    setTimeout(setVisibility, 50);
+                    setTimeout(setVisibility, 200);
+                    setTimeout(setVisibility, 500);
+                    
+                    // Handle checkbox changes - save selection immediately
+                    $checkboxes.off('change.uw-selection').on('change.uw-selection', function(e) {
+                        const $checkbox = $(this);
+                        const watermarkId = $checkbox.data('watermark-id');
+                        const isChecked = $checkbox.is(':checked') || $checkbox.prop('checked') === true;
+                        
+                        
+                        // Small delay to ensure checkbox state has fully updated in DOM
+                        setTimeout(function() {
+                            // Pass THIS instance to save function so it knows which instance triggered the save
+                            window.saveWatermarkSelections($thisInfo);
+                            // Update status indicator immediately
+                            if (typeof updateStatusIndicator === 'function') {
+                                updateStatusIndicator();
+                            }
+                        }, 50);
+                    });
+                    
+                    // Handle Select All button
+                    $thisInfo.find('.uw-select-all').off('click').on('click', function() {
+                        $thisInfo.find('.uw-watermark-checkbox').prop('checked', true);
+                        // Save with this instance context
+                        setTimeout(function() {
+                            window.saveWatermarkSelections($thisInfo);
+                        }, 10);
+                    });
+                    
+                    // Handle Deselect All button
+                    $thisInfo.find('.uw-deselect-all').off('click').on('click', function() {
+                        $thisInfo.find('.uw-watermark-checkbox').prop('checked', false);
+                        // Save with this instance context
+                        setTimeout(function() {
+                            window.saveWatermarkSelections($thisInfo);
+                        }, 10);
+                    });
+                    
+                    // Initialize state based on toggle (already set above, but ensure it's correct)
+                    // This is redundant but ensures visibility is correct
+                    
+                    // Add visual indicator if not exists (one per toggle instance)
+                    const statusId = isPopup ? 'toggle-status-popup' : 'toggle-status';
+                    if ($('#' + statusId).length === 0) {
+                        const $statusIndicator = $('<div id="' + statusId + '" style="margin-top: 10px; padding: 5px; border-radius: 4px; font-size: 12px; text-align: center;"></div>');
+                        $thisInfo.after($statusIndicator);
+                        
+                        function updateStatusIndicator() {
+                            const isEnabled = $thisToggle.is(':checked');
+                            const selectedCount = $thisInfo.find('.uw-watermark-checkbox:checked').length;
+                            const totalCount = $thisInfo.find('.uw-watermark-checkbox').length;
+                            if (isEnabled && selectedCount > 0) {
+                                $statusIndicator.text('✅ ' + selectedCount + ' watermark(s) selected')
+                                    .css('background', '#d4edda')
+                                    .css('color', '#155724');
+                            } else {
+                                $statusIndicator.text('❌ Watermarking DISABLED')
+                                    .css('background', '#f8d7da')
+                                    .css('color', '#721c24');
+                            }
+                        }
+                        
+                        $thisToggle.on('change', updateStatusIndicator);
+                        // Use the same namespace for consistency
+                        $checkboxes.on('change.uw-status', updateStatusIndicator);
+                        updateStatusIndicator();
+                    }
+                });
+                
+                // Update toggle state once (after initializing all toggles)
+                window.ultimateWatermarkUpdateToggleState();
+            };
+            
+            // NOTE: We don't patch FormData.append because plupload uses moxie's polyfill
+            // which has different behavior. Instead, we ensure multipart_params values are correct.
+            
+            // CRITICAL: Monkey-patch plupload functions IMMEDIATELY (before plupload initializes)
+            // This intercepts plupload's internal FormData creation to inject watermark IDs
+            (function() {
+                if (typeof plupload !== 'undefined') {
+                    // Patch plupload.extend (used to merge args with multipart_params)
+                    if (plupload.extend && !plupload.extend._uwPatched) {
+                        const originalExtend = plupload.extend;
+                        plupload.extend = function(target) {
+                            const result = originalExtend.apply(this, arguments);
+                            
+                            // Check if merging multipart_params and inject watermark IDs from localStorage
+                            if (result && typeof result === 'object' && 'ultimate_watermark_auto_apply' in result) {
+                                try {
+                                    const savedIds = localStorage.getItem('ultimate_watermark_selected_ids');
+                                    if (savedIds) {
+                                        const parsed = JSON.parse(savedIds);
+                                        if (Array.isArray(parsed) && parsed.length > 0) {
+                                            result['ultimate_watermark_ids'] = parsed.join(',');
+                                        }
+                                    }
+                                } catch (e) {
+                                    // Silent fail
+                                }
+                            }
+                            
+                            return result;
+                        };
+                        plupload.extend._uwPatched = true;
+                    }
+                    
+                    // Patch plupload.each (used to iterate over merged params when creating FormData)
+                    if (plupload.each && !plupload.each._uwPatched) {
+                        const originalEach = plupload.each;
+                        plupload.each = function(obj, callback) {
+                            // Check if iterating over multipart_params and inject watermark IDs
+                            if (obj && typeof obj === 'object' && 'ultimate_watermark_auto_apply' in obj) {
+                                try {
+                                    const savedIds = localStorage.getItem('ultimate_watermark_selected_ids');
+                                    if (savedIds) {
+                                        const parsed = JSON.parse(savedIds);
+                                        if (Array.isArray(parsed) && parsed.length > 0) {
+                                            obj['ultimate_watermark_ids'] = parsed.join(',');
+                                        }
+                                    }
+                                } catch (e) {
+                                    // Silent fail
+                                }
+                            }
+                            return originalEach.apply(this, arguments);
+                        };
+                        plupload.each._uwPatched = true;
+                    }
+                }
+            })();
+            
+            // Initialize on document ready
+            $(document).ready(function() {
+
+                initToggle();
+                
+                // Also initialize when media modal opens (for media popup)
+                if (typeof wp !== 'undefined' && wp.media) {
+                    wp.media.view.UploaderWindow = wp.media.view.UploaderWindow.extend({
+                        ready: function() {
+                            wp.media.view.UploaderWindow.__super__.ready.apply(this, arguments);
+                            
+                            // Initialize toggle if it exists in the uploader
+                            setTimeout(function() {
+                                initToggle();
+                                
+                                // Hook into plupload to send toggle state and selected IDs
+                                if (this.uploader && this.uploader.uploader) {
+                                    const uploaderInstance = this.uploader.uploader;
+                                    
+                                    // Use the global updateMultipartParamsForUploader function
+                                    // Update params immediately when uploader is available
+                                    if (typeof updateMultipartParamsForUploader === 'function') {
+                                        updateMultipartParamsForUploader(uploaderInstance);
+                                    }
+                                    
+                                    // Update when files are added
+                                    uploaderInstance.bind('FilesAdded', function(up, files) {
+                                        if (typeof updateMultipartParamsForUploader === 'function') {
+                                            updateMultipartParamsForUploader(up);
+                                        }
+                                    });
+                                    
+                                    // Update right before upload (as fallback)
+                                    uploaderInstance.bind('BeforeUpload', function(up, file) {
+                                        if (typeof updateMultipartParamsForUploader === 'function') {
+                                            updateMultipartParamsForUploader(up);
+                                        }
+                                        window.ultimateWatermarkUpdateToggleState();
+                                    });
+                                }
+                            }.bind(this), 100);
+                        }
+                    });
+                }
+            });
+            
+            // Store reference to all active plupload instances (initialize once)
+            window.ultimateWatermarkUploaders = window.ultimateWatermarkUploaders || [];
+            
+            // Function to update multipart_params for any plupload instance
+            function updateMultipartParamsForUploader(up) {
+                if (!up || !up.settings) {
+                    return;
+                }
+                
+                // Check if toggle is ON
+                const $toggle = $('#ultimate-watermark-auto-apply:checked, #ultimate-watermark-auto-apply-popup:checked');
+                
+                if ($toggle.length) {
+                    // Ensure multipart_params exists
+                    if (!up.settings.multipart_params) {
+                        up.settings.multipart_params = {};
+                    }
+                    
+                    // Set toggle state
+                    up.settings.multipart_params['ultimate_watermark_auto_apply'] = '1';
+                    
+                    // Get selected watermark IDs from localStorage (primary source)
+                    const selectedIds = [];
+                    try {
+                        const savedIds = localStorage.getItem('ultimate_watermark_selected_ids');
+                        if (savedIds) {
+                            const parsed = JSON.parse(savedIds);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                parsed.forEach(function(id) {
+                                    if (id) {
+                                        selectedIds.push(String(id));
+                                    }
+                                });
+                            }
+                        }
+                    } catch (e) {
+                        // Silent fail
+                    }
+                    
+                    // Fallback: If localStorage empty, check checkboxes
+                    if (selectedIds.length === 0) {
+                        $('.uw-watermark-checkbox:checked').each(function() {
+                            const id = $(this).val() || $(this).data('watermark-id');
+                            if (id) {
+                                selectedIds.push(String(id));
+                            }
+                        });
+                        
+                        // Update localStorage with checkbox values
+                        if (selectedIds.length > 0) {
+                            try {
+                                localStorage.setItem('ultimate_watermark_selected_ids', JSON.stringify(selectedIds));
+                            } catch (e) {
+                                // Silent fail
+                            }
+                        }
+                    }
+                    
+                    // Set watermark IDs parameter
+                    const idsString = selectedIds.length > 0 ? selectedIds.join(',') : '';
+                    if (up.settings.multipart_params) {
+                        delete up.settings.multipart_params['ultimate_watermark_ids'];
+                        if (idsString) {
+                            up.settings.multipart_params['ultimate_watermark_ids'] = String(idsString);
+                        }
+                    }
+                } else {
+                    // Toggle is OFF - ensure params are not set
+                    if (up.settings.multipart_params) {
+                        delete up.settings.multipart_params['ultimate_watermark_auto_apply'];
+                        delete up.settings.multipart_params['ultimate_watermark_ids'];
+                    }
+                }
+            }
+            
+            // Hook into plupload events globally (works for media popup)
+            $(document).on('plupload:init', function(e, uploader) {
+                // Store reference to this uploader instance
+                if (window.ultimateWatermarkUploaders.indexOf(uploader) === -1) {
+                    window.ultimateWatermarkUploaders.push(uploader);
+                }
+                
+                // Update params when uploader is initialized
+                updateMultipartParamsForUploader(uploader);
+                
+                // Also update when files are added (before upload starts)
+                uploader.bind('FilesAdded', function(up, files) {
+                    updateMultipartParamsForUploader(up);
+                });
+                
+                // Also update right before upload (backup - primary injection is via monkey-patched plupload.extend/each)
+                uploader.bind('BeforeUpload', function(up, file) {
+                    updateMultipartParamsForUploader(up);
+                });
+            });
+            
+            // Listen for checkbox changes to update params in real-time
+            $(document).on('ultimate-watermark-selection-changed', function() {
+                // Update all known plupload instances
+                if (window.ultimateWatermarkUploaders && window.ultimateWatermarkUploaders.length > 0) {
+                    window.ultimateWatermarkUploaders.forEach(function(up) {
+                        if (up && up.settings) {
+                            updateMultipartParamsForUploader(up);
+                        }
+                    });
+                }
+            });
+            
+            // Fallback: Watch for DOM changes (for dynamically added toggles in media popup)
+            if (typeof MutationObserver !== 'undefined') {
+                const observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        if (mutation.type === 'childList') {
+                            const $toggle = $('#ultimate-watermark-auto-apply');
+                            if ($toggle.length && !$toggle.data('ultimate-watermark-initialized')) {
+                                $toggle.data('ultimate-watermark-initialized', true);
+                                initToggle();
+                            }
                         }
                     });
                 });
                 
-                // Fallback: Ensure option is saved when queue changes
-                $(document).on('wp-plupload-queue-added wp-upload-queued plupload:added', function() {
-                    var isEnabled = $toggle.is(':checked');
-                    if (isEnabled) {
-                        updateToggleState();
-                        sessionStorage.setItem('ultimate_watermark_auto_apply', '1');
-                    }
+                $(document).ready(function() {
+                    observer.observe(document.body, {
+                        childList: true,
+                        subtree: true
+                    });
                 });
             }
-        });
+            
+        })(jQuery);
         </script>
         <?php
     }
@@ -707,8 +1202,41 @@ class MediaLibraryIntegration
         $option_value = get_option('ultimate_watermark_auto_apply_toggle', '0');
         if ($option_value === '1') {
             $params['ultimate_watermark_auto_apply'] = '1';
+            
+            // NOTE: We don't set ultimate_watermark_ids here because this filter runs on page load,
+            // not per-upload. JavaScript will set it dynamically in multipart_params before upload.
+            // This ensures we get the current checkbox selections, not stale data from page load.
         }
+        
         return $params;
+    }
+
+    /**
+     * Handle AJAX request to temporarily store selected watermark IDs
+     * This allows JavaScript to pass selected IDs to PHP before upload starts
+     * Same pattern as the toggle - JavaScript stores it, PHP reads it via upload_post_params filter
+     */
+    public function handleSetTempSelectedIds(): void
+    {
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'ultimate_watermark_temp_ids')) {
+            wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
+            return;
+        }
+        
+        // Store the IDs in a temporary option (one-time use, read by upload_post_params filter)
+        $ids_string = isset($_POST['ids']) ? sanitize_text_field($_POST['ids']) : '';
+        
+        // Always log for debugging
+        error_log('Ultimate Watermark: handleSetTempSelectedIds - Received IDs: [' . $ids_string . ']');
+        
+        update_option('ultimate_watermark_temp_selected_ids', $ids_string, false);
+        
+        // Verify it was stored
+        $stored = get_option('ultimate_watermark_temp_selected_ids', '');
+        error_log('Ultimate Watermark: handleSetTempSelectedIds - Stored and verified: [' . $stored . ']');
+        
+        wp_send_json_success(['message' => 'IDs stored temporarily', 'ids' => $ids_string, 'stored' => $stored]);
     }
 
     /**
@@ -1099,17 +1627,90 @@ class MediaLibraryIntegration
 
     /**
      * Add JavaScript to move toggle after browse button
+     * This needs to run on ALL admin pages to catch media popups from page/post editors
      */
     public function addUploadToggleScript(): void
     {
-        $screen = get_current_screen();
-        if (!$screen || ($screen->id !== 'media' && $screen->id !== 'upload')) {
-            return;
-        }
+        // Remove screen restriction - we need this on all admin pages for media popup support
+        // Media popups can open from any admin page (page editor, post editor, etc.)
         ?>
         <script>
-        jQuery(document).ready(function($) {
-            // Wait for plupload to be initialized
+        (function($) {
+            'use strict';
+            
+            // Inject toggle into media popup if it doesn't exist
+            function injectToggleIntoMediaPopup() {
+                // Check if toggle already exists
+                if ($('#ultimate-watermark-upload-toggle').length) {
+                    return;
+                }
+                
+                // Check if we're in a media modal uploader
+                const $uploadArea = $('.uploader-window-content, .uploader-editor-content, .plupload_dropbox');
+                const $browseButton = $('.plupload-browse-button');
+                
+                if ($uploadArea.length && $browseButton.length) {
+                    // Try to find toggle from footer (hidden source)
+                    let $toggle = $('#ultimate-watermark-upload-toggle-footer #ultimate-watermark-upload-toggle');
+                    
+                    // Fallback: try to find it elsewhere on the page
+                    if ($toggle.length === 0) {
+                        $toggle = $('#ultimate-watermark-upload-toggle').not('#ultimate-watermark-upload-toggle-popup');
+                    }
+                    
+                    if ($toggle.length > 0) {
+                        // Clone existing toggle
+                        $toggle = $toggle.first().clone();
+                        $toggle.attr('id', 'ultimate-watermark-upload-toggle-popup');
+                        
+                        // Ensure all IDs are unique within the clone
+                        $toggle.find('[id], [for]').each(function() {
+                            const $el = $(this);
+                            const oldId = $el.attr('id') || $el.attr('for');
+                            if (oldId && oldId.indexOf('-popup') === -1) {
+                                const newId = oldId + '-popup';
+                                if ($el.attr('id')) {
+                                    $el.attr('id', newId);
+                                }
+                                if ($el.attr('for')) {
+                                    $el.attr('for', newId);
+                                }
+                            }
+                        });
+                    } else {
+                        // Toggle doesn't exist anywhere, skip injection
+                        return;
+                    }
+                    
+                    // Insert after browse button
+                    $browseButton.after($toggle);
+                    
+                    // Style it
+                    $toggle.css({
+                        'margin': '20px auto 0 auto',
+                        'position': 'relative',
+                        'width': '250px',
+                        'background': 'rgba(255, 255, 255, 0.95)',
+                        'border': '1px solid #ddd',
+                        'border-radius': '8px',
+                        'box-shadow': '0 2px 8px rgba(0, 0, 0, 0.1)',
+                        'padding': '15px',
+                        'text-align': 'center',
+                        'display': 'block',
+                        'left': 'auto',
+                        'right': 'auto'
+                    });
+                    
+                    // Initialize the toggle functionality
+                    if (window.initToggle) {
+                        setTimeout(function() {
+                            window.initToggle();
+                        }, 100);
+                    }
+                }
+            }
+            
+            // Move toggle after browse button (for upload page)
             function moveWatermarkToggle() {
                 const $browseButton = $('.plupload-browse-button');
                 const $watermarkToggle = $('#ultimate-watermark-upload-toggle');
@@ -1137,34 +1738,88 @@ class MediaLibraryIntegration
                 }
             }
             
-            // Try to move immediately
-            moveWatermarkToggle();
-            
-            // Also try after a short delay in case plupload loads later
-            setTimeout(moveWatermarkToggle, 500);
-            
-            // Watch for DOM changes (in case plupload loads dynamically)
-            const observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.type === 'childList') {
-                        const $browseButton = $('.plupload-browse-button');
-                        const $watermarkToggle = $('#ultimate-watermark-upload-toggle');
-                        
-                        if ($browseButton.length && $watermarkToggle.length && 
-                            !$browseButton.next().is($watermarkToggle)) {
+            $(document).ready(function() {
+                // Try to move immediately (for upload page)
+                moveWatermarkToggle();
+                
+                // Inject into media popup when it opens
+                if (typeof wp !== 'undefined' && wp.media) {
+                    $(document).on('click', '.insert-media, .add_media', function() {
+                        setTimeout(function() {
+                            injectToggleIntoMediaPopup();
                             moveWatermarkToggle();
+                        }, 500);
+                    });
+                    
+                    // Also watch for media modal open event
+                    wp.media.controller.Library = wp.media.controller.Library.extend({
+                        activate: function() {
+                            wp.media.controller.Library.__super__.activate.apply(this, arguments);
+                            setTimeout(function() {
+                                injectToggleIntoMediaPopup();
+                                moveWatermarkToggle();
+                            }, 500);
                         }
-                    }
+                    });
+                }
+                
+                // Also try after delays in case plupload loads later
+                setTimeout(moveWatermarkToggle, 500);
+                setTimeout(injectToggleIntoMediaPopup, 1000);
+                
+                // Watch for DOM changes (in case plupload loads dynamically)
+                const observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        if (mutation.type === 'childList') {
+                            const $browseButton = $('.plupload-browse-button');
+                            const $watermarkToggle = $('#ultimate-watermark-upload-toggle, #ultimate-watermark-upload-toggle-popup');
+                            
+                            // Move toggle if it exists
+                            if ($browseButton.length && $watermarkToggle.length && 
+                                !$browseButton.next().is($watermarkToggle)) {
+                                moveWatermarkToggle();
+                            }
+                            
+                            // Inject toggle if it doesn't exist in media popup
+                            if ($browseButton.length && $watermarkToggle.length === 0) {
+                                injectToggleIntoMediaPopup();
+                            }
+                        }
+                    });
+                });
+                
+                // Start observing
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
                 });
             });
-            
-            // Start observing
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-        });
+        })(jQuery);
         </script>
+        <?php
+    }
+
+    /**
+     * Add toggle HTML to admin footer (hidden, will be moved/injected by JS)
+     * This ensures the toggle HTML is always available for media popup
+     */
+    public function addUploadToggleToFooter(): void
+    {
+        // Don't show on media edit page
+        global $pagenow;
+        if ($pagenow === 'post.php' && isset($_GET['action']) && $_GET['action'] === 'edit') {
+            $post = get_post(absint($_GET['post'] ?? 0));
+            if ($post && $post->post_type === 'attachment') {
+                return; // Skip on media edit page
+            }
+        }
+        
+        // Only add if toggle doesn't already exist on the page
+        // Check this via JavaScript to avoid duplicate output
+        ?>
+        <div id="ultimate-watermark-upload-toggle-footer" style="display: none !important;">
+            <?php $this->addUploadToggle(); ?>
+        </div>
         <?php
     }
 

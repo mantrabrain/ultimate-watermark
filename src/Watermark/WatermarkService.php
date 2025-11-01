@@ -93,7 +93,9 @@ class WatermarkService
         try {
             return (bool) self::applyWatermark($sourceImagePath, $watermarkId, $outputImagePath);
         } catch (\Exception $e) {
-            error_log('WatermarkService: Error applying watermark by ID: ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('WatermarkService: Error applying watermark by ID: ' . $e->getMessage());
+            }
             return false;
         }
     }
@@ -111,7 +113,9 @@ class WatermarkService
         try {
             return (bool) self::applyWatermark($sourceImagePath, $formData, $outputImagePath);
         } catch (\Exception $e) {
-            error_log('WatermarkService: Error applying watermark by form data: ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('WatermarkService: Error applying watermark by form data: ' . $e->getMessage());
+            }
             return false;
         }
     }

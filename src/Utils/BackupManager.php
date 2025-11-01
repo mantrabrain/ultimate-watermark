@@ -336,21 +336,9 @@ class BackupManager
 
         $restored_count = 0;
         foreach ($backups as $backup) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log("Ultimate Watermark Restore: Attempting to restore backup file: {$backup['path']} (type: {$backup['type']}, size: {$backup['size']} bytes)");
-            }
-            
             if (self::restoreBackupFile($backup, $attachment_id)) {
                 $restored_count++;
-            } else {
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log("Ultimate Watermark Restore: Failed to restore backup file: {$backup['path']}");
-                }
             }
-        }
-        
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log("Ultimate Watermark Restore: Restored {$restored_count} of " . count($backups) . " backup file(s) for attachment {$attachment_id}");
         }
         
         // If restoration was successful, clean up watermark metadata (same as remove watermark)
@@ -465,18 +453,12 @@ class BackupManager
         
         // Verify backup file exists and is readable
         if (!file_exists($backup_path) || !is_file($backup_path) || !is_readable($backup_path)) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log("Ultimate Watermark Restore: Backup file not found or not readable: {$backup_path}");
-            }
             return false;
         }
         
         // Verify we're actually reading from a backup directory (safety check)
         $backup_dir_check = wp_normalize_path($backup_path);
         if (strpos($backup_dir_check, '/ulwm-backup/') === false) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log("Ultimate Watermark Restore: Invalid backup path (not in backup directory): {$backup_path}");
-            }
             return false;
         }
         
@@ -484,9 +466,6 @@ class BackupManager
         $target_path = self::getTargetPathForBackup($backup, $attachment_id);
         
         if (!$target_path) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log("Ultimate Watermark Restore: Could not determine target path for backup type: " . ($backup['type'] ?? 'unknown'));
-            }
             return false;
         }
         
@@ -494,17 +473,11 @@ class BackupManager
         $target_dir = dirname($target_path);
         if (!file_exists($target_dir)) {
             if (!wp_mkdir_p($target_dir)) {
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log("Ultimate Watermark Restore: Could not create target directory: {$target_dir}");
-                }
                 return false;
             }
         }
         
         if (!is_writable($target_dir)) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log("Ultimate Watermark Restore: Target directory not writable: {$target_dir}");
-            }
             return false;
         }
         
@@ -514,9 +487,6 @@ class BackupManager
                 @chmod($target_path, 0644);
             }
             if (!@unlink($target_path)) {
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log("Ultimate Watermark Restore: Could not delete existing target file: {$target_path}");
-                }
                 return false;
             }
         }
@@ -526,36 +496,23 @@ class BackupManager
         $copy_result = @copy($backup_path, $target_path);
         
         if (!$copy_result) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log("Ultimate Watermark Restore: Copy failed from {$backup_path} to {$target_path}");
-            }
             return false;
         }
         
         // Verify the file was copied successfully and has content
         if (!file_exists($target_path)) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log("Ultimate Watermark Restore: Target file does not exist after copy: {$target_path}");
-            }
             return false;
         }
         
         // Verify file size matches (basic integrity check)
         $backup_size = filesize($backup_path);
         $target_size = filesize($target_path);
-        if ($backup_size !== $target_size) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log("Ultimate Watermark Restore: File size mismatch - backup: {$backup_size}, target: {$target_size}");
-            }
-            // Still return true as copy succeeded, but log the warning
+        if ($backup_size !== $target_size && defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("Ultimate Watermark Restore: File size mismatch - backup: {$backup_size}, target: {$target_size}");
         }
         
         // Ensure proper permissions
         @chmod($target_path, 0644);
-        
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log("Ultimate Watermark Restore: Successfully copied from {$backup_path} to {$target_path} (size: {$target_size} bytes)");
-        }
         
         return true;
     }

@@ -68,9 +68,6 @@ class WatermarkPreviewHandler
             return;
         }
         
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark: Source image path: ' . $sourceImagePath);
-        }
 
         try {
             // Clean up any existing preview images before generating new one

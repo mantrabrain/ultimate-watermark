@@ -378,10 +378,6 @@ class AdminManager
             $attachment_ids = [];
         }
 
-        // Server-side log to help diagnose if needed
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark: Bulk delete - ' . count($attachment_ids) . ' attachment(s) selected');
-        }
 
         // Normalize IDs
         if (is_array($attachment_ids)) {
@@ -467,9 +463,6 @@ class AdminManager
             }
         }
 
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark: Bulk delete - ' . count($attachment_ids) . ' attachment(s) selected');
-        }
         
         if (is_array($attachment_ids)) {
             $attachment_ids = array_values(array_unique(array_filter(array_map('intval', $attachment_ids), function($v){ return $v > 0; })));

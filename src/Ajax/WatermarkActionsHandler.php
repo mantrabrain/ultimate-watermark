@@ -95,9 +95,6 @@ class WatermarkActionsHandler
     {
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_ajax')) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark Delete - Invalid nonce');
-            }
             wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
             return;
         }
@@ -129,9 +126,6 @@ class WatermarkActionsHandler
         $result = wp_delete_post($watermark_id, true);
         
         if (!$result) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark Delete - Failed to delete watermark ID: ' . $watermark_id);
-            }
             wp_send_json_error(['message' => __('Failed to delete watermark.', 'ultimate-watermark')]);
             return;
         }
@@ -147,9 +141,6 @@ class WatermarkActionsHandler
     {
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_ajax')) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark Toggle - Invalid nonce');
-            }
             wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
             return;
         }
@@ -183,10 +174,6 @@ class WatermarkActionsHandler
             return;
         }
         
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark Toggle - Post found: ' . $post->post_title . ' (Type: ' . $post->post_type . ')');
-        }
-        
         // Check existing meta value
         $existing_meta = get_post_meta($watermark_id, 'active', true);
         
@@ -201,10 +188,6 @@ class WatermarkActionsHandler
             'active'
         ));
         
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark Toggle - Existing meta ID: ' . ($existing ? $existing : 'NULL'));
-        }
-        
         if ($existing) {
             // Update existing meta
             $result = $wpdb->update(
@@ -214,9 +197,6 @@ class WatermarkActionsHandler
                 array('%s'),
                 array('%d', '%s')
             );
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark Toggle - Direct update result: ' . ($result !== false ? 'SUCCESS' : 'FAILED'));
-            }
         } else {
             // Insert new meta
             $result = $wpdb->insert(
@@ -228,18 +208,12 @@ class WatermarkActionsHandler
                 ),
                 array('%d', '%s', '%s')
             );
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark Toggle - Direct insert result: ' . ($result !== false ? 'SUCCESS' : 'FAILED'));
-            }
         }
         
         // Convert to boolean for consistency
         $result = ($result !== false);
         
         if ($result === false) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark Toggle - Failed to update meta for watermark ID: ' . $watermark_id);
-            }
             wp_send_json_error(['message' => __('Failed to update watermark status.', 'ultimate-watermark')]);
             return;
         }
