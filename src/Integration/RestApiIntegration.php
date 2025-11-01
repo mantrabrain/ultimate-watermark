@@ -181,8 +181,13 @@ class RestApiIntegration
         // Check POST data first (this should be set by the upload form when toggle is ON)
         if (isset($_POST['ultimate_watermark_auto_apply']) && $_POST['ultimate_watermark_auto_apply'] === '1') {
             $auto_apply_enabled = true;
-        } else {
-            // Check WordPress option as fallback (set by JavaScript)
+        } 
+        // Check REQUEST for plupload multipart_params
+        elseif (isset($_REQUEST['ultimate_watermark_auto_apply']) && $_REQUEST['ultimate_watermark_auto_apply'] === '1') {
+            $auto_apply_enabled = true;
+        }
+        // Check WordPress option as fallback (set by JavaScript)
+        else {
             $option_value = get_option('ultimate_watermark_auto_apply_toggle', '0');
             if ($option_value === '1') {
                 $auto_apply_enabled = true;
@@ -218,8 +223,8 @@ class RestApiIntegration
             // Mark this attachment for watermarking
             update_post_meta($attachment_id, '_ulwm_watermarked', true);
             
-            // Reset the toggle after use to prevent accidental watermarking of subsequent uploads
-            update_option('ultimate_watermark_auto_apply_toggle', '0');
+            // DO NOT reset the toggle here - it will be reset after watermark is applied
+            // Resetting it here causes race conditions where metadata generation happens before toggle check
         }
         // If toggle is OFF, don't mark - let REST API hooks or wp_insert_post handle it
     }
@@ -229,50 +234,41 @@ class RestApiIntegration
      */
     public function processAfterMetadataGeneration($metadata, $attachment_id)
     {
+        // CRITICAL: Skip watermarking during restore operations
+        // Restore sets _ulwm_skip_watermarking flag to prevent re-watermarking
+        if (get_post_meta($attachment_id, '_ulwm_skip_watermarking', true)) {
+            return $metadata;
+        }
+        
         // Check if this image should be watermarked
         $should_watermark = get_post_meta($attachment_id, '_ulwm_watermarked', true);
         
         // If not marked, check if it was uploaded to a page/post via REST API
+        // Use the stored _ulwm_uploaded_to_post_id which was set during upload
         if (!$should_watermark && wp_attachment_is_image($attachment_id)) {
-            $attachment = get_post($attachment_id);
-            if ($attachment && $attachment->post_parent > 0) {
-                $parent_post = get_post($attachment->post_parent);
+            // First, try to get from stored meta (set during upload)
+            $parent_post_id = get_post_meta($attachment_id, '_ulwm_uploaded_to_post_id', true);
+            
+            // Fallback: check attachment's post_parent
+            if (!$parent_post_id || $parent_post_id <= 0) {
+                $attachment = get_post($attachment_id);
+                if ($attachment && $attachment->post_parent > 0) {
+                    $parent_post_id = $attachment->post_parent;
+                }
+            }
+            
+            if ($parent_post_id > 0) {
+                $parent_post = get_post($parent_post_id);
                 if ($parent_post) {
                     $parent_post_type = $parent_post->post_type;
                     
-                    // Get automatic watermarks and check rules
-                    $all_active = WatermarkHelper::getActiveWatermarks();
-                    $automatic_watermarks = array_filter($all_active, function($watermark) {
-                        return $watermark['automatic_watermarking'] === '1' || (boolean)$watermark['automatic_watermarking'] === true;
-                    });
+                    // Use the proper helper method to get matching watermarks (respects all rules)
+                    // This ensures we only get watermarks that match post type rules
+                    $matching_watermarks = WatermarkHelper::getActiveAutomaticWatermarks('upload', $attachment_id, 'full');
                     
-                    foreach ($automatic_watermarks as $watermark) {
-                        $watermark_on = $watermark['watermark_on'] ?? 'everywhere';
-                        
-                        if ($watermark_on === 'everywhere' || $watermark_on === '') {
-                            $should_watermark = true;
-                            break;
-                        } elseif ($watermark_on === 'selected_post_types') {
-                            $allowed_post_types = $watermark['watermark_post_types'] ?? [];
-                            if (is_string($allowed_post_types)) {
-                                $allowed_post_types = maybe_unserialize($allowed_post_types);
-                                if (is_string($allowed_post_types)) {
-                                    $allowed_post_types = maybe_unserialize($allowed_post_types);
-                                }
-                            }
-                            if (!is_array($allowed_post_types)) {
-                                $allowed_post_types = [];
-                            }
-                            $allowed_post_types = array_map('strval', array_values($allowed_post_types));
-                            
-                            if (in_array($parent_post_type, $allowed_post_types, true)) {
-                                $should_watermark = true;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    if ($should_watermark) {
+                    // If any watermarks match the rules, mark for watermarking
+                    if (!empty($matching_watermarks)) {
+                        $should_watermark = true;
                         update_post_meta($attachment_id, '_ulwm_watermarked', true);
                     }
                 }
@@ -297,6 +293,9 @@ class RestApiIntegration
                 // Remove the flag to prevent re-processing
                 delete_post_meta($attachment_id, '_ulwm_watermarked');
                 
+                // Reset the toggle after watermark is successfully applied
+                update_option('ultimate_watermark_auto_apply_toggle', '0');
+                
             } catch (\Exception $e) {
                 // Log error for debugging in production
                 if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -315,8 +314,75 @@ class RestApiIntegration
      */
     private function createBackupForWatermarking(int $attachment_id): void
     {
-        $backup_manager = new \MantraBrain\UltimateWatermark\Utils\BackupManager();
-        $backup_manager->createBackup($attachment_id);
+        // Get the original image file path using get_attached_file
+        // This should be the original unwatermarked file at this point
+        $original_path = get_attached_file($attachment_id);
+        if (!$original_path || !file_exists($original_path)) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("Ultimate Watermark Backup: Cannot find original file for attachment {$attachment_id}: " . ($original_path ?? 'null'));
+            }
+            return;
+        }
+
+        // CRITICAL: Verify this is the actual original file, not a watermarked version
+        // Check metadata to get the original_image if it exists (WordPress big image feature)
+        $metadata = wp_get_attachment_metadata($attachment_id);
+        $upload_dir = wp_upload_dir();
+        
+        // If WordPress has stored an original_image (before scaling), use that for backup
+        // This is the true original before any WordPress processing
+        if (!empty($metadata['original_image'])) {
+            $original_image_path = $upload_dir['basedir'] . '/' . dirname($metadata['file']) . '/' . $metadata['original_image'];
+            if (file_exists($original_image_path)) {
+                $original_path = $original_image_path;
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("Ultimate Watermark Backup: Using original_image from metadata for attachment {$attachment_id}: {$original_path}");
+                }
+            }
+        }
+
+        // Get all image sizes for multi-size backup
+        $image_sizes = get_intermediate_image_sizes();
+        $image_sizes[] = 'full';
+        
+        // Collect paths for all image sizes
+        // IMPORTANT: At this point, these files should be unwatermarked
+        // because we're inside processAfterMetadataGeneration which runs AFTER
+        // WordPress generates thumbnails but BEFORE we apply watermarks
+        $backup_paths = [];
+        foreach ($image_sizes as $size) {
+            if ($size === 'full') {
+                // For full size, use the original path we determined above
+                if (file_exists($original_path)) {
+                    $backup_paths['full'] = $original_path;
+                }
+            } else {
+                // For other sizes, get from metadata (generated by WordPress, should be unwatermarked)
+                $image_path = $this->getImagePathForSize($attachment_id, $size);
+                if ($image_path && file_exists($image_path)) {
+                    $backup_paths[$size] = $image_path;
+                }
+            }
+        }
+        
+        // Ensure we have at least the full size
+        if (empty($backup_paths)) {
+            $backup_paths['full'] = $original_path;
+        } elseif (!isset($backup_paths['full'])) {
+            $backup_paths['full'] = $original_path;
+        }
+        
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("Ultimate Watermark Backup: Creating backup for attachment {$attachment_id} from original: {$backup_paths['full']}");
+        }
+        
+        // Create backup with all sizes
+        \MantraBrain\UltimateWatermark\Utils\BackupManager::createBackup(
+            $backup_paths['full'],
+            $attachment_id,
+            0,
+            $backup_paths
+        );
     }
 
     /**
@@ -324,6 +390,10 @@ class RestApiIntegration
      */
     private function applyWatermarksToGeneratedImages(int $attachment_id): void
     {
+        // Check if this was marked via toggle (media library upload with toggle ON)
+        // If so, apply ALL active automatic watermarks without strict rule filtering
+        $was_toggle_enabled = get_post_meta($attachment_id, '_ulwm_watermarked', true);
+        
         // Get all registered image sizes
         $image_sizes = get_intermediate_image_sizes();
         $image_sizes[] = 'full';
@@ -331,8 +401,27 @@ class RestApiIntegration
         // Apply watermarks to each size based on their rules
         // We need to check rules for EACH size separately because rules can specify specific sizes
         foreach ($image_sizes as $size) {
-            // Get active automatic watermarks filtered by rules for THIS specific size
-            $automatic_watermarks = WatermarkHelper::getActiveAutomaticWatermarks('upload', $attachment_id, $size);
+            // If toggle was enabled, get all automatic watermarks and only filter by size rules
+            // This ensures media library uploads work regardless of post type rules
+            if ($was_toggle_enabled) {
+                // Get ALL active watermarks first
+                $all_active = WatermarkHelper::getActiveWatermarks();
+                
+                // Filter only by automatic watermarking behavior
+                $automatic_watermarks = array_filter($all_active, function($watermark) {
+                    return $watermark['automatic_watermarking'] === '1' || (boolean)$watermark['automatic_watermarking'] === true;
+                });
+                
+                // Then filter by size rules only (not post type rules when toggle was used)
+                $size_filtered = array_filter($automatic_watermarks, function($watermark) use ($size) {
+                    return WatermarkHelper::shouldApplyWatermarkByImageSize($watermark, $size);
+                });
+                
+                $automatic_watermarks = $size_filtered;
+            } else {
+                // Normal rule-based filtering (for REST API uploads, etc.)
+                $automatic_watermarks = WatermarkHelper::getActiveAutomaticWatermarks('upload', $attachment_id, $size);
+            }
             
             if (empty($automatic_watermarks)) {
                 continue; // No watermarks for this size, skip

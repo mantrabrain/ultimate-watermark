@@ -18,12 +18,15 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
             return false;
         }
         
-        $watermarkType = $watermarkData['watermark_type'] ?? 'text';
+        // Scale watermark data proportionally based on image size
+        $scaledWatermarkData = $this->scaleWatermarkDataForImage($image, $watermarkData);
+        
+        $watermarkType = $scaledWatermarkData['watermark_type'] ?? 'text';
         
         if ($watermarkType === 'text') {
-            $this->applyTextWatermark($image, $watermarkData);
+            $this->applyTextWatermark($image, $scaledWatermarkData);
         } elseif ($watermarkType === 'image') {
-            $this->applyImageWatermark($image, $watermarkData);
+            $this->applyImageWatermark($image, $scaledWatermarkData);
         } else {
         }
         
@@ -32,6 +35,155 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         $image->destroy();
         
         return $result;
+    }
+    
+    /**
+     * Scale watermark data proportionally based on current image size vs full size (original)
+     * This ensures watermarks look correct on different image sizes (thumbnails, medium, full, etc.)
+     * The watermark is configured for the FULL SIZE image, and we scale DOWN for smaller sizes
+     */
+    private function scaleWatermarkDataForImage(\Imagick $image, array $watermarkData): array
+    {
+        // Get current image dimensions
+        $currentWidth = $image->getImageWidth();
+        $currentHeight = $image->getImageHeight();
+        
+        // Get full size (original) image dimensions
+        // First, try to get from watermark data if stored
+        $fullWidth = $watermarkData['_full_size_width'] ?? null;
+        $fullHeight = $watermarkData['_full_size_height'] ?? null;
+        
+        // If not in watermark data, try to get from source image path context
+        if ($fullWidth === null || $fullHeight === null) {
+            // Try to get attachment ID from source image path
+            $attachmentId = $this->getAttachmentIdFromPath($watermarkData['_source_image_path'] ?? '');
+            
+            if ($attachmentId) {
+                // Get full size image metadata
+                $metadata = wp_get_attachment_metadata($attachmentId);
+                if ($metadata && isset($metadata['width']) && isset($metadata['height'])) {
+                    $fullWidth = $metadata['width'];
+                    $fullHeight = $metadata['height'];
+                }
+            }
+        }
+        
+        // If still don't have full size dimensions, assume current image IS full size
+        if ($fullWidth === null || $fullHeight === null) {
+            $fullWidth = $currentWidth;
+            $fullHeight = $currentHeight;
+        }
+        
+        // Calculate scaling ratio: current size / full size
+        // This will be < 1 for smaller sizes (thumbnail, medium, etc.) and = 1 for full size
+        $ratioX = $currentWidth / $fullWidth;
+        $ratioY = $currentHeight / $fullHeight;
+        $scaleRatio = min($ratioX, $ratioY); // Use minimum to ensure watermark fits
+        
+        // Create scaled copy of watermark data
+        $scaled = $watermarkData;
+        
+        // Scale font size for text watermarks
+        if (isset($scaled['watermark_font_size'])) {
+            $scaled['watermark_font_size'] = max(8, (int) round($scaled['watermark_font_size'] * $scaleRatio)); // Minimum 8px
+        }
+        
+        // Scale offset values
+        if (isset($scaled['watermark_offset_x'])) {
+            $scaled['watermark_offset_x'] = max(0, (int) round($scaled['watermark_offset_x'] * $scaleRatio));
+        }
+        if (isset($scaled['watermark_offset_y'])) {
+            $scaled['watermark_offset_y'] = max(0, (int) round($scaled['watermark_offset_y'] * $scaleRatio));
+        }
+        
+        // Scale custom dimensions for image watermarks
+        if (isset($scaled['watermark_custom_width'])) {
+            $scaled['watermark_custom_width'] = max(10, (int) round($scaled['watermark_custom_width'] * $scaleRatio)); // Minimum 10px
+        }
+        if (isset($scaled['watermark_custom_height'])) {
+            $scaled['watermark_custom_height'] = max(10, (int) round($scaled['watermark_custom_height'] * $scaleRatio)); // Minimum 10px
+        }
+        
+        // Store current image dimensions for reference
+        $scaled['_current_image_width'] = $currentWidth;
+        $scaled['_current_image_height'] = $currentHeight;
+        $scaled['_scale_ratio'] = $scaleRatio;
+        
+        return $scaled;
+    }
+    
+    /**
+     * Get attachment ID from image file path
+     * Handles both full size images and thumbnails/resized versions
+     */
+    private function getAttachmentIdFromPath(string $imagePath): ?int
+    {
+        if (empty($imagePath)) {
+            return null;
+        }
+        
+        // Normalize path
+        $normalizedPath = wp_normalize_path($imagePath);
+        $uploadDir = wp_upload_dir();
+        $baseDir = wp_normalize_path($uploadDir['basedir']);
+        
+        // Get relative path from uploads directory
+        if (strpos($normalizedPath, $baseDir) !== 0) {
+            return null;
+        }
+        
+        $relativePath = str_replace($baseDir . '/', '', $normalizedPath);
+        $pathInfo = pathinfo($relativePath);
+        $baseFilename = $pathInfo['filename'];
+        $directory = $pathInfo['dirname'];
+        
+        // First, try exact match (for full size images)
+        global $wpdb;
+        $attachmentId = $wpdb->get_var($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta} 
+            WHERE meta_key = '_wp_attached_file' 
+            AND meta_value = %s 
+            LIMIT 1",
+            $relativePath
+        ));
+        
+        if ($attachmentId) {
+            return (int) $attachmentId;
+        }
+        
+        // If exact match fails, try to match by base filename and directory
+        // This handles thumbnails and resized images (e.g., image-150x150.jpg -> image.jpg)
+        // Remove size suffix (e.g., -150x150) from filename
+        $baseFilenameClean = preg_replace('/-\d+x\d+$/', '', $baseFilename);
+        $extension = isset($pathInfo['extension']) ? '.' . $pathInfo['extension'] : '';
+        
+        // Try to find attachment with matching base filename in same directory
+        $possiblePath = $directory === '.' ? $baseFilenameClean . $extension : $directory . '/' . $baseFilenameClean . $extension;
+        
+        $attachmentId = $wpdb->get_var($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta} 
+            WHERE meta_key = '_wp_attached_file' 
+            AND meta_value = %s 
+            LIMIT 1",
+            $possiblePath
+        ));
+        
+        if ($attachmentId) {
+            return (int) $attachmentId;
+        }
+        
+        // Last resort: search by base filename pattern in metadata
+        $attachmentId = $wpdb->get_var($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta} pm
+            INNER JOIN {$wpdb->posts} p ON pm.post_id = p.ID
+            WHERE pm.meta_key = '_wp_attached_file'
+            AND pm.meta_value LIKE %s
+            AND p.post_type = 'attachment'
+            LIMIT 1",
+            '%' . $wpdb->esc_like($baseFilenameClean) . '%'
+        ));
+        
+        return $attachmentId ? (int) $attachmentId : null;
     }
     
     /**

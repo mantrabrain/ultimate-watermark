@@ -32,6 +32,10 @@ class MediaLibraryIntegration
         // Hook into upload process - try multiple hooks for better compatibility
         add_action('wp_handle_upload', [$this, 'processUploadedImage'], 10, 2);
         add_filter('wp_handle_upload_prefilter', [$this, 'processUploadedImagePrefilter']);
+        
+        // Add toggle state to plupload upload parameters (most reliable method)
+        add_filter('upload_post_params', [$this, 'addToggleToUploadParams']);
+        
         // NOTE: add_attachment and REST API hooks moved to RestApiIntegration class
         // This ensures they work even when is_admin() is false (REST API requests)
         // For admin uploads, we still check toggle in MediaLibraryIntegration
@@ -245,17 +249,15 @@ class MediaLibraryIntegration
         // Create backup BEFORE applying watermarks (same as upload flow)
         $this->createBackupForWatermarking($attachment_id);
         
-        // Get watermark data and verify it passes rules
+        // Get watermark data
         $watermark_data = WatermarkHelper::getActiveWatermarkById($watermark_id);
         if (!$watermark_data) {
             return false;
         }
         
-        // IMPORTANT: Check post type rules first (manual context)
-        // This ensures the watermark is allowed for this attachment
-        if (!WatermarkHelper::shouldApplyWatermarkByPostType($watermark_data, 'manual', $attachment_id)) {
-            return false; // Watermark doesn't match post type rules
-        }
+        // For bulk/manual actions, user explicitly selected the watermark
+        // So we skip post type rules (user's explicit choice overrides rules)
+        // But we still respect size rules (important for performance and intention)
         
         // Get all registered image sizes
         $image_sizes = get_intermediate_image_sizes();
@@ -263,8 +265,8 @@ class MediaLibraryIntegration
         
         $success_count = 0;
         
-        // Apply watermarks to each size based on their rules
-        // We check rules for EACH size separately
+        // Apply watermarks to each size based on size rules only
+        // We check size rules for EACH size separately
         foreach ($image_sizes as $size) {
             // Check if this size passes the size rules
             if (!WatermarkHelper::shouldApplyWatermarkByImageSize($watermark_data, $size)) {
@@ -370,8 +372,14 @@ class MediaLibraryIntegration
      */
     public function addUploadToggle(): void
     {
-        // Get active automatic watermarks
-        $automatic_watermarks = WatermarkHelper::getActiveAutomaticWatermarks();
+        // Get ALL active automatic watermarks WITHOUT rule filtering
+        // Rules will be enforced when actually applying the watermark, not when showing options
+        $all_active = WatermarkHelper::getActiveWatermarks();
+        
+        // Filter only by automatic watermarking behavior (not by rules)
+        $automatic_watermarks = array_filter($all_active, function($watermark) {
+            return $watermark['automatic_watermarking'] === '1' || (boolean)$watermark['automatic_watermarking'] === true;
+        });
         
         // Always show the toggle, but with different messages based on availability
         $has_automatic_watermarks = !empty($automatic_watermarks);
@@ -540,11 +548,16 @@ class MediaLibraryIntegration
                 const isEnabled = $toggle.is(':checked');
                 sessionStorage.setItem('ultimate_watermark_auto_apply', isEnabled ? '1' : '0');
                 
-                // Also send to server via AJAX to store in session
-                $.post('<?php echo admin_url('admin-ajax.php'); ?>', {
-                    action: 'ultimate_watermark_update_toggle_state',
-                    enabled: isEnabled ? '1' : '0',
-                    nonce: '<?php echo wp_create_nonce('ultimate_watermark_toggle'); ?>'
+                // Send to server via AJAX to store in option (synchronous for immediate use)
+                $.ajax({
+                    url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                    type: 'POST',
+                    async: false, // Synchronous to ensure it's saved before upload
+                    data: {
+                        action: 'ultimate_watermark_update_toggle_state',
+                        enabled: isEnabled ? '1' : '0',
+                        nonce: '<?php echo wp_create_nonce('ultimate_watermark_toggle'); ?>'
+                    }
                 });
             }
             
@@ -592,13 +605,57 @@ class MediaLibraryIntegration
                 }
             });
             
-            // Also try to intercept the plupload queue
-            if (typeof wp !== 'undefined' && wp.media && wp.media.view) {
-                // Hook into plupload queue events
-                $(document).on('wp-plupload-queue-added', function() {
-                    const isEnabled = $toggle.is(':checked');
+            // Hook into WordPress media uploader to add toggle state
+            // This needs to happen when the uploader is initialized, not on document ready
+            if (typeof wp !== 'undefined' && wp.media) {
+                // Hook into media library uploader initialization
+                $(document).on('ready', function() {
+                    // Override wp.Uploader if it exists
+                    if (wp.Uploader && wp.Uploader.prototype) {
+                        var originalInit = wp.Uploader.prototype.init;
+                        wp.Uploader.prototype.init = function() {
+                            originalInit.apply(this, arguments);
+                            
+                            // Hook into plupload before upload
+                            if (this.uploader) {
+                                var self = this;
+                                this.uploader.bind('BeforeUpload', function(up, file) {
+                                    var isEnabled = $toggle.is(':checked');
+                                    if (isEnabled) {
+                                        // Add parameter to multipart_params
+                                        if (!up.settings.multipart_params) {
+                                            up.settings.multipart_params = {};
+                                        }
+                                        up.settings.multipart_params.ultimate_watermark_auto_apply = '1';
+                                        
+                                        // Ensure option is saved (fallback)
+                                        updateToggleState();
+                                    }
+                                });
+                            }
+                        };
+                    }
+                });
+                
+                // Alternative: Hook into plupload events directly
+                $(document).on('plupload:init', function(e, uploader) {
+                    uploader.bind('BeforeUpload', function(up, file) {
+                        var isEnabled = $toggle.is(':checked');
+                        if (isEnabled) {
+                            if (!up.settings.multipart_params) {
+                                up.settings.multipart_params = {};
+                            }
+                            up.settings.multipart_params.ultimate_watermark_auto_apply = '1';
+                            updateToggleState();
+                        }
+                    });
+                });
+                
+                // Fallback: Ensure option is saved when queue changes
+                $(document).on('wp-plupload-queue-added wp-upload-queued plupload:added', function() {
+                    var isEnabled = $toggle.is(':checked');
                     if (isEnabled) {
-                        // Add to sessionStorage for the upload hooks to pick up
+                        updateToggleState();
                         sessionStorage.setItem('ultimate_watermark_auto_apply', '1');
                     }
                 });
@@ -641,6 +698,20 @@ class MediaLibraryIntegration
     }
 
     /**
+     * Add toggle state to plupload upload parameters
+     * This is the most reliable method to pass toggle state to uploads
+     */
+    public function addToggleToUploadParams(array $params): array
+    {
+        // Check if toggle is enabled
+        $option_value = get_option('ultimate_watermark_auto_apply_toggle', '0');
+        if ($option_value === '1') {
+            $params['ultimate_watermark_auto_apply'] = '1';
+        }
+        return $params;
+    }
+
+    /**
      * Process uploaded image using prefilter hook
      */
     public function processUploadedImagePrefilter(array $file): array
@@ -648,6 +719,7 @@ class MediaLibraryIntegration
         
         return $file;
     }
+    
     /**
      * Process new attachment after upload
      */

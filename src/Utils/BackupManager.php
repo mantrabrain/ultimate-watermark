@@ -320,6 +320,8 @@ class BackupManager
             return false;
         }
         
+        // Get applied watermarks BEFORE restoring (to clean up metadata)
+        $applied_watermarks = \MantraBrain\UltimateWatermark\Utils\WatermarkUsageTracker::getAppliedWatermarks($attachment_id);
         
         // Restore all backup files (main + all additional sizes)
         // Ensure the original (full) is restored FIRST
@@ -334,16 +336,117 @@ class BackupManager
 
         $restored_count = 0;
         foreach ($backups as $backup) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("Ultimate Watermark Restore: Attempting to restore backup file: {$backup['path']} (type: {$backup['type']}, size: {$backup['size']} bytes)");
+            }
+            
             if (self::restoreBackupFile($backup, $attachment_id)) {
                 $restored_count++;
+            } else {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("Ultimate Watermark Restore: Failed to restore backup file: {$backup['path']}");
+                }
             }
         }
         
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("Ultimate Watermark Restore: Restored {$restored_count} of " . count($backups) . " backup file(s) for attachment {$attachment_id}");
+        }
         
-        // DO NOT regenerate attachment metadata after restore
-        // This would regenerate thumbnails from the main image, potentially overwriting our restored files
-        // The restored files should already be in the correct locations
+        // If restoration was successful, clean up watermark metadata (same as remove watermark)
         if ($restored_count > 0) {
+            // Regenerate attachment metadata to update WordPress about the restored files
+            $original_path = get_attached_file($attachment_id);
+            if ($original_path && file_exists($original_path)) {
+                // Delete ALL existing size files first (to ensure clean regeneration from restored full size)
+                // This is especially important when backup strategy is "full size only"
+                $metadata = wp_get_attachment_metadata($attachment_id);
+                $base_dir = dirname($original_path);
+                $original_filename = basename($original_path);
+                $original_basename = pathinfo($original_filename, PATHINFO_FILENAME);
+                $original_ext = pathinfo($original_filename, PATHINFO_EXTENSION);
+                
+                // Get all files in the directory that match the image base name patterns
+                // This will catch all sizes, scaled versions, and variants dynamically
+                $all_files = glob($base_dir . '/' . $original_basename . '*.*');
+                
+                if ($all_files) {
+                    foreach ($all_files as $file) {
+                        $basename = basename($file);
+                        
+                        // Skip the original full size file (we just restored it, don't delete it!)
+                        if ($basename === $original_filename) {
+                            continue;
+                        }
+                        
+                        // Skip backup files (they're in a different directory, but just in case)
+                        if (strpos($basename, '_original') !== false || strpos(dirname($file), 'ulwm-backup') !== false) {
+                            continue;
+                        }
+                        
+                        // Delete any file that matches our patterns (sizes, scaled, variants)
+                        // This includes: -150x150.jpg, -scaled.jpg, -scaled-2048x1366.jpg, etc.
+                        if (is_file($file)) {
+                            // Delete the file itself
+                            @unlink($file);
+                            
+                            // Also delete WebP/AVIF variants if they exist (dynamic check)
+                            $file_info = pathinfo($file);
+                            $file_ext = strtolower($file_info['extension'] ?? '');
+                            
+                            // If current file is not WebP/AVIF, check for those variants
+                            if (!in_array($file_ext, ['webp', 'avif'])) {
+                                $variant_extensions = ['webp', 'avif'];
+                                foreach ($variant_extensions as $variant_ext) {
+                                    $variant_path = $file_info['dirname'] . '/' . $file_info['filename'] . '.' . $variant_ext;
+                                    if (file_exists($variant_path) && is_file($variant_path)) {
+                                        @unlink($variant_path);
+                                    }
+                                }
+                            }
+                            
+                            // If current file is WebP/AVIF, also check for original format variants
+                            if (in_array($file_ext, ['webp', 'avif'])) {
+                                $original_format_extensions = ['jpg', 'jpeg', 'png'];
+                                foreach ($original_format_extensions as $orig_ext) {
+                                    $orig_format_path = $file_info['dirname'] . '/' . $file_info['filename'] . '.' . $orig_ext;
+                                    if (file_exists($orig_format_path) && is_file($orig_format_path)) {
+                                        // Only delete if it matches the pattern (not the original full size)
+                                        if (basename($orig_format_path) !== $original_filename) {
+                                            @unlink($orig_format_path);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // CRITICAL: Prevent watermarking during restore by setting a flag
+                // wp_generate_attachment_metadata triggers hooks that would apply watermarks again
+                update_post_meta($attachment_id, '_ulwm_skip_watermarking', true);
+                
+                // Now regenerate all sizes from the restored full size image
+                // This will create clean, unwatermarked versions of all sizes
+                wp_generate_attachment_metadata($attachment_id, $original_path);
+                
+                // Remove the skip flag after regeneration
+                delete_post_meta($attachment_id, '_ulwm_skip_watermarking');
+            }
+            
+            // Track watermark usage removal for all applied watermarks
+            foreach ($applied_watermarks as $watermark_id) {
+                \MantraBrain\UltimateWatermark\Utils\WatermarkUsageTracker::decrementUsage($watermark_id, $attachment_id);
+            }
+            
+            // Remove all watermark metadata
+            delete_post_meta($attachment_id, 'applied_watermarks');
+            delete_post_meta($attachment_id, 'watermarks_by_size');
+            delete_post_meta($attachment_id, 'watermark_count');
+            delete_post_meta($attachment_id, 'watermark_application_dates');
+            
+            // Also remove the _ulwm_watermarked flag if it exists
+            delete_post_meta($attachment_id, '_ulwm_watermarked');
         }
         
         return $restored_count > 0;
@@ -359,47 +462,112 @@ class BackupManager
     private static function restoreBackupFile(array $backup, int $attachment_id): bool
     {
         $backup_path = $backup['path'];
-        $backup_filename = $backup['filename'];
         
+        // Verify backup file exists and is readable
+        if (!file_exists($backup_path) || !is_file($backup_path) || !is_readable($backup_path)) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("Ultimate Watermark Restore: Backup file not found or not readable: {$backup_path}");
+            }
+            return false;
+        }
         
-        // Check if backup file exists and get its size
-        if (file_exists($backup_path)) {
-            $backup_size = filesize($backup_path);
-        } else {
+        // Verify we're actually reading from a backup directory (safety check)
+        $backup_dir_check = wp_normalize_path($backup_path);
+        if (strpos($backup_dir_check, '/ulwm-backup/') === false) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("Ultimate Watermark Restore: Invalid backup path (not in backup directory): {$backup_path}");
+            }
             return false;
         }
         
         // Determine the target file path based on backup type
-        $target_path = self::getTargetPathForBackup($backup_filename, $attachment_id);
+        $target_path = self::getTargetPathForBackup($backup, $attachment_id);
         
         if (!$target_path) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("Ultimate Watermark Restore: Could not determine target path for backup type: " . ($backup['type'] ?? 'unknown'));
+            }
             return false;
         }
         
+        // Ensure target directory exists and is writable
+        $target_dir = dirname($target_path);
+        if (!file_exists($target_dir)) {
+            if (!wp_mkdir_p($target_dir)) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("Ultimate Watermark Restore: Could not create target directory: {$target_dir}");
+                }
+                return false;
+            }
+        }
         
-        // Check if target file exists before restore
+        if (!is_writable($target_dir)) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("Ultimate Watermark Restore: Target directory not writable: {$target_dir}");
+            }
+            return false;
+        }
+        
+        // Remove existing target file if it exists (to ensure clean restore)
         if (file_exists($target_path)) {
-            $target_size_before = filesize($target_path);
-        } else {
+            if (!is_writable($target_path)) {
+                @chmod($target_path, 0644);
+            }
+            if (!@unlink($target_path)) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("Ultimate Watermark Restore: Could not delete existing target file: {$target_path}");
+                }
+                return false;
+            }
         }
         
-        // Copy backup file to target location
-        if (copy($backup_path, $target_path)) {
-            $target_size_after = filesize($target_path);
-            return true;
-        } else {
+        // Copy backup file to target location (simple file copy - this is the core restore action)
+        // IMPORTANT: We are copying FROM backup_path (backup file) TO target_path (original location)
+        $copy_result = @copy($backup_path, $target_path);
+        
+        if (!$copy_result) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("Ultimate Watermark Restore: Copy failed from {$backup_path} to {$target_path}");
+            }
             return false;
         }
+        
+        // Verify the file was copied successfully and has content
+        if (!file_exists($target_path)) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("Ultimate Watermark Restore: Target file does not exist after copy: {$target_path}");
+            }
+            return false;
+        }
+        
+        // Verify file size matches (basic integrity check)
+        $backup_size = filesize($backup_path);
+        $target_size = filesize($target_path);
+        if ($backup_size !== $target_size) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("Ultimate Watermark Restore: File size mismatch - backup: {$backup_size}, target: {$target_size}");
+            }
+            // Still return true as copy succeeded, but log the warning
+        }
+        
+        // Ensure proper permissions
+        @chmod($target_path, 0644);
+        
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("Ultimate Watermark Restore: Successfully copied from {$backup_path} to {$target_path} (size: {$target_size} bytes)");
+        }
+        
+        return true;
     }
     
     /**
      * Get target path for a backup file
      * 
-     * @param string $backup_filename Backup filename
+     * @param array $backup Backup file information (with 'type' field)
      * @param int $attachment_id WordPress attachment ID
      * @return string|null Target path or null if cannot determine
      */
-    private static function getTargetPathForBackup(string $backup_filename, int $attachment_id): ?string
+    private static function getTargetPathForBackup(array $backup, int $attachment_id): ?string
     {
         $original_path = get_attached_file($attachment_id);
         if (!$original_path) {
@@ -407,32 +575,14 @@ class BackupManager
         }
 
         // Main original backup always maps to the original path
-        // Check if filename ends with _original.{extension}
-        $file_info = pathinfo($backup_filename);
-        $name_without_ext = $file_info['filename'];
-        if (substr($name_without_ext, -9) === '_original') {
+        if ($backup['type'] === 'original') {
             return $original_path;
         }
 
-        // Parse filename: {id}_{base}_{size}.{ext}
-        // Example: 147_image_thumbnail.webp -> thumbnail
+        // For size files, use the backup type (which is the size name)
+        $size_key = $backup['type'];
         
-        // Remove attachment ID prefix: 147_image_thumbnail -> image_thumbnail
-        $parts = explode('_', $name_without_ext, 2);
-        if (count($parts) < 2) {
-            return null;
-        }
-        $name_with_size = $parts[1]; // image_thumbnail
-        
-        // Find the last underscore to get the size
-        $last_underscore_pos = strrpos($name_with_size, '_');
-        if ($last_underscore_pos === false) {
-            return null;
-        }
-        
-        $size_key = substr($name_with_size, $last_underscore_pos + 1); // thumbnail
-
-        // Use attachment metadata to resolve the actual resized filename
+        // Get metadata to find the actual size file path
         $metadata = wp_get_attachment_metadata($attachment_id);
         if (!$metadata || empty($metadata['sizes'])) {
             return null;
@@ -445,7 +595,6 @@ class BackupManager
         $dir = pathinfo($original_path, PATHINFO_DIRNAME);
         $size_filename = $metadata['sizes'][$size_key]['file'];
         $target_path = $dir . '/' . $size_filename;
-        
 
         return $target_path;
     }
@@ -548,36 +697,46 @@ class BackupManager
         // Search in all year/month directories for backup files
         $search_dirs = [];
         
-        // First, search in current year/month
-        $current_year = date('Y');
-        $current_month = date('m');
-        $search_dirs[] = $backup_base_dir . '/' . $current_year . '/' . $current_month;
-        
-        // Then search in all year directories
+        // Search in all year directories (avoids duplicates)
         if (is_dir($backup_base_dir)) {
             $year_dirs = glob($backup_base_dir . '/*', GLOB_ONLYDIR);
             foreach ($year_dirs as $year_dir) {
                 if (is_dir($year_dir)) {
                     $month_dirs = glob($year_dir . '/*', GLOB_ONLYDIR);
                     foreach ($month_dirs as $month_dir) {
-                        $search_dirs[] = $month_dir;
+                        if (is_dir($month_dir)) {
+                            $search_dirs[] = $month_dir;
+                        }
                     }
                 }
             }
         }
         
+        // Remove duplicates (in case same directory appears multiple times)
+        $search_dirs = array_unique($search_dirs);
+        
         $backup_files = [];
+        $seen_files = []; // Track files we've already found to avoid duplicates
+        
         foreach ($search_dirs as $backup_dir) {
             if (!file_exists($backup_dir)) {
                 continue;
             }
             
-            
             // Look for backup files with pattern: {attachment_id}_*.* (both original and size files)
             $backup_pattern = $backup_dir . '/' . $attachment_id . '_*.*';
             $found_files = glob($backup_pattern);
-            $backup_files = array_merge($backup_files, $found_files);
             
+            if ($found_files) {
+                foreach ($found_files as $found_file) {
+                    // Normalize path and check if we've seen this file before
+                    $normalized_path = wp_normalize_path($found_file);
+                    if (!isset($seen_files[$normalized_path])) {
+                        $backup_files[] = $found_file;
+                        $seen_files[$normalized_path] = true;
+                    }
+                }
+            }
         }
         
         

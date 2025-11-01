@@ -36,6 +36,9 @@ class WatermarkService
         if (!$resolvedData) {
             throw new \Exception('Invalid watermark data provided');
         }
+        
+        // Store source image path for scaling calculations
+        $resolvedData['_source_image_path'] = $sourceImagePath;
 
         // Get processor
         $processor = WatermarkProcessorFactory::create();
