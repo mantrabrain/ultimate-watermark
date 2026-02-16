@@ -376,7 +376,11 @@ class BackupManager
                         // This includes: -150x150.jpg, -scaled.jpg, -scaled-2048x1366.jpg, etc.
                         if (is_file($file)) {
                             // Delete the file itself
-                            @unlink($file);
+                            if (!unlink($file)) {
+                                if (defined('WP_DEBUG') && WP_DEBUG) {
+                                    error_log('Ultimate Watermark: Failed to delete file: ' . $file);
+                                }
+                            }
                             
                             // Also delete WebP/AVIF variants if they exist (dynamic check)
                             $file_info = pathinfo($file);
@@ -388,7 +392,11 @@ class BackupManager
                                 foreach ($variant_extensions as $variant_ext) {
                                     $variant_path = $file_info['dirname'] . '/' . $file_info['filename'] . '.' . $variant_ext;
                                     if (file_exists($variant_path) && is_file($variant_path)) {
-                                        @unlink($variant_path);
+                                        if (!unlink($variant_path)) {
+                                            if (defined('WP_DEBUG') && WP_DEBUG) {
+                                                error_log('Ultimate Watermark: Failed to delete variant: ' . $variant_path);
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -401,7 +409,11 @@ class BackupManager
                                     if (file_exists($orig_format_path) && is_file($orig_format_path)) {
                                         // Only delete if it matches the pattern (not the original full size)
                                         if (basename($orig_format_path) !== $original_filename) {
-                                            @unlink($orig_format_path);
+                                            if (!unlink($orig_format_path)) {
+                                                if (defined('WP_DEBUG') && WP_DEBUG) {
+                                                    error_log('Ultimate Watermark: Failed to delete original format variant: ' . $orig_format_path);
+                                                }
+                                            }
                                         }
                                     }
                                 }

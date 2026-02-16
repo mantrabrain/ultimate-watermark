@@ -296,23 +296,38 @@
                 
                 // Process conditional field logic here
                 if (condition) {
-                    // Parse condition: "field_name === 'value'"
-                    const parts = condition.split(' === ');
-                    if (parts.length === 2) {
-                        const fieldName = parts[0].trim();
-                        const expectedValue = parts[1].trim().replace(/['"]/g, '');
-                        const currentValue = formValues[fieldName];
-                        
-                        // Show/hide based on condition
-                        if (currentValue === expectedValue) {
-                            $field.removeClass('hidden');
-                            if (condition.includes('watermark_type')) {
+                    let shouldShow = false;
+                    
+                    // Check if condition has OR operator
+                    if (condition.includes(' || ')) {
+                        // Handle OR conditions: "field === 'value1' || field === 'value2'"
+                        const orParts = condition.split(' || ');
+                        shouldShow = orParts.some(function(orCondition) {
+                            const parts = orCondition.trim().split(' === ');
+                            if (parts.length === 2) {
+                                const fieldName = parts[0].trim();
+                                const expectedValue = parts[1].trim().replace(/['"]/g, '');
+                                const currentValue = formValues[fieldName];
+                                return currentValue === expectedValue;
                             }
-                        } else {
-                            $field.addClass('hidden');
-                            if (condition.includes('watermark_type')) {
-                            }
+                            return false;
+                        });
+                    } else {
+                        // Handle simple condition: "field_name === 'value'"
+                        const parts = condition.split(' === ');
+                        if (parts.length === 2) {
+                            const fieldName = parts[0].trim();
+                            const expectedValue = parts[1].trim().replace(/['"]/g, '');
+                            const currentValue = formValues[fieldName];
+                            shouldShow = currentValue === expectedValue;
                         }
+                    }
+                    
+                    // Show/hide based on condition result
+                    if (shouldShow) {
+                        $field.removeClass('hidden');
+                    } else {
+                        $field.addClass('hidden');
                     }
                 }
             });

@@ -608,38 +608,26 @@ class AdminManager
                 $settings[$field_key] = $sanitized_value;
             }
             
-            // Use direct database approach to bypass any WordPress hooks
-            // Force delete and clear all caches
-            delete_option('ultimate_watermark_options');
+            // Clear all caches before updating
             wp_cache_delete('ultimate_watermark_options', 'options');
             wp_cache_flush();
             
-            // Direct database approach to bypass any WordPress hooks
-            global $wpdb;
-            $serialized_settings = maybe_serialize($settings);
+            // Use WordPress update_option for better compatibility and hook support
+            // This properly handles serialization, caching, and database operations
+            $update_result = update_option('ultimate_watermark_options', $settings, 'yes');
             
-            // First, delete the existing option completely
-            $wpdb->delete($wpdb->options, ['option_name' => 'ultimate_watermark_options']);
-            
-            // Then insert the new one
-            $db_result = $wpdb->insert(
-                $wpdb->options,
-                [
-                    'option_name' => 'ultimate_watermark_options',
-                    'option_value' => $serialized_settings,
-                    'autoload' => 'yes'
-                ],
-                ['%s', '%s', '%s']
-            );
-            
-            if ($db_result === false) {
-                wp_send_json_error(['message' => __('Failed to save settings to database.', 'ultimate-watermark')]);
-                return;
+            if ($update_result === false) {
+                // Check if option exists and values are the same (update_option returns false if no change)
+                $existing = get_option('ultimate_watermark_options', []);
+                if ($existing !== $settings) {
+                    wp_send_json_error(['message' => __('Failed to save settings to database.', 'ultimate-watermark')]);
+                    return;
+                }
             }
             
             // Clear caches to ensure fresh data
-            wp_cache_flush();
             wp_cache_delete('ultimate_watermark_options', 'options');
+            wp_cache_flush();
             
             wp_send_json_success(['message' => __('Settings saved successfully.', 'ultimate-watermark')]);
             

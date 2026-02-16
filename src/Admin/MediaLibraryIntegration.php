@@ -586,7 +586,7 @@ class MediaLibraryIntegration
             'use strict';
             
             // Global function to update toggle state
-            window.ultimateWatermarkUpdateToggleState = function() {
+            window.ultimateWatermarkUpdateToggleState = function(forceUpdate = false) {
                 // Check both regular toggle and popup toggle, prefer the one that's checked or visible
                 let $toggle = $('#ultimate-watermark-auto-apply:checked');
                 if ($toggle.length === 0) {
@@ -601,6 +601,12 @@ class MediaLibraryIntegration
                 if ($toggle.length === 0) return;
                 
                 const isEnabled = $toggle.is(':checked');
+                const currentState = localStorage.getItem('ultimate_watermark_toggle_state');
+                
+                // Only update if state has changed or force update is requested
+                if (!forceUpdate && currentState === (isEnabled ? '1' : '0')) {
+                    return; // No change needed
+                }
                 
                 // Save to localStorage for persistence across page reloads
                 localStorage.setItem('ultimate_watermark_toggle_state', isEnabled ? '1' : '0');
@@ -608,11 +614,11 @@ class MediaLibraryIntegration
                 // Also save to sessionStorage for upload hooks
                 sessionStorage.setItem('ultimate_watermark_auto_apply', isEnabled ? '1' : '0');
                 
-                // Send to server via AJAX to store in option (synchronous for immediate use)
+                // Send to server via AJAX to store in option (asynchronous for better performance)
                 $.ajax({
                     url: '<?php echo admin_url('admin-ajax.php'); ?>',
                     type: 'POST',
-                    async: false, // Synchronous to ensure it's saved before upload
+                    async: true, // Changed to asynchronous for better performance
                     data: {
                         action: 'ultimate_watermark_update_toggle_state',
                         enabled: isEnabled ? '1' : '0',
@@ -917,8 +923,8 @@ class MediaLibraryIntegration
                     }
                 });
                 
-                // Update toggle state once (after initializing all toggles)
-                window.ultimateWatermarkUpdateToggleState();
+                // Update toggle state once (after initializing all toggles) - force update to ensure server sync
+                window.ultimateWatermarkUpdateToggleState(true);
             };
             
             // NOTE: We don't patch FormData.append because plupload uses moxie's polyfill
@@ -1016,7 +1022,8 @@ class MediaLibraryIntegration
                                         if (typeof updateMultipartParamsForUploader === 'function') {
                                             updateMultipartParamsForUploader(up);
                                         }
-                                        window.ultimateWatermarkUpdateToggleState();
+                                        // Remove unnecessary call - already handled during initialization
+                                        // window.ultimateWatermarkUpdateToggleState();
                                     });
                                 }
                             }.bind(this), 100);

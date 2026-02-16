@@ -89,8 +89,13 @@ class WatermarkDataResolver
      */
     private static function sanitizeFormData(array $formData): array
     {
+        $watermark_type = sanitize_text_field($formData['watermark_type'] ?? 'text');
+        
+        // Allow Pro plugin to register custom watermark types
+        $watermark_type = apply_filters('ultimate_watermark_sanitize_type', $watermark_type, $formData);
+        
         return [
-            'watermark_type' => sanitize_text_field($formData['watermark_type'] ?? 'text'),
+            'watermark_type' => $watermark_type,
             'watermark_text' => sanitize_text_field($formData['watermark_text'] ?? 'Watermark'),
             'watermark_color' => sanitize_hex_color($formData['watermark_color'] ?? '#000000'),
             'watermark_font_size' => absint($formData['watermark_font_size'] ?? 24),
@@ -122,6 +127,14 @@ class WatermarkDataResolver
      */
     private static function normalizeData(array $data): array
     {
+        // Allow Pro plugin to add custom data normalization
+        $data = apply_filters('ultimate_watermark_before_normalize_data', $data);
+        
+        // Ensure all required fields exist with defaults
+        $normalized = array_merge([
+            'watermark_type' => 'text',
+        ], $data);
+        
         $watermarkType = $data['watermark_type'] ?? $data['type'] ?? 'text';
         
         $normalized = [
@@ -180,18 +193,10 @@ class WatermarkDataResolver
             'watermark_quality' => (int) ($data['watermark_quality'] ?? $data['quality'] ?? 90),
             'image_format' => $data['image_format'] ?? 'baseline',
         ];
-
-        // Add behavior settings if available
-        if (isset($data['automatic_watermarking'])) {
-            $normalized['automatic_watermarking'] = $data['automatic_watermarking'];
-        }
-        if (isset($data['manual_watermarking'])) {
-            $normalized['manual_watermarking'] = $data['manual_watermarking'];
-        }
-        if (isset($data['frontend_watermarking'])) {
-            $normalized['frontend_watermarking'] = $data['frontend_watermarking'];
-        }
-
+        
+        // Allow Pro plugin to modify normalized data
+        $normalized = apply_filters('ultimate_watermark_after_normalize_data', $normalized);
+        
         return $normalized;
     }
 }

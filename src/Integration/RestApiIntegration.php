@@ -93,12 +93,16 @@ class RestApiIntegration
         // Check POST data first (this should be set by the upload form when toggle is ON)
         if (isset($_POST['ultimate_watermark_auto_apply']) && $_POST['ultimate_watermark_auto_apply'] === '1') {
             $auto_apply_enabled = true;
-            error_log('Ultimate Watermark: markForWatermarking - Found toggle in $_POST');
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark: markForWatermarking - Found toggle in $_POST');
+            }
         } 
         // Check REQUEST for plupload multipart_params
         elseif (isset($_REQUEST['ultimate_watermark_auto_apply']) && $_REQUEST['ultimate_watermark_auto_apply'] === '1') {
             $auto_apply_enabled = true;
-            error_log('Ultimate Watermark: markForWatermarking - Found toggle in $_REQUEST');
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark: markForWatermarking - Found toggle in $_REQUEST');
+            }
         }
         // Check WordPress option as fallback (set by JavaScript)
         else {
@@ -145,17 +149,23 @@ class RestApiIntegration
             // 1. Check $_POST first (standard location - from multipart_params)
             if (isset($_POST['ultimate_watermark_ids'])) {
                 $ids_string = sanitize_text_field($_POST['ultimate_watermark_ids']);
-                error_log('Ultimate Watermark: Found in $_POST[ultimate_watermark_ids]: ' . $ids_string);
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Ultimate Watermark: Found in $_POST[ultimate_watermark_ids]: ' . $ids_string);
+                }
             }
             // 2. Check $_REQUEST (broader scope)
             elseif (isset($_REQUEST['ultimate_watermark_ids'])) {
                 $ids_string = sanitize_text_field($_REQUEST['ultimate_watermark_ids']);
-                error_log('Ultimate Watermark: Found in $_REQUEST[ultimate_watermark_ids]: ' . $ids_string);
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Ultimate Watermark: Found in $_REQUEST[ultimate_watermark_ids]: ' . $ids_string);
+                }
             }
             // 3. Check WordPress option (set by AJAX before upload)
             elseif (get_option('ultimate_watermark_temp_selected_ids', '') !== '') {
                 $ids_string = sanitize_text_field(get_option('ultimate_watermark_temp_selected_ids', ''));
-                error_log('Ultimate Watermark: Found in WordPress option: ' . $ids_string);
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Ultimate Watermark: Found in WordPress option: ' . $ids_string);
+                }
                 // Clear after reading (one-time use)
                 delete_option('ultimate_watermark_temp_selected_ids');
             }
@@ -164,14 +174,18 @@ class RestApiIntegration
                 $raw_input = file_get_contents('php://input');
                 if (preg_match('/name="ultimate_watermark_ids"[^>]*>([^<]+)</i', $raw_input, $matches)) {
                     $ids_string = sanitize_text_field($matches[1]);
-                    error_log('Ultimate Watermark: Found in raw input via regex: ' . $ids_string);
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('Ultimate Watermark: Found in raw input via regex: ' . $ids_string);
+                    }
                 }
                 // Also try parsing the entire raw input
                 elseif (preg_match('/ultimate_watermark_ids[\'"]?\s*[:=]\s*[\'"]?([^\'"&,]+)/i', $raw_input, $matches)) {
                     $ids_string = sanitize_text_field($matches[1]);
-                    error_log('Ultimate Watermark: Found in raw input via pattern match: ' . $ids_string);
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('Ultimate Watermark: Found in raw input via pattern match: ' . $ids_string);
+                    }
                 }
-                else {
+                else if (defined('WP_DEBUG') && WP_DEBUG) {
                     error_log('Ultimate Watermark: ultimate_watermark_ids NOT FOUND in $_POST, $_REQUEST, option, or raw input');
                     error_log('Ultimate Watermark: $_POST keys: ' . implode(', ', array_keys($_POST)));
                     error_log('Ultimate Watermark: $_REQUEST keys: ' . implode(', ', array_keys($_REQUEST)));
@@ -182,44 +196,56 @@ class RestApiIntegration
             // Process the IDs string
             if (!empty($ids_string) && trim($ids_string) !== '') {
                 $selected_watermark_ids = array_filter(array_map('absint', explode(',', trim($ids_string))));
-                error_log('Ultimate Watermark: Processed IDs from string: ' . print_r($selected_watermark_ids, true));
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Ultimate Watermark: Processed IDs from string: ' . print_r($selected_watermark_ids, true));
+                }
             } else {
                 // If empty string, keep as empty array (user explicitly unchecked all)
                 $selected_watermark_ids = [];
-                error_log('Ultimate Watermark: IDs string was empty or not set, using empty array');
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Ultimate Watermark: IDs string was empty or not set, using empty array');
+                }
             }
             
             // Additional debug: check raw input
-            $raw_input = file_get_contents('php://input');
-            if (strpos($raw_input, 'ultimate_watermark_ids') !== false) {
-                error_log('Ultimate Watermark: Found ultimate_watermark_ids in raw input (partial): ' . substr($raw_input, 0, 500));
-            } else {
-                error_log('Ultimate Watermark: ultimate_watermark_ids NOT found in raw php://input');
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                $raw_input = file_get_contents('php://input');
+                if (strpos($raw_input, 'ultimate_watermark_ids') !== false) {
+                    error_log('Ultimate Watermark: Found ultimate_watermark_ids in raw input (partial): ' . substr($raw_input, 0, 500));
+                } else {
+                    error_log('Ultimate Watermark: ultimate_watermark_ids NOT found in raw php://input');
+                }
             }
             
             // Store selected watermark IDs in attachment meta (even if empty, to track user intent)
             // CRITICAL: Always store as array, never as string
-            error_log('Ultimate Watermark: Storing to meta - IDs: ' . print_r($selected_watermark_ids, true));
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark: Storing to meta - IDs: ' . print_r($selected_watermark_ids, true));
+            }
             update_post_meta($attachment_id, '_ulwm_selected_watermark_ids', $selected_watermark_ids);
             
-            // Verify it was stored correctly
-            $stored = get_post_meta($attachment_id, '_ulwm_selected_watermark_ids', true);
-            error_log('Ultimate Watermark: Verified stored meta value: ' . print_r($stored, true));
-            error_log('Ultimate Watermark: Stored type: ' . gettype($stored));
+            // Verify it was stored correctly (debug only)
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                $stored = get_post_meta($attachment_id, '_ulwm_selected_watermark_ids', true);
+                error_log('Ultimate Watermark: Verified stored meta value: ' . print_r($stored, true));
+                error_log('Ultimate Watermark: Stored type: ' . gettype($stored));
+            }
             
             // Mark this attachment for watermarking
             update_post_meta($attachment_id, '_ulwm_watermarked', true);
             
-            // Debug logging (always log for now to diagnose)
-            error_log('Ultimate Watermark: ========================================');
-            error_log('Ultimate Watermark: markForWatermarking - Toggle enabled');
-            error_log('Ultimate Watermark: Attachment ID: ' . $attachment_id);
-            error_log('Ultimate Watermark: Selected watermark IDs: ' . print_r($selected_watermark_ids, true));
-            error_log('Ultimate Watermark: POST[ultimate_watermark_auto_apply]: ' . ($_POST['ultimate_watermark_auto_apply'] ?? 'NOT SET'));
-            error_log('Ultimate Watermark: POST[ultimate_watermark_ids]: ' . ($_POST['ultimate_watermark_ids'] ?? 'NOT SET'));
-            error_log('Ultimate Watermark: REQUEST[ultimate_watermark_auto_apply]: ' . ($_REQUEST['ultimate_watermark_auto_apply'] ?? 'NOT SET'));
-            error_log('Ultimate Watermark: REQUEST[ultimate_watermark_ids]: ' . ($_REQUEST['ultimate_watermark_ids'] ?? 'NOT SET'));
-            error_log('Ultimate Watermark: ========================================');
+            // Debug logging
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark: ========================================');
+                error_log('Ultimate Watermark: markForWatermarking - Toggle enabled');
+                error_log('Ultimate Watermark: Attachment ID: ' . $attachment_id);
+                error_log('Ultimate Watermark: Selected watermark IDs: ' . print_r($selected_watermark_ids, true));
+                error_log('Ultimate Watermark: POST[ultimate_watermark_auto_apply]: ' . ($_POST['ultimate_watermark_auto_apply'] ?? 'NOT SET'));
+                error_log('Ultimate Watermark: POST[ultimate_watermark_ids]: ' . ($_POST['ultimate_watermark_ids'] ?? 'NOT SET'));
+                error_log('Ultimate Watermark: REQUEST[ultimate_watermark_auto_apply]: ' . ($_REQUEST['ultimate_watermark_auto_apply'] ?? 'NOT SET'));
+                error_log('Ultimate Watermark: REQUEST[ultimate_watermark_ids]: ' . ($_REQUEST['ultimate_watermark_ids'] ?? 'NOT SET'));
+                error_log('Ultimate Watermark: ========================================');
+            }
             
             // DO NOT reset the toggle here - it will be reset after watermark is applied
             // Resetting it here causes race conditions where metadata generation happens before toggle check
@@ -447,17 +473,19 @@ class RestApiIntegration
             return $id > 0;
         });
         
-        // Debug logging (always log for now to diagnose issue)
-        error_log('Ultimate Watermark: ========================================');
-        error_log('Ultimate Watermark: applyWatermarksToGeneratedImages called');
-        error_log('Ultimate Watermark: Attachment ID: ' . $attachment_id);
-        error_log('Ultimate Watermark: use_toggle_rules = ' . ($use_toggle_rules ? 'true' : 'false'));
-        error_log('Ultimate Watermark: Raw meta value: ' . print_r(get_post_meta($attachment_id, '_ulwm_selected_watermark_ids', true), true));
-        error_log('Ultimate Watermark: Processed selected watermark IDs: ' . print_r($selected_watermark_ids, true));
-        error_log('Ultimate Watermark: Is array: ' . (is_array($selected_watermark_ids) ? 'YES' : 'NO'));
-        error_log('Ultimate Watermark: Count: ' . (is_array($selected_watermark_ids) ? count($selected_watermark_ids) : 'N/A'));
-        error_log('Ultimate Watermark: Empty check: ' . (empty($selected_watermark_ids) ? 'YES (EMPTY!)' : 'NO'));
-        error_log('Ultimate Watermark: ========================================');
+        // Debug logging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Ultimate Watermark: ========================================');
+            error_log('Ultimate Watermark: applyWatermarksToGeneratedImages called');
+            error_log('Ultimate Watermark: Attachment ID: ' . $attachment_id);
+            error_log('Ultimate Watermark: use_toggle_rules = ' . ($use_toggle_rules ? 'true' : 'false'));
+            error_log('Ultimate Watermark: Raw meta value: ' . print_r(get_post_meta($attachment_id, '_ulwm_selected_watermark_ids', true), true));
+            error_log('Ultimate Watermark: Processed selected watermark IDs: ' . print_r($selected_watermark_ids, true));
+            error_log('Ultimate Watermark: Is array: ' . (is_array($selected_watermark_ids) ? 'YES' : 'NO'));
+            error_log('Ultimate Watermark: Count: ' . (is_array($selected_watermark_ids) ? count($selected_watermark_ids) : 'N/A'));
+            error_log('Ultimate Watermark: Empty check: ' . (empty($selected_watermark_ids) ? 'YES (EMPTY!)' : 'NO'));
+            error_log('Ultimate Watermark: ========================================');
+        }
         
         // Get parent post ID for rule checking (for REST API uploads from page/post editor)
         $parent_post_id = get_post_meta($attachment_id, '_ulwm_uploaded_to_post_id', true);
@@ -496,38 +524,50 @@ class RestApiIntegration
                 // Normalize selected IDs to integers for comparison
                 $selected_ids_int = array_map('intval', $selected_watermark_ids);
                 
-                // Always log for debugging
-                error_log('Ultimate Watermark: Filtering watermarks for size ' . $size);
-                error_log('Ultimate Watermark: Selected IDs (int): ' . print_r($selected_ids_int, true));
-                error_log('Ultimate Watermark: Total automatic watermarks before filter: ' . count($automatic_watermarks));
+                // Debug logging
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Ultimate Watermark: Filtering watermarks for size ' . $size);
+                    error_log('Ultimate Watermark: Selected IDs (int): ' . print_r($selected_ids_int, true));
+                    error_log('Ultimate Watermark: Total automatic watermarks before filter: ' . count($automatic_watermarks));
+                }
                 
                 $automatic_watermarks = array_filter($automatic_watermarks, function($watermark) use ($selected_ids_int) {
                     // CRITICAL: WatermarkHelper returns 'id' (lowercase), not 'ID'
                     $watermark_id = isset($watermark['id']) ? (int)$watermark['id'] : (isset($watermark['ID']) ? (int)$watermark['ID'] : 0);
                     
                     // Log all watermark data for debugging
-                    error_log('Ultimate Watermark: Watermark data - ID field: ' . print_r(['id' => $watermark['id'] ?? 'NOT SET', 'ID' => $watermark['ID'] ?? 'NOT SET', 'name' => $watermark['name'] ?? 'UNKNOWN'], true));
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('Ultimate Watermark: Watermark data - ID field: ' . print_r(['id' => $watermark['id'] ?? 'NOT SET', 'ID' => $watermark['ID'] ?? 'NOT SET', 'name' => $watermark['name'] ?? 'UNKNOWN'], true));
+                    }
                     
                     // Only apply if this watermark ID is in the selected list
                     $matches = in_array($watermark_id, $selected_ids_int, true);
                     
-                    error_log('Ultimate Watermark: Checking watermark ID ' . $watermark_id . ' against selected [' . implode(',', $selected_ids_int) . '] - Matches: ' . ($matches ? 'YES' : 'NO'));
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('Ultimate Watermark: Checking watermark ID ' . $watermark_id . ' against selected [' . implode(',', $selected_ids_int) . '] - Matches: ' . ($matches ? 'YES' : 'NO'));
+                    }
                     
                     return $matches;
                 });
                 
-                error_log('Ultimate Watermark: Watermarks after ID filter: ' . count($automatic_watermarks));
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Ultimate Watermark: Watermarks after ID filter: ' . count($automatic_watermarks));
+                }
                 
                 // Then filter by size rules only (not post type rules when toggle was used)
                 $size_filtered = array_filter($automatic_watermarks, function($watermark) use ($size) {
                     $passes_size = WatermarkHelper::shouldApplyWatermarkByImageSize($watermark, $size);
                     // CRITICAL: Use 'id' (lowercase) - that's what WatermarkHelper returns
-                    $wm_id = isset($watermark['id']) ? $watermark['id'] : (isset($watermark['ID']) ? $watermark['ID'] : 'unknown');
-                    error_log('Ultimate Watermark: Watermark ID ' . $wm_id . ' for size ' . $size . ' - Passes size rule: ' . ($passes_size ? 'YES' : 'NO'));
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        $wm_id = isset($watermark['id']) ? $watermark['id'] : (isset($watermark['ID']) ? $watermark['ID'] : 'unknown');
+                        error_log('Ultimate Watermark: Watermark ID ' . $wm_id . ' for size ' . $size . ' - Passes size rule: ' . ($passes_size ? 'YES' : 'NO'));
+                    }
                     return $passes_size;
                 });
                 
-                error_log('Ultimate Watermark: Watermarks after size filter: ' . count($size_filtered));
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Ultimate Watermark: Watermarks after size filter: ' . count($size_filtered));
+                }
                 $automatic_watermarks = $size_filtered;
             } else {
                 // Normal rule-based filtering (for REST API uploads, etc.)
@@ -604,15 +644,19 @@ class RestApiIntegration
             }
             
             if (empty($automatic_watermarks)) {
-                error_log('Ultimate Watermark: No watermarks to apply for size ' . $size . ' (skipping)');
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Ultimate Watermark: No watermarks to apply for size ' . $size . ' (skipping)');
+                }
                 continue; // No watermarks for this size, skip
             }
             
-            error_log('Ultimate Watermark: Applying ' . count($automatic_watermarks) . ' watermark(s) to size ' . $size);
-            foreach ($automatic_watermarks as $watermark) {
-                // CRITICAL: WatermarkHelper returns 'id' (lowercase), check that first
-                $wm_id = isset($watermark['id']) ? $watermark['id'] : (isset($watermark['ID']) ? $watermark['ID'] : 'unknown');
-                error_log('Ultimate Watermark: - About to apply watermark ID: ' . $wm_id . ' (Name: ' . ($watermark['name'] ?? 'unknown') . ')');
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark: Applying ' . count($automatic_watermarks) . ' watermark(s) to size ' . $size);
+                foreach ($automatic_watermarks as $watermark) {
+                    // CRITICAL: WatermarkHelper returns 'id' (lowercase), check that first
+                    $wm_id = isset($watermark['id']) ? $watermark['id'] : (isset($watermark['ID']) ? $watermark['ID'] : 'unknown');
+                    error_log('Ultimate Watermark: - About to apply watermark ID: ' . $wm_id . ' (Name: ' . ($watermark['name'] ?? 'unknown') . ')');
+                }
             }
             
             // Apply each watermark that passed the rules for this size

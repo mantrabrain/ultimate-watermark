@@ -80,17 +80,7 @@ class AddWatermarkPage
 
                         <?php $this->renderFormContent($tabs_config, $watermark_data); ?>
                         
-                        <!-- Form Actions -->
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">
-                                <span class="dashicons dashicons-saved"></span>
-                                <?php echo $is_edit_mode ? __('Update Watermark', 'ultimate-watermark') : __('Create Watermark', 'ultimate-watermark'); ?>
-                            </button>
-                            <a href="<?php echo esc_url(admin_url('admin.php?page=ultimate-watermark-watermarks')); ?>" class="btn btn-secondary">
-                                <span class="dashicons dashicons-arrow-left-alt"></span>
-                                <?php _e('Cancel', 'ultimate-watermark'); ?>
-                            </a>
-                        </div>
+
                     </form>
                 </div>
 
@@ -359,6 +349,11 @@ class AddWatermarkPage
             case 'position_selector':
                 $this->renderPositionSelectorField($field_name, $field_config, $value);
                 break;
+            case 'custom':
+                if (isset($field_config['custom_render']) && is_callable($field_config['custom_render'])) {
+                    call_user_func($field_config['custom_render']);
+                }
+                break;
         }
     }
 
@@ -374,7 +369,11 @@ class AddWatermarkPage
                name="<?php echo esc_attr($field_name); ?>" 
                value="<?php echo esc_attr($value); ?>" 
                placeholder="<?php echo esc_attr($field_config['placeholder'] ?? ''); ?>"
+               <?php echo isset($field_config['readonly']) && $field_config['readonly'] ? 'readonly' : ''; ?>
                <?php echo isset($field_config['required']) && $field_config['required'] ? 'required' : ''; ?>>
+        <?php if (isset($field_config['description'])): ?>
+            <p class="description"><?php echo wp_kses_post($field_config['description']); ?></p>
+        <?php endif; ?>
         <?php
     }
 
@@ -389,6 +388,9 @@ class AddWatermarkPage
                   name="<?php echo esc_attr($field_name); ?>" 
                   placeholder="<?php echo esc_attr($field_config['placeholder'] ?? ''); ?>"
                   rows="<?php echo esc_attr($field_config['rows'] ?? 3); ?>"><?php echo esc_textarea($value); ?></textarea>
+        <?php if (isset($field_config['description'])): ?>
+            <p class="description"><?php echo wp_kses_post($field_config['description']); ?></p>
+        <?php endif; ?>
         <?php
     }
 
@@ -468,7 +470,7 @@ class AddWatermarkPage
                            <?php checked($value, $option_value); ?>>
                     <div class="type-card">
                         <span class="dashicons <?php echo esc_attr($option_config['icon']); ?>"></span>
-                        <span><?php echo esc_html($option_config['label']); ?></span>
+                        <span><?php echo wp_kses_post($option_config['label']); ?></span>
                         <p><?php echo esc_html($option_config['description']); ?></p>
                     </div>
                 </label>
@@ -598,7 +600,7 @@ class AddWatermarkPage
      */
     public function getFormTabsConfig()
     {
-        return [
+        $config = [
             'basic' => [
                 'label' => __('General', 'ultimate-watermark'),
                 'icon' => 'dashicons-admin-settings',
@@ -610,7 +612,7 @@ class AddWatermarkPage
                                 'type' => 'radio',
                                 'label' => '',
                                 'default' => 'text',
-                                'options' => [
+                                'options' => apply_filters('ultimate_watermark_type_options', [
                                     'text' => [
                                         'label' => __('Text Watermark', 'ultimate-watermark'),
                                         'description' => __('Add text-based watermarks', 'ultimate-watermark'),
@@ -621,7 +623,7 @@ class AddWatermarkPage
                                         'description' => __('Upload image watermarks', 'ultimate-watermark'),
                                         'icon' => 'dashicons-format-image'
                                     ]
-                                ],
+                                ]),
                                 'sanitize_callback' => [$this, 'sanitizeWatermarkType'],
                                 'validate_callback' => [$this, 'validateWatermarkType']
                             ]
@@ -629,13 +631,14 @@ class AddWatermarkPage
                     ],
                     'text_settings' => [
                         'label' => __('Text Settings', 'ultimate-watermark'),
-                        'condition' => 'watermark_type === "text"',
+                        'condition' => 'watermark_type === "text" || watermark_type === "dynamic_content"',
                         'fields' => [
                             'watermark_text' => [
-                                'type' => 'text',
+                                'type' => 'textarea',
                                 'label' => __('Watermark Text', 'ultimate-watermark'),
                                 'placeholder' => __('Enter watermark text', 'ultimate-watermark'),
                                 'default' => '© ' . get_bloginfo('name'),
+                                'rows' => 3,
                                 'sanitize_callback' => [$this, 'sanitizeText'],
                                 'validate_callback' => [$this, 'validateRequired']
                             ],
@@ -973,6 +976,14 @@ class AddWatermarkPage
                 ]
             ]
         ];
+        
+        // Allow Pro plugin to add sections to the basic tab
+        $pro_sections = apply_filters('ultimate_watermark_add_form_sections', []);
+        if (!empty($pro_sections)) {
+            $config['basic']['sections'] = array_merge($config['basic']['sections'], $pro_sections);
+        }
+        
+        return $config;
     }
 
     /**
