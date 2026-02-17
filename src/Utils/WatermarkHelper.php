@@ -63,6 +63,11 @@ class WatermarkHelper
 
             foreach ($posts as $post) {
                 try {
+                    // Skip inactive watermarks (active meta must be '1')
+                    if (!self::isWatermarkActive($post->ID)) {
+                        continue;
+                    }
+                    
                     $watermark_data = self::buildWatermarkData($post);
                     if ($watermark_data !== null) {
                         $watermarks[] = $watermark_data;
@@ -121,6 +126,8 @@ class WatermarkHelper
             'watermark_font_size' => $metadata['watermark_font_size'],
             'watermark_font_family' => $metadata['watermark_font_family'],
             'watermark_font_weight' => $metadata['watermark_font_weight'],
+            'watermark_font_style' => $metadata['watermark_font_style'],
+            'watermark_text_decoration' => $metadata['watermark_text_decoration'],
             
             // Image watermark settings
             'watermark_image_id' => $metadata['watermark_image_id'],
@@ -172,6 +179,8 @@ class WatermarkHelper
             'watermark_font_size' => 24,
             'watermark_font_family' => 'Arial',
             'watermark_font_weight' => 'normal',
+            'watermark_font_style' => 'normal',
+            'watermark_text_decoration' => 'none',
             'watermark_size_type' => 'original',
             'watermark_scale_percentage' => 80,
             'watermark_custom_width' => 100,
@@ -234,6 +243,8 @@ class WatermarkHelper
             case 'watermark_position':
             case 'watermark_font_family':
             case 'watermark_font_weight':
+            case 'watermark_font_style':
+            case 'watermark_text_decoration':
             case 'watermark_size_type':
             case 'watermark_offset_unit':
             case 'image_format':
@@ -272,9 +283,11 @@ class WatermarkHelper
     {
         $options = [
             'watermark_type' => ['text', 'image'],
-            'watermark_position' => ['top_left', 'top_center', 'top_right', 'middle_left', 'middle_center', 'middle_right', 'bottom_left', 'bottom_center', 'bottom_right'],
+            'watermark_position' => ['top-left', 'top-center', 'top-right', 'center-left', 'center', 'center-right', 'bottom-left', 'bottom-center', 'bottom-right'],
             'watermark_font_family' => ['Arial', 'Times New Roman', 'Georgia', 'Verdana', 'Helvetica', 'Courier New'],
             'watermark_font_weight' => ['normal', 'bold', 'lighter'],
+            'watermark_font_style' => ['normal', 'italic', 'oblique'],
+            'watermark_text_decoration' => ['none', 'underline', 'overline', 'line-through'],
             'watermark_size_type' => ['original', 'custom', 'scaled'],
             'watermark_offset_unit' => ['pixels', 'percentage'],
             'image_format' => ['baseline', 'progressive'],
@@ -404,6 +417,11 @@ class WatermarkHelper
             }
 
             $active_meta = get_post_meta($watermark_id, 'active', true);
+            // Backwards compatibility: if meta was never set (returns '' or false),
+            // treat as active by default. Only explicit '0' means inactive.
+            if ($active_meta === '' || $active_meta === false) {
+                return true; // Not set = active (default)
+            }
             return ($active_meta === '1' || $active_meta === 'true' || $active_meta === true);
 
         } catch (\Exception $e) {
@@ -714,6 +732,20 @@ class WatermarkHelper
                                     $categories = wp_get_post_categories($parent_post_id, ['fields' => 'slugs']);
                                     if (!empty($categories) && !is_wp_error($categories)) {
                                         $eval_context['post_category'] = $categories[0];
+                                    }
+
+                                    // WooCommerce product taxonomies
+                                    if ($parent->post_type === 'product') {
+                                        $product_cats = wp_get_post_terms($parent_post_id, 'product_cat', ['fields' => 'slugs']);
+                                        if (!is_wp_error($product_cats) && !empty($product_cats)) {
+                                            $eval_context['product_cat'] = $product_cats[0];
+                                            $eval_context['product_cats'] = $product_cats;
+                                        }
+                                        $product_tags = wp_get_post_terms($parent_post_id, 'product_tag', ['fields' => 'slugs']);
+                                        if (!is_wp_error($product_tags) && !empty($product_tags)) {
+                                            $eval_context['product_tag'] = $product_tags[0];
+                                            $eval_context['product_tags'] = $product_tags;
+                                        }
                                     }
                                 }
                             }

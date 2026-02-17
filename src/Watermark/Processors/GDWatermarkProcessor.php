@@ -395,8 +395,8 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
     {
         $text = $watermarkData['watermark_text'] ?? '';
         $fontSize = $watermarkData['watermark_font_size'] ?? 20;
-        $color = $watermarkData['watermark_text_color'] ?? '#000000';
-        $transparency = $watermarkData['watermark_transparency'] ?? 100;
+        $color = $watermarkData['watermark_color'] ?? '#000000';
+        $opacity = $watermarkData['watermark_opacity'] ?? 50;
 
         if (empty($text)) {
             throw new \InvalidArgumentException('Watermark text cannot be empty');
@@ -404,7 +404,7 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
 
         // Convert hex color to RGB
         $rgb = $this->hexToRgb($color);
-        $alpha = $this->calculateAlpha($transparency);
+        $alpha = $this->calculateAlpha($opacity);
 
         // Allocate color
         $textColor = imagecolorallocatealpha($image, $rgb['red'], $rgb['green'], $rgb['blue'], $alpha);
@@ -448,8 +448,8 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             $position = $this->calculateImagePosition($image, $watermarkDimensions, $watermarkData);
 
             // Apply transparency
-            $transparency = $watermarkData['watermark_transparency'] ?? 100;
-            $this->applyImageTransparency($watermarkImg, $transparency);
+            $opacity = $watermarkData['watermark_opacity'] ?? 50;
+            $this->applyImageTransparency($watermarkImg, $opacity);
 
             // Copy watermark to main image
             $result = imagecopyresampled(
@@ -482,10 +482,15 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
     private function saveImage(\GdImage $image, string $outputPath, array $watermarkData): bool
     {
         $quality = $watermarkData['watermark_quality'] ?? self::DEFAULT_QUALITY;
-        $format = $watermarkData['watermark_format'] ?? 'jpeg';
+        $imageFormat = $watermarkData['image_format'] ?? 'baseline';
 
         // Validate quality
         $quality = max(self::MIN_QUALITY, min(self::MAX_QUALITY, (int) $quality));
+
+        // Apply interlace mode (progressive vs baseline)
+        if ($imageFormat === 'progressive') {
+            imageinterlace($image, true);
+        }
 
         // Ensure output directory exists
         $outputDir = dirname($outputPath);
@@ -493,15 +498,18 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             wp_mkdir_p($outputDir);
         }
 
-        // Save based on format
-        switch (strtolower($format)) {
+        // Detect format from file extension
+        $extension = strtolower(pathinfo($outputPath, PATHINFO_EXTENSION));
+
+        // Save based on file extension
+        switch ($extension) {
             case 'jpeg':
             case 'jpg':
                 return imagejpeg($image, $outputPath, $quality);
             case 'png':
                 // Convert quality to PNG compression level (0-9)
                 $pngQuality = 9 - round(($quality / 100) * 9);
-                return imagepng($image, $outputPath, $pngQuality);
+                return imagepng($image, $outputPath, (int) $pngQuality);
             case 'gif':
                 return imagegif($image, $outputPath);
             case 'webp':
@@ -511,7 +519,8 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
                     throw new \RuntimeException('WebP output not supported');
                 }
             default:
-                throw new \InvalidArgumentException('Unsupported output format: ' . $format);
+                // Fallback: save as JPEG
+                return imagejpeg($image, $outputPath, $quality);
         }
     }
 
@@ -528,9 +537,8 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
 
         $previewPath = $previewDir . 'preview_' . uniqid() . '.jpg';
         
-        // Save preview
+        // Save preview as JPEG with decent quality
         $this->saveImage($image, $previewPath, array_merge($watermarkData, [
-            'watermark_format' => 'jpeg',
             'watermark_quality' => 85
         ]));
 
@@ -657,42 +665,52 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
      */
     private function calculateAlignmentPosition(int $imageWidth, int $imageHeight, int $itemWidth, int $itemHeight, array $watermarkData): array
     {
-        $position = $watermarkData['watermark_position'] ?? 'middle_center';
+        $position = $watermarkData['watermark_position'] ?? 'bottom-right';
         $offsetX = $watermarkData['watermark_offset_x'] ?? 0;
         $offsetY = $watermarkData['watermark_offset_y'] ?? 0;
 
-        // Parse position
-        $parts = explode('_', $position);
-        $vertical = $parts[0] ?? 'middle';
-        $horizontal = $parts[1] ?? 'center';
+        $x = 0;
+        $y = 0;
 
-        // Calculate base position
-        switch ($horizontal) {
-            case 'left':
+        // Position uses hyphen format: top-left, center-right, bottom-right, etc.
+        switch ($position) {
+            case 'top-left':
                 $x = $offsetX;
+                $y = $offsetY + $itemHeight;
+                break;
+            case 'top-center':
+                $x = ($imageWidth - $itemWidth) / 2;
+                $y = $offsetY + $itemHeight;
+                break;
+            case 'top-right':
+                $x = $imageWidth - $itemWidth - $offsetX;
+                $y = $offsetY + $itemHeight;
+                break;
+            case 'center-left':
+                $x = $offsetX;
+                $y = ($imageHeight + $itemHeight) / 2;
                 break;
             case 'center':
-                $x = ($imageWidth - $itemWidth) / 2 + $offsetX;
+                $x = ($imageWidth - $itemWidth) / 2;
+                $y = ($imageHeight + $itemHeight) / 2;
                 break;
-            case 'right':
+            case 'center-right':
                 $x = $imageWidth - $itemWidth - $offsetX;
+                $y = ($imageHeight + $itemHeight) / 2;
                 break;
-            default:
+            case 'bottom-left':
                 $x = $offsetX;
-        }
-
-        switch ($vertical) {
-            case 'top':
-                $y = $offsetY + $itemHeight;
-                break;
-            case 'middle':
-                $y = ($imageHeight - $itemHeight) / 2 + $offsetY + $itemHeight;
-                break;
-            case 'bottom':
                 $y = $imageHeight - $offsetY;
                 break;
+            case 'bottom-center':
+                $x = ($imageWidth - $itemWidth) / 2;
+                $y = $imageHeight - $offsetY;
+                break;
+            case 'bottom-right':
             default:
-                $y = $offsetY + $itemHeight;
+                $x = $imageWidth - $itemWidth - $offsetX;
+                $y = $imageHeight - $offsetY;
+                break;
         }
 
         return ['x' => (int) $x, 'y' => (int) $y];

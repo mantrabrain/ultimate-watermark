@@ -720,6 +720,8 @@ class WatermarkPage
             'image_height' => __('Image Height', 'ultimate-watermark'),
             'user_role' => __('User Role', 'ultimate-watermark'),
             'post_category' => __('Post Category', 'ultimate-watermark'),
+            'product_cat' => __('Product Category', 'ultimate-watermark'),
+            'product_tag' => __('Product Tag', 'ultimate-watermark'),
             'image_orientation' => __('Image Orientation', 'ultimate-watermark'),
             'date_range' => __('Upload Date', 'ultimate-watermark'),
             'image_aspect_ratio' => __('Aspect Ratio', 'ultimate-watermark'),
@@ -778,6 +780,14 @@ class WatermarkPage
             case 'post_category':
                 $category = get_term_by('slug', $value, 'category');
                 return $category ? $category->name : ucfirst($value);
+                
+            case 'product_cat':
+                $term = get_term_by('slug', $value, 'product_cat');
+                return $term ? $term->name : ucfirst($value);
+                
+            case 'product_tag':
+                $term = get_term_by('slug', $value, 'product_tag');
+                return $term ? $term->name : ucfirst($value);
                 
             case 'image_orientation':
                 return ucfirst($value);

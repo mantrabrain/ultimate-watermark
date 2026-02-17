@@ -107,7 +107,7 @@ class WatermarkDataResolver
             'watermark_position' => sanitize_text_field($formData['watermark_position'] ?? 'bottom-right'),
             'watermark_offset_x' => absint($formData['watermark_offset_x'] ?? 10),
             'watermark_offset_y' => absint($formData['watermark_offset_y'] ?? 10),
-            'offset_unit' => sanitize_text_field($formData['offset_unit'] ?? 'pixels'),
+            'watermark_offset_unit' => sanitize_text_field($formData['watermark_offset_unit'] ?? $formData['offset_unit'] ?? 'pixels'),
             'watermark_opacity' => absint($formData['watermark_opacity'] ?? 50),
             'watermark_rotation' => absint($formData['watermark_rotation'] ?? 0),
             'watermark_size_type' => sanitize_text_field($formData['watermark_size_type'] ?? 'original'),
@@ -184,8 +184,8 @@ class WatermarkDataResolver
             'watermark_offset_x' => (int) ($data['watermark_offset_x'] ?? $data['offset_x'] ?? 10),
             'offset_y' => (int) ($data['watermark_offset_y'] ?? $data['offset_y'] ?? 10),
             'watermark_offset_y' => (int) ($data['watermark_offset_y'] ?? $data['offset_y'] ?? 10),
-            'offset_unit' => $data['offset_unit'] ?? $data['watermark_offset_unit'] ?? 'pixels',
-            'watermark_offset_unit' => $data['offset_unit'] ?? $data['watermark_offset_unit'] ?? 'pixels',
+            'offset_unit' => $data['watermark_offset_unit'] ?? $data['offset_unit'] ?? 'pixels',
+            'watermark_offset_unit' => $data['watermark_offset_unit'] ?? $data['offset_unit'] ?? 'pixels',
             
             // Rotation and quality
             'rotation' => (int) ($data['watermark_rotation'] ?? $data['rotation'] ?? 0),

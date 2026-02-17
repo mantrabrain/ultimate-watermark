@@ -378,6 +378,13 @@ class MediaLibraryIntegration
      */
     public function addUploadToggle(): void
     {
+        // Prevent duplicate output (this method is hooked to multiple actions)
+        static $already_output = false;
+        if ($already_output) {
+            return;
+        }
+        $already_output = true;
+        
         // Only show on upload page, not on media edit page
         $screen = get_current_screen();
         if ($screen) {
@@ -940,8 +947,12 @@ class MediaLibraryIntegration
                         plupload.extend = function(target) {
                             const result = originalExtend.apply(this, arguments);
                             
-                            // Check if merging multipart_params and inject watermark IDs from localStorage
+                            // Check if merging multipart_params and inject toggle state + watermark IDs from localStorage
                             if (result && typeof result === 'object' && 'ultimate_watermark_auto_apply' in result) {
+                                const toggleState = localStorage.getItem('ultimate_watermark_toggle_state');
+                                if (toggleState === '1') {
+                                    result['ultimate_watermark_auto_apply'] = '1';
+                                }
                                 try {
                                     const savedIds = localStorage.getItem('ultimate_watermark_selected_ids');
                                     if (savedIds) {
@@ -964,8 +975,12 @@ class MediaLibraryIntegration
                     if (plupload.each && !plupload.each._uwPatched) {
                         const originalEach = plupload.each;
                         plupload.each = function(obj, callback) {
-                            // Check if iterating over multipart_params and inject watermark IDs
+                            // Check if iterating over multipart_params and inject toggle state + watermark IDs
                             if (obj && typeof obj === 'object' && 'ultimate_watermark_auto_apply' in obj) {
+                                const toggleState = localStorage.getItem('ultimate_watermark_toggle_state');
+                                if (toggleState === '1') {
+                                    obj['ultimate_watermark_auto_apply'] = '1';
+                                }
                                 try {
                                     const savedIds = localStorage.getItem('ultimate_watermark_selected_ids');
                                     if (savedIds) {
@@ -1205,15 +1220,16 @@ class MediaLibraryIntegration
      */
     public function addToggleToUploadParams(array $params): array
     {
-        // Check if toggle is enabled
+        // ALWAYS include the toggle param (even as '0') so that:
+        // 1. The plupload monkey-patches can detect it and inject watermark IDs
+        // 2. JavaScript can dynamically update it to '1' when toggle is ON
+        // Previously only added when option was '1', which meant on page load with default '0'
+        // the param was missing entirely, breaking the monkey-patch detection.
         $option_value = get_option('ultimate_watermark_auto_apply_toggle', '0');
-        if ($option_value === '1') {
-            $params['ultimate_watermark_auto_apply'] = '1';
-            
-            // NOTE: We don't set ultimate_watermark_ids here because this filter runs on page load,
-            // not per-upload. JavaScript will set it dynamically in multipart_params before upload.
-            // This ensures we get the current checkbox selections, not stale data from page load.
-        }
+        $params['ultimate_watermark_auto_apply'] = ($option_value === '1') ? '1' : '0';
+        
+        // NOTE: We don't set ultimate_watermark_ids here because this filter runs on page load,
+        // not per-upload. JavaScript will set it dynamically in multipart_params before upload.
         
         return $params;
     }
@@ -1645,16 +1661,271 @@ class MediaLibraryIntegration
         (function($) {
             'use strict';
             
+            // === Essential toggle + plupload integration ===
+            // These functions are needed on ALL admin pages (not just upload page)
+            // because media popups can open from any admin page (post editor, page editor, etc.)
+            // Guard: if addUploadToggle already defined these (on upload page), skip.
+            if (!window.initToggle) {
+                
+                window.ultimateWatermarkUpdateToggleState = function(forceUpdate) {
+                    forceUpdate = forceUpdate || false;
+                    var $toggle = $('#ultimate-watermark-auto-apply:checked, #ultimate-watermark-auto-apply-popup:checked');
+                    if ($toggle.length === 0) $toggle = $('#ultimate-watermark-auto-apply, #ultimate-watermark-auto-apply-popup').first();
+                    if ($toggle.length === 0) return;
+                    var isEnabled = $toggle.is(':checked');
+                    var currentState = localStorage.getItem('ultimate_watermark_toggle_state');
+                    if (!forceUpdate && currentState === (isEnabled ? '1' : '0')) return;
+                    localStorage.setItem('ultimate_watermark_toggle_state', isEnabled ? '1' : '0');
+                    sessionStorage.setItem('ultimate_watermark_auto_apply', isEnabled ? '1' : '0');
+                    $.ajax({
+                        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+                        type: 'POST',
+                        async: true,
+                        data: {
+                            action: 'ultimate_watermark_update_toggle_state',
+                            enabled: isEnabled ? '1' : '0',
+                            nonce: '<?php echo wp_create_nonce('ultimate_watermark_toggle'); ?>'
+                        }
+                    });
+                };
+                
+                window.loadToggleState = function() {
+                    try {
+                        var saved = localStorage.getItem('ultimate_watermark_toggle_state');
+                        var $toggles = $('#ultimate-watermark-auto-apply, #ultimate-watermark-auto-apply-popup');
+                        var $infos = $('#ultimate-watermark-info, #ultimate-watermark-info-popup');
+                        if (saved === '1') {
+                            $toggles.prop('checked', true);
+                            $infos.show();
+                        } else {
+                            $toggles.prop('checked', false);
+                            $infos.hide();
+                        }
+                    } catch (e) {}
+                };
+                
+                window.saveWatermarkSelections = function(sourceInstance) {
+                    var selectedIds = [];
+                    var seenIds = {};
+                    var $checkboxesToCheck;
+                    if (sourceInstance) {
+                        $checkboxesToCheck = sourceInstance.find('.uw-watermark-checkbox');
+                    } else {
+                        $checkboxesToCheck = $('#ultimate-watermark-info:visible, #ultimate-watermark-info-popup:visible').find('.uw-watermark-checkbox');
+                        if ($checkboxesToCheck.length === 0) {
+                            $checkboxesToCheck = $('#ultimate-watermark-info').find('.uw-watermark-checkbox');
+                        }
+                    }
+                    $checkboxesToCheck.each(function() {
+                        var $cb = $(this);
+                        if ($cb.is(':checked')) {
+                            var wid = String($cb.data('watermark-id'));
+                            if (wid && !seenIds[wid]) {
+                                selectedIds.push(wid);
+                                seenIds[wid] = true;
+                            }
+                        }
+                    });
+                    localStorage.setItem('ultimate_watermark_selected_ids', JSON.stringify(selectedIds));
+                    $(document).trigger('ultimate-watermark-selection-changed');
+                    var savedIds = selectedIds.map(String);
+                    $('.uw-watermark-checkbox').each(function() {
+                        var $cb = $(this);
+                        $cb.prop('checked', savedIds.indexOf(String($cb.data('watermark-id'))) !== -1);
+                    });
+                };
+                
+                window.loadWatermarkSelections = function() {
+                    try {
+                        var saved = localStorage.getItem('ultimate_watermark_selected_ids');
+                        if (saved) {
+                            var ids = JSON.parse(saved).map(String);
+                            $('.uw-watermark-checkbox').each(function() {
+                                $(this).prop('checked', ids.indexOf(String($(this).data('watermark-id'))) !== -1);
+                            });
+                        } else {
+                            $('.uw-watermark-checkbox').prop('checked', false);
+                        }
+                    } catch (e) {
+                        $('.uw-watermark-checkbox').prop('checked', false);
+                    }
+                };
+                
+                window.initToggle = function() {
+                    var $toggle = $('#ultimate-watermark-auto-apply, #ultimate-watermark-auto-apply-popup');
+                    var $info = $('#ultimate-watermark-info, #ultimate-watermark-info-popup');
+                    if ($toggle.length === 0) return;
+                    window.loadToggleState();
+                    $toggle.each(function() {
+                        var $thisToggle = $(this);
+                        var toggleId = $thisToggle.attr('id');
+                        var isPopup = toggleId && toggleId.indexOf('-popup') !== -1;
+                        var $thisInfo = isPopup ? $('#ultimate-watermark-info-popup') : $('#ultimate-watermark-info');
+                        if ($thisInfo.length === 0) return;
+                        var $checkboxes = $thisInfo.find('.uw-watermark-checkbox');
+                        if ($checkboxes.length > 0 && !window.watermarkSelectionsLoaded) {
+                            var wasHidden = !$thisInfo.is(':visible');
+                            if (wasHidden) $thisInfo.show();
+                            window.loadWatermarkSelections();
+                            window.watermarkSelectionsLoaded = true;
+                            if (wasHidden && !$thisToggle.is(':checked')) $thisInfo.hide();
+                        }
+                        $thisToggle.off('change.ultimate-watermark').on('change.ultimate-watermark', function() {
+                            if ($(this).is(':checked')) {
+                                $thisInfo.slideDown(200);
+                                if (!window.watermarkSelectionsLoaded && $checkboxes.length > 0) {
+                                    window.loadWatermarkSelections();
+                                    window.watermarkSelectionsLoaded = true;
+                                }
+                            } else {
+                                $thisInfo.slideUp(200);
+                            }
+                            window.ultimateWatermarkUpdateToggleState();
+                        });
+                        function setVisibility() {
+                            if ($thisToggle.is(':checked')) {
+                                $thisInfo.show().css('display', '');
+                            } else {
+                                $thisInfo.hide();
+                            }
+                        }
+                        setVisibility();
+                        setTimeout(setVisibility, 50);
+                        setTimeout(setVisibility, 200);
+                        $checkboxes.off('change.uw-selection').on('change.uw-selection', function() {
+                            setTimeout(function() {
+                                window.saveWatermarkSelections($thisInfo);
+                            }, 50);
+                        });
+                        $thisInfo.find('.uw-select-all').off('click').on('click', function() {
+                            $thisInfo.find('.uw-watermark-checkbox').prop('checked', true);
+                            setTimeout(function() { window.saveWatermarkSelections($thisInfo); }, 10);
+                        });
+                        $thisInfo.find('.uw-deselect-all').off('click').on('click', function() {
+                            $thisInfo.find('.uw-watermark-checkbox').prop('checked', false);
+                            setTimeout(function() { window.saveWatermarkSelections($thisInfo); }, 10);
+                        });
+                    });
+                    window.ultimateWatermarkUpdateToggleState(true);
+                };
+                
+                // Plupload integration - inject toggle state + watermark IDs into upload params
+                window.ultimateWatermarkUploaders = window.ultimateWatermarkUploaders || [];
+                
+                function updateMultipartParamsForUploader(up) {
+                    if (!up || !up.settings) return;
+                    var $toggle = $('#ultimate-watermark-auto-apply:checked, #ultimate-watermark-auto-apply-popup:checked');
+                    if ($toggle.length) {
+                        if (!up.settings.multipart_params) up.settings.multipart_params = {};
+                        up.settings.multipart_params['ultimate_watermark_auto_apply'] = '1';
+                        var selectedIds = [];
+                        try {
+                            var savedIds = localStorage.getItem('ultimate_watermark_selected_ids');
+                            if (savedIds) {
+                                var parsed = JSON.parse(savedIds);
+                                if (Array.isArray(parsed) && parsed.length > 0) {
+                                    parsed.forEach(function(id) { if (id) selectedIds.push(String(id)); });
+                                }
+                            }
+                        } catch (e) {}
+                        if (selectedIds.length === 0) {
+                            $('.uw-watermark-checkbox:checked').each(function() {
+                                var id = $(this).val() || $(this).data('watermark-id');
+                                if (id) selectedIds.push(String(id));
+                            });
+                        }
+                        var idsString = selectedIds.join(',');
+                        delete up.settings.multipart_params['ultimate_watermark_ids'];
+                        if (idsString) up.settings.multipart_params['ultimate_watermark_ids'] = String(idsString);
+                    } else {
+                        if (up.settings.multipart_params) {
+                            delete up.settings.multipart_params['ultimate_watermark_auto_apply'];
+                            delete up.settings.multipart_params['ultimate_watermark_ids'];
+                        }
+                    }
+                }
+                
+                $(document).on('plupload:init', function(e, uploader) {
+                    if (window.ultimateWatermarkUploaders.indexOf(uploader) === -1) {
+                        window.ultimateWatermarkUploaders.push(uploader);
+                    }
+                    updateMultipartParamsForUploader(uploader);
+                    uploader.bind('FilesAdded', function(up) { updateMultipartParamsForUploader(up); });
+                    uploader.bind('BeforeUpload', function(up) { updateMultipartParamsForUploader(up); });
+                });
+                
+                $(document).on('ultimate-watermark-selection-changed', function() {
+                    if (window.ultimateWatermarkUploaders) {
+                        window.ultimateWatermarkUploaders.forEach(function(up) {
+                            if (up && up.settings) updateMultipartParamsForUploader(up);
+                        });
+                    }
+                });
+                
+                // Monkey-patch plupload to inject watermark IDs into FormData
+                if (typeof plupload !== 'undefined') {
+                    if (plupload.extend && !plupload.extend._uwPatched) {
+                        var origExtend = plupload.extend;
+                        plupload.extend = function(target) {
+                            var result = origExtend.apply(this, arguments);
+                            if (result && typeof result === 'object' && 'ultimate_watermark_auto_apply' in result) {
+                                var toggleState = localStorage.getItem('ultimate_watermark_toggle_state');
+                                if (toggleState === '1') {
+                                    result['ultimate_watermark_auto_apply'] = '1';
+                                }
+                                try {
+                                    var savedIds = localStorage.getItem('ultimate_watermark_selected_ids');
+                                    if (savedIds) {
+                                        var parsed = JSON.parse(savedIds);
+                                        if (Array.isArray(parsed) && parsed.length > 0) {
+                                            result['ultimate_watermark_ids'] = parsed.join(',');
+                                        }
+                                    }
+                                } catch (e) {}
+                            }
+                            return result;
+                        };
+                        plupload.extend._uwPatched = true;
+                    }
+                    if (plupload.each && !plupload.each._uwPatched) {
+                        var origEach = plupload.each;
+                        plupload.each = function(obj, callback) {
+                            if (obj && typeof obj === 'object' && 'ultimate_watermark_auto_apply' in obj) {
+                                var toggleState = localStorage.getItem('ultimate_watermark_toggle_state');
+                                if (toggleState === '1') {
+                                    obj['ultimate_watermark_auto_apply'] = '1';
+                                }
+                                try {
+                                    var savedIds = localStorage.getItem('ultimate_watermark_selected_ids');
+                                    if (savedIds) {
+                                        var parsed = JSON.parse(savedIds);
+                                        if (Array.isArray(parsed) && parsed.length > 0) {
+                                            obj['ultimate_watermark_ids'] = parsed.join(',');
+                                        }
+                                    }
+                                } catch (e) {}
+                            }
+                            return origEach.apply(this, arguments);
+                        };
+                        plupload.each._uwPatched = true;
+                    }
+                }
+                
+            } // end if (!window.initToggle)
+            
             // Inject toggle into media popup if it doesn't exist
             function injectToggleIntoMediaPopup() {
-                // Check if toggle already exists
-                if ($('#ultimate-watermark-upload-toggle').length) {
+                // Check if toggle already exists (in visible area, not hidden footer)
+                if ($('#ultimate-watermark-upload-toggle-popup').length || 
+                    $('#ultimate-watermark-upload-toggle').closest('.uploader-inline, .plupload_dropbox, .upload-ui').length) {
                     return;
                 }
                 
                 // Check if we're in a media modal uploader
-                const $uploadArea = $('.uploader-window-content, .uploader-editor-content, .plupload_dropbox');
-                const $browseButton = $('.plupload-browse-button');
+                // Support both classic (.plupload_dropbox) and modern (.uploader-inline, .upload-ui) selectors
+                const $uploadArea = $('.uploader-inline, .uploader-inline-content, .uploader-window-content, .uploader-editor-content, .plupload_dropbox');
+                // Modern WP media modal uses .browser.button, classic uses .plupload-browse-button
+                const $browseButton = $('.uploader-inline .browser, .plupload-browse-button, .upload-ui .browser').first();
                 
                 if ($uploadArea.length && $browseButton.length) {
                     // Try to find toggle from footer (hidden source)
@@ -1719,9 +1990,10 @@ class MediaLibraryIntegration
             
             // Move toggle after browse button (for upload page)
             function moveWatermarkToggle() {
-                const $browseButton = $('.plupload-browse-button');
+                // Support both classic and modern selectors
+                const $browseButton = $('.plupload-browse-button, .uploader-inline .browser, .upload-ui .browser').first();
                 const $watermarkToggle = $('#ultimate-watermark-upload-toggle');
-                const $uploadArea = $('.plupload_dropbox');
+                const $uploadArea = $('.plupload_dropbox, .uploader-inline, .upload-ui').first();
                 
                 if ($browseButton.length && $watermarkToggle.length && $uploadArea.length) {
                     // Move the watermark toggle inside the upload area, after the browse button
@@ -1778,7 +2050,8 @@ class MediaLibraryIntegration
                 const observer = new MutationObserver(function(mutations) {
                     mutations.forEach(function(mutation) {
                         if (mutation.type === 'childList') {
-                            const $browseButton = $('.plupload-browse-button');
+                            // Support both classic and modern selectors
+                            const $browseButton = $('.plupload-browse-button, .uploader-inline .browser, .upload-ui .browser').first();
                             const $watermarkToggle = $('#ultimate-watermark-upload-toggle, #ultimate-watermark-upload-toggle-popup');
                             
                             // Move toggle if it exists

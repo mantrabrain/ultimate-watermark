@@ -930,7 +930,7 @@ class AddWatermarkPage
                                 'sanitize_callback' => [$this, 'sanitizeNumber'],
                                 'validate_callback' => [$this, 'validateRange']
                             ],
-                            'offset_unit' => [
+                            'watermark_offset_unit' => [
                                 'type' => 'select',
                                 'label' => __('Offset unit', 'ultimate-watermark'),
                                 'default' => 'pixels',
@@ -977,6 +977,9 @@ class AddWatermarkPage
         if (!empty($pro_rules_sections)) {
             $config['rules']['sections'] = array_merge($config['rules']['sections'], $pro_rules_sections);
         }
+        
+        // Allow Pro plugin to add entire new tabs
+        $config = apply_filters('ultimate_watermark_form_tabs', $config);
         
         return $config;
     }
@@ -2044,8 +2047,8 @@ class AddWatermarkPage
             </div>
             <div class="form-column">
                 <?php 
-                $unit_field = $fields['offset_unit'];
-                $this->renderField('offset_unit', $unit_field, $watermark_data);
+                $unit_field = $fields['watermark_offset_unit'];
+                $this->renderField('watermark_offset_unit', $unit_field, $watermark_data);
                 ?>
             </div>
         </div>

@@ -286,50 +286,84 @@ class RestApiIntegration
                 }
             }
             
-            if ($parent_post_id > 0) {
-                $parent_post = get_post($parent_post_id);
-                if ($parent_post) {
-                    // Check if any watermarks match the parent post type rules
-                    // Don't set _ulwm_watermarked flag - that's only for toggle-based uploads
-                    $parent_post_type = $parent_post->post_type;
-                    $all_active = WatermarkHelper::getActiveWatermarks();
-                    $automatic_watermarks = array_filter($all_active, function($watermark) {
-                        return $watermark['automatic_watermarking'] === '1' || (boolean)$watermark['automatic_watermarking'] === true;
-                    });
-                    
-                    // Filter by post type rules
-                    $matching_watermarks = array_filter($automatic_watermarks, function($watermark) use ($parent_post_type) {
-                        $watermark_on = $watermark['watermark_on'] ?? 'everywhere';
+            // Get all active automatic watermarks
+            $all_active = WatermarkHelper::getActiveWatermarks();
+            $automatic_watermarks = array_filter($all_active, function($watermark) {
+                return $watermark['automatic_watermarking'] === '1' || (boolean)$watermark['automatic_watermarking'] === true;
+            });
+            
+            if (!empty($automatic_watermarks)) {
+                if ($parent_post_id > 0) {
+                    $parent_post = get_post($parent_post_id);
+                    if ($parent_post) {
+                        // Check if any watermarks match the parent post type rules
+                        $parent_post_type = $parent_post->post_type;
                         
-                        if ($watermark_on === 'everywhere' || $watermark_on === '') {
-                            return true;
-                        }
-                        
-                        if ($watermark_on === 'selected_post_types') {
-                            $allowed_post_types = $watermark['watermark_post_types'] ?? [];
+                        // Filter by post type rules
+                        $matching_watermarks = array_filter($automatic_watermarks, function($watermark) use ($parent_post_type) {
+                            $watermark_on = $watermark['watermark_on'] ?? 'everywhere';
                             
-                            if (is_string($allowed_post_types)) {
-                                $allowed_post_types = maybe_unserialize($allowed_post_types);
+                            if ($watermark_on === 'everywhere' || $watermark_on === '') {
+                                return true;
+                            }
+                            
+                            if ($watermark_on === 'selected_post_types') {
+                                $allowed_post_types = $watermark['watermark_post_types'] ?? [];
+                                
                                 if (is_string($allowed_post_types)) {
                                     $allowed_post_types = maybe_unserialize($allowed_post_types);
+                                    if (is_string($allowed_post_types)) {
+                                        $allowed_post_types = maybe_unserialize($allowed_post_types);
+                                    }
                                 }
+                                
+                                if (!is_array($allowed_post_types)) {
+                                    $allowed_post_types = [];
+                                }
+                                
+                                $allowed_post_types = array_map('strval', array_values($allowed_post_types));
+                                
+                                // For uploads from page/post editor, check parent post type only
+                                return in_array(strval($parent_post_type), $allowed_post_types, true);
                             }
                             
-                            if (!is_array($allowed_post_types)) {
-                                $allowed_post_types = [];
-                            }
-                            
-                            $allowed_post_types = array_map('strval', array_values($allowed_post_types));
-                            
-                            // For uploads from page/post editor, check parent post type only
-                            return in_array(strval($parent_post_type), $allowed_post_types, true);
+                            return false;
+                        });
+                        
+                        if (!empty($matching_watermarks)) {
+                            $should_watermark_by_rules = true;
+                        }
+                    }
+                } else {
+                    // No parent post (direct media library upload without toggle)
+                    // Automatic watermarks with no restrictive rules should still apply
+                    // Check if any automatic watermarks have watermark_on='everywhere' (or empty)
+                    // and either no watermark_rules or rules that don't require a parent post context
+                    $unrestricted_watermarks = array_filter($automatic_watermarks, function($watermark) {
+                        $watermark_on = $watermark['watermark_on'] ?? 'everywhere';
+                        if ($watermark_on !== 'everywhere' && $watermark_on !== '') {
+                            return false; // Has post type restrictions via legacy field
                         }
                         
-                        return false;
+                        // Check if watermark_rules have any post_type conditions
+                        // If they do, this watermark needs a parent post context and shouldn't apply here
+                        $rules = $watermark['watermark_rules'] ?? [];
+                        if (!empty($rules) && is_array($rules)) {
+                            foreach ($rules as $rule) {
+                                if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
+                                    foreach ($rule['conditions'] as $condition) {
+                                        if (isset($condition['type']) && $condition['type'] === 'post_type') {
+                                            return false; // Has post_type condition, needs parent post
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        return true; // No post type restrictions, apply to all uploads
                     });
                     
-                    // If any watermarks match the rules, watermark should be applied
-                    if (!empty($matching_watermarks)) {
+                    if (!empty($unrestricted_watermarks)) {
                         $should_watermark_by_rules = true;
                     }
                 }

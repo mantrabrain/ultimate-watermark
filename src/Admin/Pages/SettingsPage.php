@@ -214,15 +214,72 @@ class SettingsPage
     }
 
     /**
+     * Get tabs configuration
+     *
+     * @return array
+     */
+    public function getTabsConfig(): array
+    {
+        $tabs = [
+            'general' => [
+                'label'    => __('General', 'ultimate-watermark'),
+                'icon'     => 'dashicons-admin-settings',
+                'callback' => null, // null means render config-based sections
+            ],
+        ];
+
+        return apply_filters('ultimate_watermark_settings_tabs', $tabs);
+    }
+
+    /**
      * Render settings content
      */
     public function renderSettingsContent(): void
     {
         $settings_config = $this->getSettingsConfig();
+        $tabs = $this->getTabsConfig();
+        $current_tab = isset($_GET['settings_tab']) ? sanitize_key($_GET['settings_tab']) : 'general';
+        if (!isset($tabs[$current_tab])) {
+            $current_tab = 'general';
+        }
+        $has_tabs = count($tabs) > 1;
+
+        $base_url = admin_url('admin.php?page=ultimate-watermark-settings');
         ?>
         <div class="ultimate-watermark-settings">
+            <?php if ($has_tabs): ?>
+            <div class="settings-tabs-wrap">
+                <div class="form-tabs">
+                    <?php foreach ($tabs as $tab_id => $tab): ?>
+                        <a href="<?php echo esc_url(add_query_arg('settings_tab', $tab_id, $base_url)); ?>"
+                           class="form-tab <?php echo $current_tab === $tab_id ? 'active' : ''; ?>"
+                           data-tab="<?php echo esc_attr($tab_id); ?>">
+                            <span class="dashicons <?php echo esc_attr($tab['icon']); ?>"></span>
+                            <?php echo esc_html($tab['label']); ?>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($current_tab === 'general'): ?>
+                <?php $this->renderGeneralTab($settings_config); ?>
+            <?php elseif (isset($tabs[$current_tab]['callback']) && is_callable($tabs[$current_tab]['callback'])): ?>
+                <div class="settings-tab-content">
+                    <?php call_user_func($tabs[$current_tab]['callback']); ?>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render General (free) settings tab
+     */
+    private function renderGeneralTab(array $settings_config): void
+    {
+        ?>
             <div class="settings-layout">
-                <!-- Left Side - Settings Content -->
                 <div class="settings-content">
                     <form id="ultimate-watermark-settings-form" method="post" action="<?php echo esc_url(admin_url('admin.php?page=ultimate-watermark-settings')); ?>" enctype="multipart/form-data">
                         <?php wp_nonce_field('ultimate_watermark_settings', 'ultimate_watermark_settings_nonce'); ?>
@@ -281,13 +338,12 @@ class SettingsPage
                     </button>
                 </div>
             </div>
-        </div>
         
-        <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            <?php $this->renderConditionalJavaScript($settings_config); ?>
-        });
-        </script>
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                <?php $this->renderConditionalJavaScript($settings_config); ?>
+            });
+            </script>
         <?php
     }
 

@@ -215,15 +215,39 @@ class WatermarkAjaxHandler
         $validated['watermark_text'] = $this->sanitizeText($data['watermark_text'], 200);
         
         // Validate font size
-        $validated['font_size'] = $this->validateNumericRange(
-            $data['font_size'] ?? 20,
+        $validated['watermark_font_size'] = $this->validateNumericRange(
+            $data['watermark_font_size'] ?? 24,
             1,
             200,
-            'font_size'
+            'watermark_font_size'
         );
 
         // Validate color
-        $validated['text_color'] = $this->validateColor($data['text_color'] ?? '#000000');
+        $validated['watermark_color'] = $this->validateColor($data['watermark_color'] ?? '#ffffff');
+
+        // Font family
+        $allowed_fonts = ['Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New'];
+        $validated['watermark_font_family'] = in_array($data['watermark_font_family'] ?? '', $allowed_fonts)
+            ? $data['watermark_font_family']
+            : 'Arial';
+
+        // Font weight
+        $allowed_weights = ['normal', 'bold', 'lighter'];
+        $validated['watermark_font_weight'] = in_array($data['watermark_font_weight'] ?? '', $allowed_weights)
+            ? $data['watermark_font_weight']
+            : 'normal';
+
+        // Font style
+        $allowed_styles = ['normal', 'italic', 'oblique'];
+        $validated['watermark_font_style'] = in_array($data['watermark_font_style'] ?? '', $allowed_styles)
+            ? $data['watermark_font_style']
+            : 'normal';
+
+        // Text decoration
+        $allowed_decorations = ['none', 'underline', 'overline', 'line-through'];
+        $validated['watermark_text_decoration'] = in_array($data['watermark_text_decoration'] ?? '', $allowed_decorations)
+            ? $data['watermark_text_decoration']
+            : 'none';
 
         return $validated;
     }
@@ -261,34 +285,49 @@ class WatermarkAjaxHandler
     {
         $validated = [];
 
-        // Validate position
-        $allowed_positions = ['top_left', 'top_center', 'top_right', 'middle_left', 'middle_center', 'middle_right', 'bottom_left', 'bottom_center', 'bottom_right'];
-        $validated['position'] = $data['position'] ?? 'middle_center';
-        if (!in_array($validated['position'], $allowed_positions)) {
+        // Validate position (form field: watermark_position)
+        // Form uses hyphen format: top-left, center-right, bottom-right, etc.
+        $allowed_positions = ['top-left', 'top-center', 'top-right', 'center-left', 'center', 'center-right', 'bottom-left', 'bottom-center', 'bottom-right'];
+        $validated['watermark_position'] = $data['watermark_position'] ?? 'bottom-right';
+        if (!in_array($validated['watermark_position'], $allowed_positions)) {
             throw new \InvalidArgumentException('Invalid position selected.');
         }
 
-        // Validate offsets
-        $validated['offset_x'] = $this->validateNumericRange(
-            $data['offset_x'] ?? 0,
+        // Validate offsets (form fields: watermark_offset_x, watermark_offset_y)
+        $validated['watermark_offset_x'] = $this->validateNumericRange(
+            $data['watermark_offset_x'] ?? 0,
             -1000,
             1000,
-            'offset_x'
+            'watermark_offset_x'
         );
 
-        $validated['offset_y'] = $this->validateNumericRange(
-            $data['offset_y'] ?? 0,
+        $validated['watermark_offset_y'] = $this->validateNumericRange(
+            $data['watermark_offset_y'] ?? 0,
             -1000,
             1000,
-            'offset_y'
+            'watermark_offset_y'
         );
 
-        // Validate offset unit
+        // Validate offset unit (form field: watermark_offset_unit)
         $allowed_units = ['pixels', 'percentage'];
-        $validated['offset_unit'] = $data['offset_unit'] ?? 'pixels';
-        if (!in_array($validated['offset_unit'], $allowed_units)) {
-            $validated['offset_unit'] = 'pixels';
-        }
+        $raw_unit = $data['watermark_offset_unit'] ?? $data['offset_unit'] ?? 'pixels';
+        $validated['watermark_offset_unit'] = in_array($raw_unit, $allowed_units) ? $raw_unit : 'pixels';
+
+        // Validate rotation (form field: watermark_rotation)
+        $validated['watermark_rotation'] = $this->validateNumericRange(
+            $data['watermark_rotation'] ?? 0,
+            -360,
+            360,
+            'watermark_rotation'
+        );
+
+        // Validate opacity (form field: watermark_opacity)
+        $validated['watermark_opacity'] = $this->validateNumericRange(
+            $data['watermark_opacity'] ?? 50,
+            0,
+            100,
+            'watermark_opacity'
+        );
 
         return $validated;
     }
@@ -300,50 +339,48 @@ class WatermarkAjaxHandler
     {
         $validated = [];
 
-        // Validate size settings
-        $validated['size_type'] = $data['size_type'] ?? 'original';
+        // Validate size settings (form field: watermark_size_type)
+        $validated['watermark_size_type'] = $data['watermark_size_type'] ?? 'original';
         $allowed_size_types = ['original', 'custom', 'scaled'];
-        if (!in_array($validated['size_type'], $allowed_size_types)) {
-            $validated['size_type'] = 'original';
+        if (!in_array($validated['watermark_size_type'], $allowed_size_types)) {
+            $validated['watermark_size_type'] = 'original';
         }
 
-        if ($validated['size_type'] === 'custom') {
-            $validated['width'] = $this->validateNumericRange(
-                $data['width'] ?? 100,
-                1,
-                5000,
-                'width'
-            );
-            $validated['height'] = $this->validateNumericRange(
-                $data['height'] ?? 100,
-                1,
-                5000,
-                'height'
-            );
-        } elseif ($validated['size_type'] === 'scaled') {
-            $validated['scale_percentage'] = $this->validateNumericRange(
-                $data['scale_percentage'] ?? 50,
-                1,
-                100,
-                'scale_percentage'
-            );
-        }
-
-        // Validate transparency
-        $validated['transparency'] = $this->validateNumericRange(
-            $data['transparency'] ?? 100,
-            0,
-            100,
-            'transparency'
+        // Always validate size fields so they are saved (form fields: watermark_custom_width, watermark_custom_height)
+        $validated['watermark_custom_width'] = $this->validateNumericRange(
+            $data['watermark_custom_width'] ?? 100,
+            1,
+            5000,
+            'watermark_custom_width'
+        );
+        $validated['watermark_custom_height'] = $this->validateNumericRange(
+            $data['watermark_custom_height'] ?? 100,
+            1,
+            5000,
+            'watermark_custom_height'
         );
 
-        // Validate quality
-        $validated['quality'] = $this->validateNumericRange(
-            $data['quality'] ?? 90,
+        // Scale percentage (form field: watermark_scale_percentage)
+        $validated['watermark_scale_percentage'] = $this->validateNumericRange(
+            $data['watermark_scale_percentage'] ?? 80,
             1,
             100,
-            'quality'
+            'watermark_scale_percentage'
         );
+
+        // Validate quality (form field: watermark_quality)
+        $validated['watermark_quality'] = $this->validateNumericRange(
+            $data['watermark_quality'] ?? 90,
+            1,
+            100,
+            'watermark_quality'
+        );
+
+        // Image format (form field: image_format)
+        $allowed_formats = ['baseline', 'progressive'];
+        $validated['image_format'] = in_array($data['image_format'] ?? '', $allowed_formats)
+            ? $data['image_format']
+            : 'baseline';
 
         return $validated;
     }

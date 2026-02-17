@@ -126,6 +126,17 @@ class RulesEvaluator
             return (bool) $custom_result;
         }
 
+        // Multi-value taxonomy conditions: check against ALL terms, not just first
+        if (in_array($type, ['product_cat', 'product_tag'], true)) {
+            $all_key = $type === 'product_cat' ? 'product_cats' : 'product_tags';
+            $all_slugs = $context[$all_key] ?? [];
+            if (!empty($all_slugs) && is_array($all_slugs)) {
+                $found = in_array(strval($expected), array_map('strval', $all_slugs), true);
+                return $operator === 'is' ? $found : !$found;
+            }
+            // Fallback to single value comparison
+        }
+
         return self::compareValues($operator, $actual, $expected);
     }
 
@@ -179,6 +190,20 @@ class RulesEvaluator
 
             case 'post_category':
                 return $context['post_category'] ?? '';
+
+            case 'product_cat':
+                // WooCommerce product category (slug)
+                if (isset($context['product_cat'])) {
+                    return $context['product_cat'];
+                }
+                return '';
+
+            case 'product_tag':
+                // WooCommerce product tag (slug)
+                if (isset($context['product_tag'])) {
+                    return $context['product_tag'];
+                }
+                return '';
 
             case 'image_orientation':
                 if (isset($context['file_path']) && file_exists($context['file_path'])) {
@@ -288,6 +313,21 @@ class RulesEvaluator
                 $categories = wp_get_post_categories($parent_post_id, ['fields' => 'slugs']);
                 if (!empty($categories) && !is_wp_error($categories)) {
                     $context['post_category'] = $categories[0]; // First category slug
+                }
+
+                // WooCommerce product taxonomies (when parent is a product)
+                if ($parent->post_type === 'product') {
+                    $product_cats = wp_get_post_terms($parent_post_id, 'product_cat', ['fields' => 'slugs']);
+                    if (!is_wp_error($product_cats) && !empty($product_cats)) {
+                        $context['product_cat'] = $product_cats[0];
+                        $context['product_cats'] = $product_cats; // All slugs
+                    }
+
+                    $product_tags = wp_get_post_terms($parent_post_id, 'product_tag', ['fields' => 'slugs']);
+                    if (!is_wp_error($product_tags) && !empty($product_tags)) {
+                        $context['product_tag'] = $product_tags[0];
+                        $context['product_tags'] = $product_tags; // All slugs
+                    }
                 }
             }
         }
