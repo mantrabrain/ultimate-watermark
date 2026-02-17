@@ -209,12 +209,15 @@ Built with both GD and ImageMagick support, Ultimate Watermark offers enterprise
 
 = Is there a premium or pro version of Ultimate Watermark? =
 
-**Complete Solution:**
-* This is the full-featured version with all capabilities
-* GPLv3 licensed for WordPress compatibility
-* No premium features or limitations
-* Free for commercial and personal use
-* Regular updates and improvements included
+**Yes! Ultimate Watermark Pro** extends the free plugin with advanced features:
+* **Dynamic Content Watermarks** - Timestamp, URL, user info placeholders
+* **WooCommerce Integration** - Auto-watermark product images, per-product/category overrides
+* **Frontend On-the-fly Watermarking** - Non-destructive, role-based, cached
+* **Right-click & Hotlink Protection** - Enhanced image security
+* **Batch Processing** - Schedule large watermarking jobs
+* **Conditional Rules** - Advanced targeting logic
+* **Automatic Updates & Priority Support** via license key
+* Learn more at [mantrabrain.com](https://mantrabrain.com)
 
 == Screenshots =
 
@@ -226,6 +229,20 @@ Built with both GD and ImageMagick support, Ultimate Watermark offers enterprise
 
 
 == Changelog ==
+= 2.0.2 - 2026/02/17 =
+* Added - Complete architecture rewrite with PSR-4 autoloading
+* Added - Modern admin UI with dashboard, analytics, and backup management pages
+* Added - Real-time watermark preview system
+* Added - Advanced backup & restore system with bulk operations
+* Added - Analytics dashboard with watermark usage tracking
+* Added - REST API integration for programmatic watermarking
+* Added - Text watermark support alongside image watermarks
+* Added - Pro plugin extensibility via filters and hooks
+* Fixed - PHP 8.4 nullable parameter deprecation warnings
+* Fixed - WordPress 6.8 full compatibility
+* Enhanced - GD and ImageMagick processor improvements
+* Enhanced - Media library and media edit integration
+
 = 1.1.1- 2025/10/06 =
 * Fixed - capability check issue fixed
 * Fixed - PHP Deprication warning fixed

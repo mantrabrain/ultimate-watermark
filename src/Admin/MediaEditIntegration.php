@@ -397,7 +397,7 @@ class MediaEditIntegration
     /**
      * Sort sizes by priority (full first, then by dimensions)
      */
-    private function sortSizesByPriority(array $sizes, array $metadata = null): array
+    private function sortSizesByPriority(array $sizes, ?array $metadata = null): array
     {
         $sorted = [];
         $size_data = [];
@@ -441,7 +441,7 @@ class MediaEditIntegration
     /**
      * Get size information
      */
-    private function getSizeInfo(string $size, array $metadata = null): array
+    private function getSizeInfo(string $size, ?array $metadata = null): array
     {
         if ($size === 'full') {
             return [
@@ -556,7 +556,7 @@ class MediaEditIntegration
     /**
      * Get size label with dimensions (legacy method)
      */
-    private function getSizeLabel(string $size, array $metadata = null): string
+    private function getSizeLabel(string $size, ?array $metadata = null): string
     {
         if ($size === 'full') {
             return __('Full Size', 'ultimate-watermark');

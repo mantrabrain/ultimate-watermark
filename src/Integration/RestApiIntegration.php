@@ -643,6 +643,29 @@ class RestApiIntegration
                 });
             }
             
+            // Final filter: evaluate unified watermark_rules conditions
+            $automatic_watermarks = array_filter($automatic_watermarks, function($watermark) use ($attachment_id, $size, $parent_post_id) {
+                $rules = $watermark['watermark_rules'] ?? [];
+                if (empty($rules) || !is_array($rules)) {
+                    return true; // No unified rules = no extra restriction
+                }
+                // Check if any rule has conditions
+                $has_conditions = false;
+                foreach ($rules as $rule) {
+                    if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
+                        $has_conditions = true;
+                        break;
+                    }
+                }
+                if (!$has_conditions) {
+                    return true; // No conditions defined = no restriction
+                }
+                $eval_context = \MantraBrain\UltimateWatermark\Utils\RulesEvaluator::buildContext(
+                    $attachment_id, $size, intval($parent_post_id ?: 0)
+                );
+                return \MantraBrain\UltimateWatermark\Utils\RulesEvaluator::evaluate($rules, $eval_context);
+            });
+            
             if (empty($automatic_watermarks)) {
                 if (defined('WP_DEBUG') && WP_DEBUG) {
                     error_log('Ultimate Watermark: No watermarks to apply for size ' . $size . ' (skipping)');

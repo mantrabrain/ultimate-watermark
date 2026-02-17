@@ -296,7 +296,7 @@ class SettingsPage
      */
     private function renderField(string $field_key, array $field): void
     {
-        $value = $this->getSetting($field_key, $field['default']);
+        $value = $this->getSetting($field_key, $field['default'] ?? '');
         
         switch ($field['type']) {
             case 'checkbox':

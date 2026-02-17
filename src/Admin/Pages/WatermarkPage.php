@@ -392,7 +392,7 @@ class WatermarkPage
             AND meta_key IN (
                 'watermark_type', 'watermark_position', 'watermark_opacity', 'watermark_image_id',
                 'automatic_watermarking', 'manual_watermarking', 'frontend_watermarking',
-                'watermark_on', 'watermark_post_types', 'watermark_sizes',
+                'watermark_on', 'watermark_post_types', 'watermark_sizes', 'watermark_rules',
                 'watermark_text', 'watermark_color', 'watermark_font_size', 'watermark_font_family',
                 'watermark_font_weight', 'watermark_font_style', 'watermark_text_decoration',
                 'active', 'watermark_usage_count', 'watermark_used_images'
@@ -463,6 +463,7 @@ class WatermarkPage
             $watermark_on = $post_meta['watermark_on'] ?? 'everywhere';
             $watermark_post_types = $post_meta['watermark_post_types'] ?? [];
             $watermark_sizes = $post_meta['watermark_sizes'] ?? [];
+            $watermark_rules = $post_meta['watermark_rules'] ?? [];
             
             // Get text watermark settings for preview
             $watermark_text = $post_meta['watermark_text'] ?? 'Watermark';
@@ -473,9 +474,12 @@ class WatermarkPage
             $watermark_font_style = $post_meta['watermark_font_style'] ?? 'normal';
             $watermark_text_decoration = $post_meta['watermark_text_decoration'] ?? 'none';
             
-            // Ensure arrays are properly formatted
+            // Ensure arrays are properly formatted (batch query returns raw serialized strings)
             if (is_string($watermark_post_types)) {
                 $watermark_post_types = maybe_unserialize($watermark_post_types) ?: [];
+            }
+            if (is_string($watermark_rules)) {
+                $watermark_rules = maybe_unserialize($watermark_rules) ?: [];
             }
             if (is_string($watermark_sizes)) {
                 $watermark_sizes = maybe_unserialize($watermark_sizes) ?: [];
@@ -523,6 +527,7 @@ class WatermarkPage
                 'watermark_on' => $watermark_on,
                 'watermark_post_types' => $watermark_post_types,
                 'watermark_sizes' => $watermark_sizes,
+                'watermark_rules' => $watermark_rules,
                 // Preview data
                 'watermark_text' => $watermark_text,
                 'watermark_color' => $watermark_color,
@@ -583,6 +588,77 @@ class WatermarkPage
      */
     private function formatWatermarkRules(array $watermark): string
     {
+        $watermark_rules = $watermark['watermark_rules'] ?? [];
+        
+        // If no unified rules, fall back to legacy display
+        if (empty($watermark_rules) || !is_array($watermark_rules)) {
+            return $this->formatLegacyRules($watermark);
+        }
+        
+        // Check if any rule has conditions
+        $has_conditions = false;
+        foreach ($watermark_rules as $rule) {
+            if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
+                $has_conditions = true;
+                break;
+            }
+        }
+        
+        // If no conditions defined, show as "No restrictions"
+        if (!$has_conditions) {
+            return '<span class="rule-item no-restrictions">' . __('No restrictions', 'ultimate-watermark') . '</span>';
+        }
+        
+        $rule_summaries = [];
+        foreach ($watermark_rules as $rule) {
+            if (empty($rule['conditions']) || !is_array($rule['conditions'])) {
+                continue;
+            }
+            
+            $condition_parts = [];
+            foreach ($rule['conditions'] as $condition) {
+                $type = $condition['type'] ?? '';
+                $operator = $condition['operator'] ?? '';
+                $value = $condition['value'] ?? '';
+                
+                if (empty($type)) continue;
+                
+                // Get readable labels
+                $type_label = $this->getConditionTypeLabel($type);
+                $operator_label = $this->getOperatorLabel($operator);
+                $value_label = $this->getConditionValueLabel($type, $value);
+                
+                $condition_parts[] = sprintf('%s %s <strong>%s</strong>', $type_label, $operator_label, $value_label);
+            }
+            
+            if (!empty($condition_parts)) {
+                $rule_name = !empty($rule['name']) ? esc_html($rule['name']) : __('Rule', 'ultimate-watermark');
+                $logic = strtoupper($rule['logic_operator'] ?? 'AND');
+                $conditions_text = implode(' <span class="logic-operator">' . $logic . '</span> ', $condition_parts);
+                
+                $rule_summaries[] = sprintf(
+                    '<div class="rule-summary">' .
+                    '<div class="rule-name">%s</div>' .
+                    '<div class="rule-conditions">%s</div>' .
+                    '</div>',
+                    $rule_name,
+                    $conditions_text
+                );
+            }
+        }
+        
+        if (empty($rule_summaries)) {
+            return '<span class="rule-item no-restrictions">' . __('No restrictions', 'ultimate-watermark') . '</span>';
+        }
+        
+        return implode('', $rule_summaries);
+    }
+    
+    /**
+     * Format legacy rules (fallback for watermarks without unified rules)
+     */
+    private function formatLegacyRules(array $watermark): string
+    {
         $rules = [];
         
         // Where to apply
@@ -627,6 +703,94 @@ class WatermarkPage
         }
         
         return implode('<br>', $rules);
+    }
+    
+    /**
+     * Get condition type label
+     */
+    private function getConditionTypeLabel(string $type): string
+    {
+        $labels = [
+            'image_size' => __('Image Size', 'ultimate-watermark'),
+            'post_type' => __('Post Type', 'ultimate-watermark'),
+            // Pro-only condition types
+            'file_type' => __('File Type', 'ultimate-watermark'),
+            'file_size' => __('File Size', 'ultimate-watermark'),
+            'image_width' => __('Image Width', 'ultimate-watermark'),
+            'image_height' => __('Image Height', 'ultimate-watermark'),
+            'user_role' => __('User Role', 'ultimate-watermark'),
+            'post_category' => __('Post Category', 'ultimate-watermark'),
+            'image_orientation' => __('Image Orientation', 'ultimate-watermark'),
+            'date_range' => __('Upload Date', 'ultimate-watermark'),
+            'image_aspect_ratio' => __('Aspect Ratio', 'ultimate-watermark'),
+        ];
+        
+        return $labels[$type] ?? ucfirst(str_replace('_', ' ', $type));
+    }
+    
+    /**
+     * Get operator label
+     */
+    private function getOperatorLabel(string $operator): string
+    {
+        $labels = [
+            'is' => __('is', 'ultimate-watermark'),
+            'is_not' => __('is not', 'ultimate-watermark'),
+            'greater_than' => __('>', 'ultimate-watermark'),
+            'less_than' => __('<', 'ultimate-watermark'),
+            'equals' => __('=', 'ultimate-watermark'),
+            'after' => __('after', 'ultimate-watermark'),
+            'before' => __('before', 'ultimate-watermark'),
+        ];
+        
+        return $labels[$operator] ?? $operator;
+    }
+    
+    /**
+     * Get condition value label
+     */
+    private function getConditionValueLabel(string $type, string $value): string
+    {
+        // Handle special cases for select options
+        switch ($type) {
+            case 'image_size':
+                return ucfirst(str_replace('-', ' ', $value));
+                
+            case 'post_type':
+                $post_type_obj = get_post_type_object($value);
+                return $post_type_obj ? $post_type_obj->label : ucfirst($value);
+                
+            // Pro-only condition types
+            case 'file_type':
+                return strtoupper($value);
+                
+            case 'file_size':
+                return sprintf('%s KB', number_format($value));
+                
+            case 'image_width':
+            case 'image_height':
+                return sprintf('%s px', number_format($value));
+                
+            case 'user_role':
+                $role_names = wp_roles()->get_names();
+                return $role_names[$value] ?? ucfirst($value);
+                
+            case 'post_category':
+                $category = get_term_by('slug', $value, 'category');
+                return $category ? $category->name : ucfirst($value);
+                
+            case 'image_orientation':
+                return ucfirst($value);
+                
+            case 'date_range':
+                return date('M j, Y', strtotime($value));
+                
+            case 'image_aspect_ratio':
+                return number_format($value, 2);
+                
+            default:
+                return esc_html($value);
+        }
     }
 
     /**

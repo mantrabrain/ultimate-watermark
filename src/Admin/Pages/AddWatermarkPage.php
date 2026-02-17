@@ -188,7 +188,7 @@ class AddWatermarkPage
                     <?php 
                     ?>
                     <div class="form-section" id="<?php echo esc_attr($section_id); ?>" <?php if (isset($section_config['condition'])): ?>data-condition="<?php echo esc_attr($section_config['condition']); ?>"<?php endif; ?>>
-                        <h4><?php echo esc_html($section_config['label']); ?></h4>
+                        <h4><?php echo wp_kses_post($section_config['label']); ?></h4>
                         <?php if (isset($section_config['description'])): ?>
                             <p class="description"><?php echo esc_html($section_config['description']); ?></p>
                         <?php endif; ?>
@@ -384,10 +384,16 @@ class AddWatermarkPage
     {
         ?>
         <label for="<?php echo esc_attr($field_name); ?>"><?php echo esc_html($field_config['label']); ?></label>
-        <textarea id="<?php echo esc_attr($field_name); ?>" 
-                  name="<?php echo esc_attr($field_name); ?>" 
-                  placeholder="<?php echo esc_attr($field_config['placeholder'] ?? ''); ?>"
-                  rows="<?php echo esc_attr($field_config['rows'] ?? 3); ?>"><?php echo esc_textarea($value); ?></textarea>
+        <div style="position: relative;">
+            <textarea id="<?php echo esc_attr($field_name); ?>" 
+                      name="<?php echo esc_attr($field_name); ?>" 
+                      placeholder="<?php echo esc_attr($field_config['placeholder'] ?? ''); ?>"
+                      rows="<?php echo esc_attr($field_config['rows'] ?? 3); ?>"><?php echo esc_textarea($value); ?></textarea>
+            <?php 
+            // Allow Pro plugin to add inline controls (e.g., placeholder selector)
+            do_action('ultimate_watermark_after_textarea_field', $field_name, $field_config, $value);
+            ?>
+        </div>
         <?php if (isset($field_config['description'])): ?>
             <p class="description"><?php echo wp_kses_post($field_config['description']); ?></p>
         <?php endif; ?>
@@ -631,8 +637,8 @@ class AddWatermarkPage
                     ],
                     'text_settings' => [
                         'label' => __('Text Settings', 'ultimate-watermark'),
-                        'condition' => 'watermark_type === "text" || watermark_type === "dynamic_content"',
-                        'fields' => [
+                        'condition' => 'watermark_type === "text"',
+                        'fields' => apply_filters('ultimate_watermark_text_settings_fields', [
                             'watermark_text' => [
                                 'type' => 'textarea',
                                 'label' => __('Watermark Text', 'ultimate-watermark'),
@@ -711,7 +717,7 @@ class AddWatermarkPage
                                 'sanitize_callback' => [$this, 'sanitizeSelect'],
                                 'validate_callback' => [$this, 'validateSelect']
                             ]
-                        ]
+                        ])
                     ],
                     'image_upload' => [
                         'label' => __('Watermark Image', 'ultimate-watermark'),
@@ -821,6 +827,14 @@ class AddWatermarkPage
                     'watermarking_behavior' => [
                         'label' => __('Watermarking Behavior', 'ultimate-watermark'),
                         'fields' => [
+                            'active' => [
+                                'type' => 'checkbox',
+                                'label' => __('Active', 'ultimate-watermark'),
+                                'description' => __('Enable this watermark. When inactive, this watermark will not be applied to any images.', 'ultimate-watermark'),
+                                'default' => '1',
+                                'sanitize_callback' => [$this, 'sanitizeCheckbox'],
+                                'validate_callback' => [$this, 'validateCheckbox']
+                            ],
                             'automatic_watermarking' => [
                                 'type' => 'checkbox',
                                 'label' => __('Automatic watermarking', 'ultimate-watermark'),
@@ -938,38 +952,13 @@ class AddWatermarkPage
                 'icon' => 'dashicons-admin-generic',
                 'sections' => [
                     'watermark_rules' => [
-                        'label' => __('Watermark Rules', 'ultimate-watermark'),
+                        'label' => __('Rules Management', 'ultimate-watermark'),
                         'fields' => [
-                            'watermark_sizes' => [
-                                'type' => 'checkbox_group',
-                                'label' => __('Watermark For (Image Sizes)', 'ultimate-watermark'),
-                                'default' => ['thumbnail', 'medium', 'large'],
-                                'options' => $this->getImageSizeOptions(),
-                                'column' => 'left',
-                                'sanitize_callback' => [$this, 'sanitizeCheckboxGroup'],
-                                'validate_callback' => [$this, 'validateCheckboxGroup']
-                            ],
-                            'watermark_on' => [
-                                'type' => 'select',
-                                'label' => __('Watermark On', 'ultimate-watermark'),
-                                'default' => 'everywhere',
-                                'options' => [
-                                    'everywhere' => __('Everywhere', 'ultimate-watermark'),
-                                    'selected_post_types' => __('Selected Custom Post Types', 'ultimate-watermark')
-                                ],
-                                'column' => 'right',
-                                'sanitize_callback' => [$this, 'sanitizeSelect'],
-                                'validate_callback' => [$this, 'validateSelect']
-                            ],
-                            'watermark_post_types' => [
-                                'type' => 'checkbox_group',
-                                'label' => __('Custom Post Types', 'ultimate-watermark'),
-                                'default' => ['post', 'page'],
-                                'options' => $this->getPostTypeOptions(),
-                                'condition' => 'watermark_on === "selected_post_types"',
-                                'description' => __('Select which post types should have watermarks applied to their images.', 'ultimate-watermark'),
-                                'sanitize_callback' => [$this, 'sanitizeCheckboxGroup'],
-                                'validate_callback' => [$this, 'validateCheckboxGroup']
+                            'rules_manager' => [
+                                'type' => 'custom',
+                                'label' => __('Rules Manager', 'ultimate-watermark'),
+                                'description' => __('Create and manage watermark rules with names and conditions', 'ultimate-watermark'),
+                                'custom_render' => [$this, 'renderRulesManager']
                             ]
                         ]
                     ]
@@ -981,6 +970,12 @@ class AddWatermarkPage
         $pro_sections = apply_filters('ultimate_watermark_add_form_sections', []);
         if (!empty($pro_sections)) {
             $config['basic']['sections'] = array_merge($config['basic']['sections'], $pro_sections);
+        }
+        
+        // Allow Pro plugin to add sections to the rules tab
+        $pro_rules_sections = apply_filters('ultimate_watermark_rules_sections', []);
+        if (!empty($pro_rules_sections)) {
+            $config['rules']['sections'] = array_merge($config['rules']['sections'], $pro_rules_sections);
         }
         
         return $config;
@@ -1007,6 +1002,917 @@ class AddWatermarkPage
         return $options;
     }
 
+    /**
+     * Get default condition types for the rule builder
+     *
+     * @return array
+     */
+    public function getDefaultConditionTypes(): array
+    {
+        return [
+            'image_size' => [
+                'label' => __('Image Size', 'ultimate-watermark'),
+                'operators' => [
+                    'is' => __('is', 'ultimate-watermark'),
+                    'is_not' => __('is not', 'ultimate-watermark'),
+                ],
+                'valueType' => 'select',
+                'values' => $this->getImageSizeOptions(),
+            ],
+            'post_type' => [
+                'label' => __('Post Type', 'ultimate-watermark'),
+                'operators' => [
+                    'is' => __('is', 'ultimate-watermark'),
+                    'is_not' => __('is not', 'ultimate-watermark'),
+                ],
+                'valueType' => 'select',
+                'values' => $this->getPostTypeOptions(),
+            ],
+        ];
+    }
+
+    /**
+     * Render rules manager with list/table interface
+     */
+    public function renderRulesManager(): void
+    {
+        // Get watermark ID from URL (consistent with render() method)
+        $watermark_id = isset($_GET['ID']) ? intval($_GET['ID']) : 0;
+        
+        // Load saved rules from post meta
+        $existing_rules = [];
+        if ($watermark_id) {
+            $saved_rules = get_post_meta($watermark_id, 'watermark_rules', true);
+            if (!empty($saved_rules) && is_array($saved_rules)) {
+                $existing_rules = $saved_rules;
+            }
+        }
+        
+        // No default rule needed - start with empty rules if none exist
+        // Users can create their own rules as needed
+        
+        // Allow Pro to extend condition types
+        $condition_types = apply_filters('uwm_condition_types', $this->getDefaultConditionTypes());
+        
+        ?>
+        <div class="rules-manager">
+            <!-- Hidden field to store rules JSON - submitted with main form -->
+            <input type="hidden" name="watermark_rules" id="watermark-rules-data" value="<?php echo esc_attr(!empty($existing_rules) ? wp_json_encode($existing_rules) : '{}'); ?>">
+
+            <!-- Rules List Header -->
+            <div class="rules-header">
+                <div class="rules-title">
+                    <h3><?php esc_html_e('Watermark Rules', 'ultimate-watermark'); ?></h3>
+                    <p class="description"><?php esc_html_e('Create and manage rules for when and where this watermark should be applied.', 'ultimate-watermark'); ?></p>
+                </div>
+                <div class="rules-actions">
+                    <button type="button" class="button button-primary" id="add-new-rule" onclick="showRuleModal()">
+                        <span class="dashicons dashicons-plus"></span>
+                        <?php esc_html_e('Add New Rule', 'ultimate-watermark'); ?>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Rules List Table (tbody rendered by JS from state) -->
+            <div class="rules-list">
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th scope="col"><?php esc_html_e('Rule Name', 'ultimate-watermark'); ?></th>
+                            <th scope="col"><?php esc_html_e('Conditions', 'ultimate-watermark'); ?></th>
+                            <th scope="col"><?php esc_html_e('Status', 'ultimate-watermark'); ?></th>
+                            <th scope="col"><?php esc_html_e('Actions', 'ultimate-watermark'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rendered dynamically by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Rule Form Modal -->
+            <div id="rule-form-modal" class="rule-modal" style="display: none;">
+                <div class="rule-modal-content">
+                    <div class="rule-modal-header">
+                        <h3 id="rule-modal-title"><?php esc_html_e('Add New Rule', 'ultimate-watermark'); ?></h3>
+                        <button type="button" class="rule-modal-close">&times;</button>
+                    </div>
+                    <div class="rule-modal-body">
+                        <input type="hidden" id="rule-id" name="rule_id">
+                        
+                        <!-- Rule Name -->
+                        <div class="form-row">
+                            <label for="rule-name"><?php esc_html_e('Rule Name', 'ultimate-watermark'); ?></label>
+                            <input type="text" id="rule-name" placeholder="<?php esc_html_e('Enter rule name', 'ultimate-watermark'); ?>">
+                            <p class="description"><?php esc_html_e('Give this rule a descriptive name.', 'ultimate-watermark'); ?></p>
+                        </div>
+
+                        <!-- Logic Operator -->
+                        <div class="form-row">
+                            <label for="rule-logic-operator"><?php esc_html_e('Logic Operator', 'ultimate-watermark'); ?></label>
+                            <select id="rule-logic-operator" name="rule_logic_operator">
+                                <option value="and"><?php esc_html_e('AND - All conditions must match', 'ultimate-watermark'); ?></option>
+                                <option value="or"><?php esc_html_e('OR - Any condition can match', 'ultimate-watermark'); ?></option>
+                            </select>
+                            <p class="description"><?php esc_html_e('How should multiple conditions be evaluated together.', 'ultimate-watermark'); ?></p>
+                        </div>
+
+                        <!-- Unified Conditions Builder -->
+                        <div class="conditions-builder">
+                            <div class="conditions-builder-header">
+                                <label><?php esc_html_e('Conditions', 'ultimate-watermark'); ?></label>
+                                <button type="button" class="button button-secondary button-small" id="add-condition">
+                                    <span class="dashicons dashicons-plus-alt2"></span>
+                                    <?php esc_html_e('Add Condition', 'ultimate-watermark'); ?>
+                                </button>
+                            </div>
+
+                            <div class="conditions-list" id="rule-conditions-list">
+                                <!-- Conditions added dynamically -->
+                            </div>
+
+                            <div class="conditions-empty" id="rule-conditions-empty">
+                                <div class="empty-state">
+                                    <span class="dashicons dashicons-filter"></span>
+                                    <p><?php esc_html_e('No conditions added yet.', 'ultimate-watermark'); ?></p>
+                                    <p class="description"><?php esc_html_e('Click "Add Condition" to define when this rule applies.', 'ultimate-watermark'); ?></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="rule-modal-footer">
+                        <button type="button" class="button button-secondary rule-modal-cancel"><?php esc_html_e('Cancel', 'ultimate-watermark'); ?></button>
+                        <button type="button" class="button button-primary rule-modal-save"><?php esc_html_e('Save Rule', 'ultimate-watermark'); ?></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        (function($) {
+            'use strict';
+
+            // ========== STATE ==========
+            var rawRules = JSON.parse($('#watermark-rules-data').val() || '{}');
+            // CRITICAL: Ensure rulesState is always a plain object, never an Array
+            // PHP json_encode([]) produces "[]" which JS parses as Array.
+            // JSON.stringify(Array) ignores non-numeric keys, losing all rules.
+            var rulesState = (Array.isArray(rawRules) || typeof rawRules !== 'object' || rawRules === null) ? {} : rawRules;
+            var conditionIndex = 0;
+            var editingRuleId = null;
+
+            // Condition types (extensible via wp.hooks)
+            var conditionTypes = <?php echo wp_json_encode($condition_types); ?>;
+            if (window.wp && wp.hooks) {
+                conditionTypes = wp.hooks.applyFilters('uwm_condition_types', conditionTypes);
+            }
+
+            // ========== SYNC STATE → HIDDEN FIELD ==========
+            function syncState() {
+                $('#watermark-rules-data').val(JSON.stringify(rulesState));
+            }
+
+            // ========== GENERATE UNIQUE ID ==========
+            function generateId() {
+                return 'rule_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+            }
+
+            // ========== RENDER TABLE ==========
+            function renderTable() {
+                var $tbody = $('.rules-manager .rules-list table tbody');
+                $tbody.empty();
+
+                var ruleIds = Object.keys(rulesState);
+                if (ruleIds.length === 0) {
+                    $tbody.append('<tr class="no-rules"><td colspan="4" style="text-align:center;padding:20px;color:#94a3b8;"><?php esc_html_e('No rules defined. Click "Add New Rule" to create one.', 'ultimate-watermark'); ?></td></tr>');
+                    return;
+                }
+
+                ruleIds.forEach(function(ruleId) {
+                    var rule = rulesState[ruleId];
+                    var condSummary = buildConditionSummary(rule.conditions || []);
+                    var logicOp = (rule.logic_operator || 'and').toUpperCase();
+
+                    var row = '<tr data-rule-id="' + ruleId + '">' +
+                        '<td><strong>' + escHtml(rule.name) + '</strong></td>' +
+                        '<td>' + condSummary +
+                        '<div class="rule-logic"><small><?php esc_html_e('Logic:', 'ultimate-watermark'); ?> <strong>' + logicOp + '</strong></small></div></td>' +
+                        '<td><span class="status-active"><?php esc_html_e('Active', 'ultimate-watermark'); ?></span></td>' +
+                        '<td><div class="rule-actions">' +
+                        '<button type="button" class="button button-small edit-rule" data-rule-id="' + ruleId + '"><span class="dashicons dashicons-edit"></span> <?php esc_html_e('Edit', 'ultimate-watermark'); ?></button>' +
+                        ' <button type="button" class="button button-small button-link-delete delete-rule" data-rule-id="' + ruleId + '"><span class="dashicons dashicons-trash"></span> <?php esc_html_e('Delete', 'ultimate-watermark'); ?></button>' +
+                        '</div></td>' +
+                        '</tr>';
+                    $tbody.append(row);
+                });
+            }
+
+            function buildConditionSummary(conditions) {
+                if (!conditions || conditions.length === 0) {
+                    return '<em><?php esc_html_e('No conditions', 'ultimate-watermark'); ?></em>';
+                }
+                var parts = [];
+                conditions.forEach(function(c) {
+                    var typeLabel = conditionTypes[c.type] ? conditionTypes[c.type].label : c.type;
+                    var opLabel = c.operator;
+                    if (conditionTypes[c.type] && conditionTypes[c.type].operators[c.operator]) {
+                        opLabel = conditionTypes[c.type].operators[c.operator];
+                    }
+                    var valLabel = c.value;
+                    if (conditionTypes[c.type] && conditionTypes[c.type].values && conditionTypes[c.type].values[c.value]) {
+                        valLabel = conditionTypes[c.type].values[c.value];
+                    }
+                    parts.push('<span class="condition-tag">' + escHtml(typeLabel) + ' ' + escHtml(opLabel) + ' <strong>' + escHtml(valLabel) + '</strong></span>');
+                });
+                return parts.join(' ');
+            }
+
+            function escHtml(str) {
+                if (!str) return '';
+                return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            }
+
+            // ========== MODAL: OPEN FOR ADD ==========
+            function openAddModal() {
+                editingRuleId = null;
+                $('#rule-modal-title').text('<?php esc_html_e('Add New Rule', 'ultimate-watermark'); ?>');
+                $('#rule-name').val('');
+                $('#rule-logic-operator').val('and');
+                $('#rule-conditions-list').empty();
+                conditionIndex = 0;
+                updateEmptyState();
+                $('#rule-form-modal').show();
+            }
+
+            // ========== MODAL: OPEN FOR EDIT ==========
+            function openEditModal(ruleId) {
+                var rule = rulesState[ruleId];
+                if (!rule) return;
+
+                editingRuleId = ruleId;
+                $('#rule-modal-title').text('<?php esc_html_e('Edit Rule', 'ultimate-watermark'); ?>');
+                $('#rule-name').val(rule.name);
+                $('#rule-logic-operator').val(rule.logic_operator || 'and');
+                $('#rule-conditions-list').empty();
+                conditionIndex = 0;
+
+                if (rule.conditions && rule.conditions.length > 0) {
+                    rule.conditions.forEach(function(cond) {
+                        addConditionCard(conditionIndex, cond.type, cond.operator, cond.value);
+                        conditionIndex++;
+                    });
+                }
+                updateEmptyState();
+                $('#rule-form-modal').show();
+            }
+
+            // ========== MODAL: SAVE ==========
+            function saveRule() {
+                var name = $.trim($('#rule-name').val());
+                if (!name) {
+                    alert('<?php esc_html_e('Please enter a rule name.', 'ultimate-watermark'); ?>');
+                    $('#rule-name').focus();
+                    return;
+                }
+
+                var logicOp = $('#rule-logic-operator').val() || 'and';
+                var conditions = [];
+
+                $('#rule-conditions-list .condition-card').each(function() {
+                    var type = $(this).find('.condition-type').val();
+                    var operator = $(this).find('.condition-operator').val();
+                    var value = $(this).find('.condition-value').val();
+                    if (type && operator && value) {
+                        conditions.push({ type: type, operator: operator, value: value });
+                    }
+                });
+
+                if (editingRuleId && rulesState[editingRuleId]) {
+                    // Update existing rule
+                    rulesState[editingRuleId].name = name;
+                    rulesState[editingRuleId].logic_operator = logicOp;
+                    rulesState[editingRuleId].conditions = conditions;
+                } else {
+                    // Create new rule
+                    var newId = generateId();
+                    rulesState[newId] = {
+                        name: name,
+                        logic_operator: logicOp,
+                        conditions: conditions
+                    };
+                }
+
+                syncState();
+                renderTable();
+                $('#rule-form-modal').hide();
+            }
+
+            // ========== DELETE RULE ==========
+            function deleteRule(ruleId) {
+                var rule = rulesState[ruleId];
+                if (!rule) return;
+
+                if (!confirm('<?php esc_html_e('Are you sure you want to delete the rule', 'ultimate-watermark'); ?> "' + rule.name + '"?')) return;
+
+                delete rulesState[ruleId];
+                syncState();
+                renderTable();
+            }
+
+            // ========== CONDITION CARD ==========
+            function addConditionCard(index, preType, preOp, preVal) {
+                var typeOptions = '<option value=""><?php esc_html_e('Select condition type...', 'ultimate-watermark'); ?></option>';
+                for (var key in conditionTypes) {
+                    typeOptions += '<option value="' + key + '"' + (preType === key ? ' selected' : '') + '>' + escHtml(conditionTypes[key].label) + '</option>';
+                }
+
+                var html =
+                '<div class="condition-card" data-index="' + index + '">' +
+                    '<div class="condition-header">' +
+                        '<span class="condition-number"><?php esc_html_e('Condition', 'ultimate-watermark'); ?> #' + (index + 1) + '</span>' +
+                        '<button type="button" class="remove-condition" title="<?php esc_html_e('Remove', 'ultimate-watermark'); ?>"><span class="dashicons dashicons-no-alt"></span></button>' +
+                    '</div>' +
+                    '<div class="condition-fields">' +
+                        '<div class="condition-field"><label><?php esc_html_e('Type', 'ultimate-watermark'); ?></label><select class="condition-type">' + typeOptions + '</select></div>' +
+                        '<div class="condition-field"><label><?php esc_html_e('Operator', 'ultimate-watermark'); ?></label><select class="condition-operator" disabled><option value=""><?php esc_html_e('Select...', 'ultimate-watermark'); ?></option></select></div>' +
+                        '<div class="condition-field condition-value-wrap"><label><?php esc_html_e('Value', 'ultimate-watermark'); ?></label><input type="text" class="condition-value" placeholder="<?php esc_html_e('Select type first', 'ultimate-watermark'); ?>" disabled></div>' +
+                    '</div>' +
+                '</div>';
+
+                $('#rule-conditions-list').append(html);
+                $('#rule-conditions-empty').hide();
+
+                if (preType) {
+                    var $card = $('#rule-conditions-list .condition-card[data-index="' + index + '"]');
+                    // Trigger type change to populate operator/value fields
+                    $card.find('.condition-type').trigger('change');
+                    // Use longer delays to guarantee DOM has updated
+                    setTimeout(function() {
+                        if (preOp) {
+                            $card.find('.condition-operator').val(preOp).prop('disabled', false).trigger('change');
+                        }
+                        setTimeout(function() {
+                            if (preVal) {
+                                $card.find('.condition-value').val(preVal).prop('disabled', false);
+                            }
+                        }, 100);
+                    }, 100);
+                }
+            }
+
+            function updateEmptyState() {
+                $('#rule-conditions-empty').toggle($('#rule-conditions-list .condition-card').length === 0);
+            }
+
+            // ========== EVENT BINDINGS ==========
+            $(document).ready(function() {
+                // Force full width
+                var $rm = $('.rules-manager'), $p = $rm.closest('.form-column, .form-columns');
+                if ($p.length) {
+                    $p.css({ 'grid-column': '1 / -1', 'width': '100%', 'max-width': 'none' });
+                    $rm.css({ 'width': '100%', 'max-width': 'none', 'grid-column': '1 / -1' });
+                }
+
+                // Initial render
+                renderTable();
+
+                // Add New Rule
+                $(document).on('click', '#add-new-rule', function(e) { e.preventDefault(); openAddModal(); });
+
+                // Edit Rule
+                $(document).on('click', '.edit-rule', function(e) { e.preventDefault(); openEditModal($(this).data('rule-id')); });
+
+                // Delete Rule
+                $(document).on('click', '.delete-rule', function(e) { e.preventDefault(); deleteRule($(this).data('rule-id')); });
+
+                // Modal close
+                $(document).on('click', '.rule-modal-close, .rule-modal-cancel', function(e) { e.preventDefault(); $('#rule-form-modal').hide(); });
+
+                // Modal save
+                $(document).on('click', '.rule-modal-save', function(e) { e.preventDefault(); saveRule(); });
+
+                // Add Condition
+                $(document).on('click', '#add-condition', function(e) { e.preventDefault(); addConditionCard(conditionIndex); conditionIndex++; updateEmptyState(); });
+
+                // Remove Condition
+                $(document).on('click', '.remove-condition', function() {
+                    $(this).closest('.condition-card').fadeOut(200, function() { $(this).remove(); updateEmptyState(); });
+                });
+
+                // Condition type changed
+                $(document).on('change', '.condition-type', function() {
+                    var $card = $(this).closest('.condition-card'), type = $(this).val();
+                    var $opSelect = $card.find('.condition-operator'), $valWrap = $card.find('.condition-value-wrap');
+                    $opSelect.html('<option value=""><?php esc_html_e('Select...', 'ultimate-watermark'); ?></option>').prop('disabled', true);
+
+                    if (type && conditionTypes[type]) {
+                        var ct = conditionTypes[type];
+                        for (var op in ct.operators) { $opSelect.append('<option value="' + op + '">' + ct.operators[op] + '</option>'); }
+                        $opSelect.prop('disabled', false);
+                        var valueHtml = '';
+                        if (ct.valueType === 'select') {
+                            valueHtml = '<label><?php esc_html_e('Value', 'ultimate-watermark'); ?></label><select class="condition-value" disabled><option value=""><?php esc_html_e('Select...', 'ultimate-watermark'); ?></option>';
+                            for (var v in ct.values) { valueHtml += '<option value="' + v + '">' + escHtml(ct.values[v]) + '</option>'; }
+                            valueHtml += '</select>';
+                        } else if (ct.valueType === 'number') {
+                            valueHtml = '<label><?php esc_html_e('Value', 'ultimate-watermark'); ?></label><input type="number" class="condition-value" placeholder="<?php esc_html_e('Enter value...', 'ultimate-watermark'); ?>" disabled>';
+                        } else {
+                            valueHtml = '<label><?php esc_html_e('Value', 'ultimate-watermark'); ?></label><input type="text" class="condition-value" placeholder="<?php esc_html_e('Enter value...', 'ultimate-watermark'); ?>" disabled>';
+                        }
+                        $valWrap.html(valueHtml);
+                    } else {
+                        $valWrap.html('<label><?php esc_html_e('Value', 'ultimate-watermark'); ?></label><input type="text" class="condition-value" placeholder="<?php esc_html_e('Select type first', 'ultimate-watermark'); ?>" disabled>');
+                    }
+                });
+
+                // Operator changed → enable value
+                $(document).on('change', '.condition-operator', function() {
+                    $(this).closest('.condition-card').find('.condition-value').prop('disabled', !$(this).val());
+                });
+
+            }); // Close document.ready
+
+            // Expose globally for inline onclick
+            window.showRuleModal = openAddModal;
+
+        })(jQuery);
+        </script>
+
+        <style>
+        /* Rules Manager Styles - Force full width with high specificity */
+        .ultimate-watermark-add-watermark .form-column .rules-manager,
+        .ultimate-watermark-add-watermark .form-columns .rules-manager,
+        .form-column .rules-manager,
+        .form-columns .rules-manager {
+            grid-column: 1 / -1 !important; /* Span all columns */
+            width: 100% !important;
+            max-width: none !important;
+            box-sizing: border-box !important;
+            flex: 1 1 100% !important;
+        }
+
+        .rules-manager {
+            background: #fff;
+            border: 1px solid #c3c4c7;
+            border-radius: 4px;
+            padding: 20px;
+            width: 100% !important;
+            max-width: none !important;
+            box-sizing: border-box !important;
+            position: relative !important;
+        }
+
+        /* Override any parent container constraints */
+        #watermark_rules .rules-manager,
+        #watermark_rules .form-column .rules-manager,
+        #watermark_rules .form-columns .rules-manager {
+            width: 100% !important;
+            max-width: none !important;
+            grid-column: 1 / -1 !important;
+        }
+
+        /* Force parent containers to allow full width */
+        #watermark_rules .form-column,
+        #watermark_rules .form-columns {
+            grid-template-columns: 1fr !important;
+        }
+
+        #watermark_rules .form-column .rules-manager {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        .rules-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #c3c4c7;
+        }
+
+        .rules-title h3 {
+            margin: 0 0 5px 0;
+            font-size: 20px;
+            font-weight: 600;
+            color: #1d2327;
+        }
+
+        .rules-title .description {
+            margin: 0;
+            color: #646970;
+            font-size: 14px;
+        }
+
+        .rules-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .rules-actions .button {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .rules-actions .button .dashicons {
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .rules-actions .delete-rule {
+            background: #dc3545;
+            border-color: #dc3545;
+            color: #fff;
+        }
+
+        .rules-actions .delete-rule:hover {
+            background: #c82333;
+            border-color: #c82333;
+            color: #fff;
+        }
+
+        .rules-actions .delete-rule:focus {
+            box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.5);
+        }
+
+        .rules-list {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .rules-list table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .rule-conditions,
+        .rule-image-sizes,
+        .rule-targeting {
+            font-size: 13px;
+            color: #50575e;
+        }
+
+        .rule-logic {
+            margin-top: 4px;
+            color: #646970;
+            font-style: italic;
+        }
+
+        .rule-logic strong {
+            color: #374151;
+            font-style: normal;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .badge-default {
+            background: #f0f6fc;
+            color: #2271b1;
+        }
+
+        .status-active {
+            color: #00a32a;
+            font-weight: 500;
+        }
+
+        .rule-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .rule-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 100000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .rule-modal-content {
+            background: #fff;
+            border-radius: 8px;
+            width: 95%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .rule-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .rule-modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .rule-modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #646970;
+        }
+
+        .rule-modal-body {
+            padding: 20px;
+        }
+
+        .rule-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 8px;
+            width: 100%;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .checkbox-item label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        .form-row {
+            margin-bottom: 20px;
+        }
+
+        .form-row label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .form-row input,
+        .form-row select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #c3c4c7;
+            border-radius: 4px;
+        }
+
+        .form-row .description {
+            font-size: 13px;
+            color: #646970;
+            margin-top: 5px;
+        }
+
+        .conditional-field {
+            display: none;
+        }
+
+        /* PRO Badge */
+        .uwm-pro-badge {
+            background: #2271b1;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-left: 6px;
+        }
+
+        /* Unified Conditions Builder */
+        .conditions-builder {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 16px;
+            margin-top: 8px;
+        }
+
+        .conditions-builder-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .conditions-builder-header label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1d2327;
+            margin: 0;
+        }
+
+        .conditions-builder-header .button {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .conditions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .condition-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .condition-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 1px 4px rgba(102, 126, 234, 0.15);
+        }
+
+        .condition-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .condition-number {
+            font-size: 12px;
+            font-weight: 600;
+            color: #667eea;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .condition-fields {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+
+        .condition-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .condition-field label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .condition-field select,
+        .condition-field input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 13px;
+            background: #fff;
+        }
+
+        .condition-field select:focus,
+        .condition-field input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
+        }
+
+        .condition-field select:disabled,
+        .condition-field input:disabled {
+            background: #f1f5f9;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .conditions-empty {
+            margin-top: 0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 30px 16px;
+            background: #fff;
+            border: 2px dashed #cbd5e0;
+            border-radius: 6px;
+        }
+
+        .empty-state .dashicons {
+            font-size: 36px;
+            width: 36px;
+            height: 36px;
+            color: #cbd5e0;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .empty-state p {
+            margin: 0 0 4px 0;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .empty-state .description {
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .remove-condition {
+            background: none;
+            color: #ef4444;
+            border: none;
+            padding: 2px;
+            border-radius: 4px;
+            cursor: pointer;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .remove-condition:hover {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .remove-condition .dashicons {
+            font-size: 18px;
+            width: 18px;
+            height: 18px;
+        }
+
+        .condition-tag {
+            display: inline-block;
+            background: #eef2ff;
+            border: 1px solid #c7d2fe;
+            color: #4338ca;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 2px 2px 2px 0;
+        }
+
+        .condition-tag strong {
+            color: #312e81;
+        }
+
+        .button-link-delete {
+            color: #b91c1c !important;
+            border-color: #fca5a5 !important;
+        }
+
+        .button-link-delete:hover {
+            color: #7f1d1d !important;
+            background: #fef2f2 !important;
+            border-color: #f87171 !important;
+        }
+
+        .rules-list table td {
+            vertical-align: middle;
+        }
+
+        @media (max-width: 768px) {
+            .condition-fields {
+                grid-template-columns: 1fr;
+            }
+        }
+        </style>
+        <?php
+    }
 
     /**
      * Sanitize checkbox value

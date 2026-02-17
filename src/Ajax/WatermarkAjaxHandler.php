@@ -93,7 +93,7 @@ class WatermarkAjaxHandler
             }
 
             // Verify nonce with specific action
-            $this->verifyNonce($_POST['nonce'] ?? '', 'ultimate_watermark_ajax');
+            $this->verifyNonce($_POST['ultimate_watermark_nonce'] ?? '', 'ultimate_watermark_nonce');
 
             // Validate and sanitize input data
             $sanitized_data = $this->validateAndSanitizeInput($_POST);
@@ -108,10 +108,13 @@ class WatermarkAjaxHandler
                 $this->sendErrorResponse('Failed to save watermark.');
             }
 
-        } catch (\SecurityException $e) {
-            $this->sendSecurityError($e->getMessage());
         } catch (\InvalidArgumentException $e) {
-            $this->sendValidationError($e->getMessage());
+            // Check if this is a security-related exception
+            if (strpos($e->getMessage(), 'Security exception:') === 0) {
+                $this->sendSecurityError($e->getMessage());
+            } else {
+                $this->sendValidationError($e->getMessage());
+            }
         } catch (\Exception $e) {
             $this->handleUnexpectedError($e);
         }
@@ -123,7 +126,7 @@ class WatermarkAjaxHandler
     private function verifyNonce(string $nonce, string $action): void
     {
         if (empty($nonce)) {
-            throw new \SecurityException('missing_nonce');
+            throw new \InvalidArgumentException('Security exception: missing nonce');
         }
 
         if (!wp_verify_nonce($nonce, $action)) {
@@ -134,7 +137,7 @@ class WatermarkAjaxHandler
                 'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
             ]);
             
-            throw new \SecurityException('invalid_nonce');
+            throw new \InvalidArgumentException('Security exception: invalid nonce');
         }
     }
 
@@ -179,9 +182,20 @@ class WatermarkAjaxHandler
         $sanitized = array_merge($sanitized, $this->validateSettings($data));
 
         // Handle checkbox fields
-        $checkbox_fields = ['active', 'automatic_watermarking'];
+        $checkbox_fields = ['active', 'automatic_watermarking', 'manual_watermarking', 'frontend_watermarking'];
         foreach ($checkbox_fields as $field) {
             $sanitized[$field] = isset($data[$field]) && $data[$field] === '1' ? '1' : '0';
+        }
+
+        // Handle watermark rules (JSON-encoded from hidden field)
+        if (!empty($data['watermark_rules'])) {
+            $rules_raw = $data['watermark_rules'];
+            if (is_string($rules_raw)) {
+                $rules_raw = json_decode(stripslashes($rules_raw), true);
+            }
+            if (is_array($rules_raw)) {
+                $sanitized['watermark_rules'] = $this->sanitizeWatermarkRules($rules_raw);
+            }
         }
 
         return apply_filters('ultimate_watermark_sanitized_data', $sanitized, $data);
@@ -398,6 +412,54 @@ class WatermarkAjaxHandler
     }
 
     /**
+     * Sanitize watermark rules data
+     *
+     * @param array $rules Raw rules array
+     * @return array Sanitized rules
+     */
+    private function sanitizeWatermarkRules(array $rules): array
+    {
+        $sanitized = [];
+        $allowed_operators = ['is', 'is_not', 'greater_than', 'less_than', 'equals'];
+
+        foreach ($rules as $rule_id => $rule) {
+            if (!is_array($rule) || empty($rule['name'])) {
+                continue;
+            }
+
+            $sanitized_rule = [
+                'name' => sanitize_text_field($rule['name']),
+                'logic_operator' => in_array($rule['logic_operator'] ?? 'and', ['and', 'or']) ? $rule['logic_operator'] : 'and',
+                'conditions' => [],
+                'is_default' => !empty($rule['is_default']),
+            ];
+
+            if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
+                foreach ($rule['conditions'] as $condition) {
+                    if (!is_array($condition)) continue;
+
+                    $type = sanitize_text_field($condition['type'] ?? '');
+                    $operator = sanitize_text_field($condition['operator'] ?? '');
+                    $value = sanitize_text_field($condition['value'] ?? '');
+
+                    if (empty($type) || empty($operator) || $value === '') continue;
+                    if (!in_array($operator, $allowed_operators)) continue;
+
+                    $sanitized_rule['conditions'][] = [
+                        'type' => $type,
+                        'operator' => $operator,
+                        'value' => $value,
+                    ];
+                }
+            }
+
+            $sanitized[sanitize_key($rule_id)] = $sanitized_rule;
+        }
+
+        return $sanitized;
+    }
+
+    /**
      * Save watermark data with enhanced error handling
      */
     private function saveWatermark(array $data): int
@@ -573,12 +635,4 @@ class WatermarkAjaxHandler
 
         return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
     }
-}
-
-/**
- * Security Exception Class
- */
-class SecurityException extends \Exception
-{
-    // Custom security exception for better error handling
 }

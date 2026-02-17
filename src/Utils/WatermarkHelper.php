@@ -147,7 +147,10 @@ class WatermarkHelper
             'frontend_watermarking' => $metadata['frontend_watermarking'],
             'watermark_on' => $metadata['watermark_on'],
             'watermark_post_types' => $metadata['watermark_post_types'],
-            'watermark_sizes' => $metadata['watermark_sizes']
+            'watermark_sizes' => $metadata['watermark_sizes'],
+            
+            // Unified rules (conditions-based)
+            'watermark_rules' => $metadata['watermark_rules']
         ];
 
         // Apply filters for extensibility
@@ -184,7 +187,8 @@ class WatermarkHelper
             'frontend_watermarking' => '0',
             'watermark_on' => 'everywhere',
             'watermark_post_types' => [],
-            'watermark_sizes' => []
+            'watermark_sizes' => [],
+            'watermark_rules' => []
         ];
 
         $metadata = [];
@@ -244,6 +248,14 @@ class WatermarkHelper
             case 'watermark_post_types':
             case 'watermark_sizes':
                 return self::validateArrayMetadata($value);
+            
+            case 'watermark_rules':
+                // Rules are stored as serialized array; ensure we return an array
+                if (is_string($value)) {
+                    $unserialized = maybe_unserialize($value);
+                    return is_array($unserialized) ? $unserialized : [];
+                }
+                return is_array($value) ? $value : [];
             
             case 'watermark_text':
                 return sanitize_text_field($value);
@@ -673,7 +685,59 @@ class WatermarkHelper
                     return false;
                 }
                 
-                // Check post type rules
+                // Check unified watermark_rules conditions first (if any exist with conditions)
+                $rules = $watermark['watermark_rules'] ?? [];
+                if (!empty($rules) && is_array($rules)) {
+                    // Check if any rule actually has conditions defined
+                    $has_conditions = false;
+                    foreach ($rules as $rule) {
+                        if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
+                            $has_conditions = true;
+                            break;
+                        }
+                    }
+                    
+                    if ($has_conditions) {
+                        // Build context for evaluation
+                        $eval_context = [
+                            'image_size' => $image_size,
+                            'post_type' => '',
+                        ];
+                        
+                        // Resolve post type from context
+                        if ($post_id) {
+                            $parent_post_id = self::getParentPostId($post_id);
+                            if ($parent_post_id > 0) {
+                                $parent = get_post($parent_post_id);
+                                if ($parent) {
+                                    $eval_context['post_type'] = $parent->post_type;
+                                    $categories = wp_get_post_categories($parent_post_id, ['fields' => 'slugs']);
+                                    if (!empty($categories) && !is_wp_error($categories)) {
+                                        $eval_context['post_category'] = $categories[0];
+                                    }
+                                }
+                            }
+                            
+                            // File info from attachment
+                            $file_path = get_attached_file($post_id);
+                            if ($file_path && file_exists($file_path)) {
+                                $eval_context['file_path'] = $file_path;
+                                $eval_context['mime_type'] = wp_check_filetype($file_path)['type'] ?? '';
+                                $eval_context['file_size_kb'] = round(filesize($file_path) / 1024);
+                            }
+                        }
+                        
+                        // Evaluate unified rules
+                        if (!RulesEvaluator::evaluate($rules, $eval_context)) {
+                            return false;
+                        }
+                        
+                        // Unified rules passed — skip legacy checks since rules cover everything
+                        return true;
+                    }
+                }
+                
+                // Fallback: legacy post type and image size checks
                 $post_type_check = self::shouldApplyWatermarkByPostType($watermark, $context, $post_id);
                 if (!$post_type_check) {
                     return false;

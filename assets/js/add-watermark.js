@@ -272,7 +272,8 @@
             const formValues = {
                 watermark_type: $('input[name="watermark_type"]:checked').val(),
                 watermark_size_type: $('#watermark_size_type').val(),
-                watermark_on: $('#watermark_on').val()
+                watermark_on: $('#watermark_on').val(),
+                enable_conditional_rules: $('input[name="enable_conditional_rules"]:checked').val() || '0'
             };
             
             // Debug: Log form values
