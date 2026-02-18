@@ -67,6 +67,20 @@
     padding: 2px 8px;
     border-radius: 12px;
     font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pro-version-badge {
+    background: #46b450;
+    color: #ffffff;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+    box-shadow: 0 2px 4px rgba(70, 180, 80, 0.2);
 }
 
 .header-actions {

@@ -195,6 +195,18 @@ class AdminManager
                     'ultimate-watermark-backups',
                     [$this, 'renderBackupPage']
                 );
+
+                // Get Pro menu (only show if Pro plugin is not active)
+                if (!defined('ULTIMATE_WATERMARK_PRO_VERSION')) {
+                    add_submenu_page(
+                        'ultimate-watermark',
+                        __('Get Pro', 'ultimate-watermark'),
+                        '<span style="color:#f18500;">' . __('Get Pro', 'ultimate-watermark') . '</span>',
+                        'manage_options',
+                        'ultimate-watermark-get-pro',
+                        [$this, 'renderGetProPage']
+                    );
+                }
     }
 
 
@@ -245,6 +257,14 @@ class AdminManager
     public function renderBackupPage(): void
     {
         $this->pages['backup']->render();
+    }
+
+    /**
+     * Render Get Pro page
+     */
+    public function renderGetProPage(): void
+    {
+        ProFeaturesPage::render();
     }
 
 

@@ -27,7 +27,14 @@ class Header
                     </div>
                     <div class="brand-info">
                         <h1 class="brand-title"><?php esc_html_e('Ultimate Watermark', 'ultimate-watermark'); ?></h1>
-                        <span class="brand-version">v<?php echo esc_html($plugin_version); ?></span>
+                        <span class="brand-version">
+                            v<?php echo esc_html($plugin_version); ?>
+                            <?php if (defined('ULTIMATE_WATERMARK_PRO_VERSION')): ?>
+                                <span class="pro-version-badge">
+                                    Pro v<?php echo esc_html(ULTIMATE_WATERMARK_PRO_VERSION); ?>
+                                </span>
+                            <?php endif; ?>
+                        </span>
                     </div>
                 </div>
                 
