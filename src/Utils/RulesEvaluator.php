@@ -87,6 +87,17 @@ class RulesEvaluator
 
             $result = self::evaluateSingleCondition($condition, $context);
 
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                $actual = self::getContextValue($condition['type'] ?? '', $context);
+                error_log('Ultimate Watermark [RulesEval]: condition type=' . ($condition['type'] ?? '') 
+                    . ' operator=' . ($condition['operator'] ?? '') 
+                    . ' expected=' . ($condition['value'] ?? '') 
+                    . ' actual=' . (is_array($actual) ? implode(',', $actual) : strval($actual))
+                    . ' result=' . ($result ? 'TRUE' : 'FALSE')
+                    . ' logic=' . $logic
+                    . ' context_image_size=' . ($context['image_size'] ?? 'N/A'));
+            }
+
             if ($logic === 'or' && $result) {
                 return true; // OR: one true is enough
             }

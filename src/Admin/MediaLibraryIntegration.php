@@ -5,6 +5,7 @@ namespace MantraBrain\UltimateWatermark\Admin;
 use MantraBrain\UltimateWatermark\Utils\WatermarkHelper;
 use MantraBrain\UltimateWatermark\Utils\WatermarkUsageTracker;
 use MantraBrain\UltimateWatermark\Utils\BackupManager;
+use MantraBrain\UltimateWatermark\Utils\RulesEvaluator;
 
 /**
  * Media Library Integration
@@ -249,8 +250,20 @@ class MediaLibraryIntegration
             return false;
         }
 
-        // Generate all image sizes first (before watermarking)
-        wp_generate_attachment_metadata($attachment_id, $original_path);
+        // Prevent automatic watermarking from triggering during metadata regeneration
+        // wp_generate_attachment_metadata fires the filter that processAfterMetadataGeneration hooks into
+        update_post_meta($attachment_id, '_ulwm_skip_watermarking', true);
+        
+        // Regenerate all image sizes from original AND save the metadata
+        // This ensures ALL currently registered sizes (including WooCommerce sizes
+        // that may have been added after original upload) are in the metadata
+        $metadata = wp_generate_attachment_metadata($attachment_id, $original_path);
+        if (!empty($metadata)) {
+            wp_update_attachment_metadata($attachment_id, $metadata);
+        }
+        
+        // Remove the skip flag
+        delete_post_meta($attachment_id, '_ulwm_skip_watermarking');
         
         // Create backup BEFORE applying watermarks (same as upload flow)
         $this->createBackupForWatermarking($attachment_id);
@@ -263,24 +276,61 @@ class MediaLibraryIntegration
         
         // For bulk/manual actions, user explicitly selected the watermark
         // So we skip post type rules (user's explicit choice overrides rules)
-        // But we still respect size rules (important for performance and intention)
+        // But we still respect watermark_rules conditions (image_size, product_cat, etc.)
         
         // Get all registered image sizes
         $image_sizes = get_intermediate_image_sizes();
         $image_sizes[] = 'full';
         
+        // Extract watermark_rules for per-size evaluation
+        $rules = $watermark_data['watermark_rules'] ?? [];
+        $has_rule_conditions = false;
+        if (!empty($rules) && is_array($rules)) {
+            foreach ($rules as $rule) {
+                if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
+                    $has_rule_conditions = true;
+                    break;
+                }
+            }
+        }
+        
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Ultimate Watermark [Manual]: Attachment ' . $attachment_id . ', Watermark ' . $watermark_id);
+            error_log('Ultimate Watermark [Manual]: has_rule_conditions=' . ($has_rule_conditions ? 'YES' : 'NO'));
+            error_log('Ultimate Watermark [Manual]: Rules data: ' . print_r($rules, true));
+            error_log('Ultimate Watermark [Manual]: Image sizes to process: ' . implode(', ', $image_sizes));
+        }
+        
         $success_count = 0;
         
-        // Apply watermarks to each size based on size rules only
-        // We check size rules for EACH size separately
+        // Apply watermarks to each size, evaluating rules per-size
         foreach ($image_sizes as $size) {
-            // Check if this size passes the size rules
+            // Check legacy size rules (watermark_sizes field)
             if (!WatermarkHelper::shouldApplyWatermarkByImageSize($watermark_data, $size)) {
-                continue; // Skip this size - doesn't match size rules
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Ultimate Watermark [Manual]: Size "' . $size . '" SKIPPED by legacy shouldApplyWatermarkByImageSize');
+                }
+                continue;
             }
             
-            // Size passed the rules, apply watermark
+            // Check modern watermark_rules conditions (image_size, product_cat, etc.)
+            // These are evaluated PER SIZE so image_size conditions work correctly
+            if ($has_rule_conditions) {
+                $eval_context = RulesEvaluator::buildContext($attachment_id, $size, 0);
+                $rule_result = RulesEvaluator::evaluate($rules, $eval_context);
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Ultimate Watermark [Manual]: Size "' . $size . '" rules evaluate=' . ($rule_result ? 'PASS' : 'FAIL') . ', context image_size=' . ($eval_context['image_size'] ?? 'N/A'));
+                }
+                if (!$rule_result) {
+                    continue; // Rules don't match for this size
+                }
+            }
+            
+            // All rules passed, apply watermark
             $image_path = $this->getImagePathForSize($attachment_id, $size);
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark [Manual]: Size "' . $size . '" path=' . ($image_path ?: 'NULL') . ', exists=' . ($image_path && file_exists($image_path) ? 'YES' : 'NO'));
+            }
             if ($image_path && file_exists($image_path)) {
                 try {
                     $success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($image_path, $watermark_id, $image_path);
@@ -289,8 +339,13 @@ class MediaLibraryIntegration
                         // Track watermark usage for this specific size
                         WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id, $size);
                     }
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('Ultimate Watermark [Manual]: Size "' . $size . '" watermark apply=' . ($success ? 'SUCCESS' : 'FAILED'));
+                    }
                 } catch (\Exception $e) {
-                    // Silent fail for production
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('Ultimate Watermark [Manual]: Size "' . $size . '" EXCEPTION: ' . $e->getMessage());
+                    }
                 }
             }
         }

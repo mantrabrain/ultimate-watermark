@@ -588,13 +588,32 @@ class RestApiIntegration
                     error_log('Ultimate Watermark: Watermarks after ID filter: ' . count($automatic_watermarks));
                 }
                 
-                // Then filter by size rules only (not post type rules when toggle was used)
+                // Filter by legacy size rules ONLY if no unified rules exist
                 $size_filtered = array_filter($automatic_watermarks, function($watermark) use ($size) {
-                    $passes_size = WatermarkHelper::shouldApplyWatermarkByImageSize($watermark, $size);
+                    // Check if watermark has unified rules with conditions
+                    $rules = $watermark['watermark_rules'] ?? [];
+                    $has_unified_conditions = false;
+                    if (!empty($rules) && is_array($rules)) {
+                        foreach ($rules as $rule) {
+                            if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
+                                $has_unified_conditions = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // If has unified rules, skip legacy size filter (unified rules will handle it)
+                    if ($has_unified_conditions) {
+                        $passes_size = true;
+                    } else {
+                        // Otherwise apply legacy size filter
+                        $passes_size = WatermarkHelper::shouldApplyWatermarkByImageSize($watermark, $size);
+                    }
+                    
                     // CRITICAL: Use 'id' (lowercase) - that's what WatermarkHelper returns
                     if (defined('WP_DEBUG') && WP_DEBUG) {
                         $wm_id = isset($watermark['id']) ? $watermark['id'] : (isset($watermark['ID']) ? $watermark['ID'] : 'unknown');
-                        error_log('Ultimate Watermark: Watermark ID ' . $wm_id . ' for size ' . $size . ' - Passes size rule: ' . ($passes_size ? 'YES' : 'NO'));
+                        error_log('Ultimate Watermark: Watermark ID ' . $wm_id . ' for size ' . $size . ' - Passes size rule: ' . ($passes_size ? 'YES' : 'NO') . ($has_unified_conditions ? ' (unified rules)' : ' (legacy)'));
                     }
                     return $passes_size;
                 });
@@ -671,8 +690,24 @@ class RestApiIntegration
                 }
                 // If was_toggle_enabled is true, skip post type filtering (already handled above)
                 
-                // Then filter by image size rules
+                // Filter by legacy image size rules ONLY if no unified rules exist
+                // If watermark has unified rules with conditions, skip legacy filtering
                 $automatic_watermarks = array_filter($automatic_watermarks, function($watermark) use ($size) {
+                    $rules = $watermark['watermark_rules'] ?? [];
+                    $has_unified_conditions = false;
+                    if (!empty($rules) && is_array($rules)) {
+                        foreach ($rules as $rule) {
+                            if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
+                                $has_unified_conditions = true;
+                                break;
+                            }
+                        }
+                    }
+                    // If has unified rules, skip legacy size filter (unified rules will handle it)
+                    if ($has_unified_conditions) {
+                        return true;
+                    }
+                    // Otherwise apply legacy size filter
                     return WatermarkHelper::shouldApplyWatermarkByImageSize($watermark, $size);
                 });
             }
