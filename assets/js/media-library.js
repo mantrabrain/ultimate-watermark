@@ -345,24 +345,41 @@
                     this.hideProcessingIndicator();
                     
                     if (response.success) {
-                        const successCount = response.data.results.filter(r => r.success).length;
-                        const errorCount = response.data.results.filter(r => !r.success).length;
+                        const data = response.data;
+                        const successCount = data.results.filter(r => r.success).length;
+                        const errorCount = data.results.filter(r => !r.success).length;
                         
-                        if (errorCount === 0) {
-                            const actionText = isRemoveAction ? 'removed watermark from' : 'applied watermark to';
-                            UWNotifications.success('Success', `Successfully ${actionText} ${successCount} image(s).`);
+                        // Build detailed message
+                        let detailHtml = data.message || '';
+                        
+                        if (data.details && data.details.length > 0) {
+                            detailHtml += '\n\n' + data.details.join('\n');
+                        }
+                        
+                        if (isRemoveAction) {
+                            if (errorCount === 0) {
+                                UWNotifications.success('Success', `Successfully removed watermark from ${successCount} image(s).`);
+                            } else {
+                                UWNotifications.error('Partial Success', `Removed watermark from ${successCount} image(s), but ${errorCount} failed.`);
+                            }
                         } else {
-                            const actionText = isRemoveAction ? 'removed watermark from' : 'applied watermark to';
-                            UWNotifications.error('Partial Success', `${actionText.charAt(0).toUpperCase() + actionText.slice(1)} ${successCount} image(s), but ${errorCount} failed.`);
+                            if (errorCount === 0 && successCount > 0) {
+                                UWNotifications.success('Success', detailHtml);
+                            } else if (successCount > 0) {
+                                UWNotifications.error('Partial Success', detailHtml);
+                            } else {
+                                UWNotifications.error('Watermark Not Applied', detailHtml);
+                            }
                         }
                         
                         // Refresh the media library to show updated images
                         setTimeout(() => {
                             location.reload();
-                        }, 2000);
+                        }, 3000);
                     } else {
                         const actionText = isRemoveAction ? 'remove watermark' : 'apply watermark';
-                        UWNotifications.error('Error', response.data || `Failed to ${actionText}. Please try again.`);
+                        const errMsg = (response.data && response.data.message) ? response.data.message : `Failed to ${actionText}. Please try again.`;
+                        UWNotifications.error('Error', errMsg);
                     }
                 },
                 error: (xhr, status, error) => {

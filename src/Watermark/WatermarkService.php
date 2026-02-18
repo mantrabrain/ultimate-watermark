@@ -16,6 +16,31 @@ use MantraBrain\UltimateWatermark\Utils\WatermarkHelper;
 class WatermarkService
 {
     /**
+     * Runtime context for the current watermark operation (attachment_id, etc.)
+     * Set before calling applyWatermark/applyWatermarkById, cleared after.
+     */
+    private static array $attachmentContext = [];
+
+    /**
+     * Set attachment context for the current watermark operation.
+     * Pro plugin uses this to resolve dynamic placeholders (EXIF, image title, etc.)
+     *
+     * @param array $context e.g. ['attachment_id' => 123]
+     */
+    public static function setAttachmentContext(array $context): void
+    {
+        self::$attachmentContext = $context;
+    }
+
+    /**
+     * Get current attachment context.
+     */
+    public static function getAttachmentContext(): array
+    {
+        return self::$attachmentContext;
+    }
+
+    /**
      * Apply watermark to image
      * 
      * @param string $sourceImagePath Path to source image
@@ -39,6 +64,11 @@ class WatermarkService
         
         // Store source image path for scaling calculations
         $resolvedData['_source_image_path'] = $sourceImagePath;
+        
+        // Merge runtime attachment context (attachment_id, etc.) for Pro placeholder resolution
+        if (!empty(self::$attachmentContext)) {
+            $resolvedData = array_merge($resolvedData, self::$attachmentContext);
+        }
 
         // Get processor
         $processor = WatermarkProcessorFactory::create();

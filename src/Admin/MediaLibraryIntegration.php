@@ -237,17 +237,27 @@ class MediaLibraryIntegration
      * This method applies watermarks manually (from bulk actions or AJAX)
      * It MUST respect all rules (post types and image sizes)
      */
-    private function applyWatermarkToAttachment(int $attachment_id, int $watermark_id): bool
+    private function applyWatermarkToAttachment(int $attachment_id, int $watermark_id): array
     {
+        $result = [
+            'success' => false,
+            'applied_sizes' => [],
+            'skipped_sizes' => [],
+            'failed_sizes' => [],
+            'message' => '',
+        ];
+
         // Check if attachment is an image
         if (!wp_attachment_is_image($attachment_id)) {
-            return false;
+            $result['message'] = __('Attachment is not an image.', 'ultimate-watermark');
+            return $result;
         }
 
         // Get original image path
         $original_path = get_attached_file($attachment_id);
         if (!$original_path || !file_exists($original_path)) {
-            return false;
+            $result['message'] = __('Original image file not found on disk.', 'ultimate-watermark');
+            return $result;
         }
 
         // Prevent automatic watermarking from triggering during metadata regeneration
@@ -271,7 +281,8 @@ class MediaLibraryIntegration
         // Get watermark data
         $watermark_data = WatermarkHelper::getActiveWatermarkById($watermark_id);
         if (!$watermark_data) {
-            return false;
+            $result['message'] = __('Watermark not found or inactive.', 'ultimate-watermark');
+            return $result;
         }
         
         // For bulk/manual actions, user explicitly selected the watermark
@@ -305,12 +316,15 @@ class MediaLibraryIntegration
         
         // Apply watermarks to each size, evaluating rules per-size
         foreach ($image_sizes as $size) {
-            // Check legacy size rules (watermark_sizes field)
-            if (!WatermarkHelper::shouldApplyWatermarkByImageSize($watermark_data, $size)) {
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('Ultimate Watermark [Manual]: Size "' . $size . '" SKIPPED by legacy shouldApplyWatermarkByImageSize');
+            // Check legacy size rules ONLY if no unified rules exist
+            // If watermark has unified rules with conditions, skip legacy filter
+            if (!$has_rule_conditions) {
+                if (!WatermarkHelper::shouldApplyWatermarkByImageSize($watermark_data, $size)) {
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('Ultimate Watermark [Manual]: Size "' . $size . '" SKIPPED by legacy shouldApplyWatermarkByImageSize');
+                    }
+                    continue;
                 }
-                continue;
             }
             
             // Check modern watermark_rules conditions (image_size, product_cat, etc.)
@@ -331,27 +345,84 @@ class MediaLibraryIntegration
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('Ultimate Watermark [Manual]: Size "' . $size . '" path=' . ($image_path ?: 'NULL') . ', exists=' . ($image_path && file_exists($image_path) ? 'YES' : 'NO'));
             }
-            if ($image_path && file_exists($image_path)) {
-                try {
-                    $success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($image_path, $watermark_id, $image_path);
-                    if ($success) {
-                        $success_count++;
-                        // Track watermark usage for this specific size
-                        WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id, $size);
-                    }
-                    if (defined('WP_DEBUG') && WP_DEBUG) {
-                        error_log('Ultimate Watermark [Manual]: Size "' . $size . '" watermark apply=' . ($success ? 'SUCCESS' : 'FAILED'));
-                    }
-                } catch (\Exception $e) {
-                    if (defined('WP_DEBUG') && WP_DEBUG) {
-                        error_log('Ultimate Watermark [Manual]: Size "' . $size . '" EXCEPTION: ' . $e->getMessage());
-                    }
+            if (!$image_path || !file_exists($image_path)) {
+                $result['skipped_sizes'][] = [
+                    'size' => $size,
+                    'reason' => sprintf(
+                        /* translators: %s: image size name */
+                        __('Size "%s" does not exist for this image (image may be too small to generate this size).', 'ultimate-watermark'),
+                        $size
+                    ),
+                ];
+                continue;
+            }
+            try {
+                // Set attachment context for Pro plugin placeholder resolution
+                \MantraBrain\UltimateWatermark\Watermark\WatermarkService::setAttachmentContext([
+                    'attachment_id' => $attachment_id,
+                    '_source_image_path' => $image_path,
+                ]);
+                $apply_success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($image_path, $watermark_id, $image_path);
+                // Clear context after use
+                \MantraBrain\UltimateWatermark\Watermark\WatermarkService::setAttachmentContext([]);
+                if ($apply_success) {
+                    $success_count++;
+                    $result['applied_sizes'][] = $size;
+                    WatermarkUsageTracker::incrementUsage($watermark_id, $attachment_id, $size);
+                } else {
+                    $result['failed_sizes'][] = [
+                        'size' => $size,
+                        'reason' => sprintf(
+                            /* translators: %s: image size name */
+                            __('Watermark processor failed for size "%s".', 'ultimate-watermark'),
+                            $size
+                        ),
+                    ];
+                }
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Ultimate Watermark [Manual]: Size "' . $size . '" watermark apply=' . ($apply_success ? 'SUCCESS' : 'FAILED'));
+                }
+            } catch (\Exception $e) {
+                \MantraBrain\UltimateWatermark\Watermark\WatermarkService::setAttachmentContext([]);
+                $result['failed_sizes'][] = [
+                    'size' => $size,
+                    'reason' => sprintf(
+                        /* translators: 1: image size name, 2: error message */
+                        __('Error applying watermark to size "%1$s": %2$s', 'ultimate-watermark'),
+                        $size,
+                        $e->getMessage()
+                    ),
+                ];
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Ultimate Watermark [Manual]: Size "' . $size . '" EXCEPTION: ' . $e->getMessage());
                 }
             }
         }
         
-        // Return true if any sizes were successfully watermarked
-        return $success_count > 0;
+        $result['success'] = $success_count > 0;
+        
+        // Build user-friendly summary message
+        if ($success_count > 0) {
+            $result['message'] = sprintf(
+                /* translators: 1: number of sizes, 2: comma-separated list of size names */
+                __('Watermark applied to %1$d size(s): %2$s.', 'ultimate-watermark'),
+                $success_count,
+                implode(', ', $result['applied_sizes'])
+            );
+        } else {
+            $result['message'] = __('Watermark was not applied to any size.', 'ultimate-watermark');
+        }
+        
+        if (!empty($result['skipped_sizes'])) {
+            $skipped_names = array_column($result['skipped_sizes'], 'size');
+            $result['message'] .= ' ' . sprintf(
+                /* translators: %s: comma-separated list of skipped size names */
+                __('Skipped sizes (not available): %s.', 'ultimate-watermark'),
+                implode(', ', $skipped_names)
+            );
+        }
+        
+        return $result;
     }
 
 
@@ -414,16 +485,43 @@ class MediaLibraryIntegration
 
         // Process attachments - pass watermark ID directly to processors
         $results = [];
+        $total_success = 0;
+        $total_failed = 0;
+        $all_messages = [];
+        
         foreach ($attachment_ids as $attachment_id) {
-            $success = $this->applyWatermarkToAttachment($attachment_id, $watermark_id);
+            $detail = $this->applyWatermarkToAttachment($attachment_id, $watermark_id);
             $results[] = [
                 'id' => $attachment_id,
-                'success' => $success
+                'success' => $detail['success'],
+                'message' => $detail['message'],
+                'applied_sizes' => $detail['applied_sizes'],
+                'skipped_sizes' => $detail['skipped_sizes'],
+                'failed_sizes' => $detail['failed_sizes'],
             ];
+            if ($detail['success']) {
+                $total_success++;
+            } else {
+                $total_failed++;
+            }
+            $all_messages[] = sprintf(
+                /* translators: 1: attachment ID, 2: detail message */
+                __('Attachment #%1$d: %2$s', 'ultimate-watermark'),
+                $attachment_id,
+                $detail['message']
+            );
         }
+        
+        $summary = sprintf(
+            /* translators: 1: success count, 2: total count */
+            __('%1$d of %2$d attachment(s) watermarked successfully.', 'ultimate-watermark'),
+            $total_success,
+            count($attachment_ids)
+        );
 
         wp_send_json_success([
-            'message' => 'Watermarking completed',
+            'message' => $summary,
+            'details' => $all_messages,
             'results' => $results
         ]);
     }

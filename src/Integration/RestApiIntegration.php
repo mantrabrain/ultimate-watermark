@@ -774,8 +774,17 @@ class RestApiIntegration
             return;
         }
         
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Ultimate Watermark: About to get image path for attachment ' . $attachment_id . ', size: ' . $size);
+        }
+        
         // Get the image path for the specific size
         $image_path = $this->getImagePathForSize($attachment_id, $size);
+        
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Ultimate Watermark: getImagePathForSize returned: ' . ($image_path ?: 'NULL'));
+            error_log('Ultimate Watermark: File exists check: ' . ($image_path && file_exists($image_path) ? 'YES' : 'NO'));
+        }
         
         if (!$image_path || !file_exists($image_path)) {
             // If full size might be a scaled image in WordPress, try resolving the scaled variant
@@ -810,7 +819,14 @@ class RestApiIntegration
             error_log('Ultimate Watermark: File exists: ' . (file_exists($image_path) ? 'YES' : 'NO'));
             error_log('Ultimate Watermark: File writable: ' . (file_exists($image_path) && is_writable($image_path) ? 'YES' : 'NO'));
             
+            // Set attachment context for Pro plugin placeholder resolution
+            \MantraBrain\UltimateWatermark\Watermark\WatermarkService::setAttachmentContext([
+                'attachment_id' => $attachment_id,
+                '_source_image_path' => $image_path,
+            ]);
             $success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($image_path, $watermark_id, $image_path);
+            // Clear context after use
+            \MantraBrain\UltimateWatermark\Watermark\WatermarkService::setAttachmentContext([]);
             
             error_log('Ultimate Watermark: applyWatermarkById result for ID ' . $watermark_id . ': ' . ($success ? 'SUCCESS' : 'FAILED'));
             
@@ -900,6 +916,7 @@ class RestApiIntegration
             return null;
         }
         
+        // Try image_get_intermediate_size first (works for registered size names)
         $image_path = image_get_intermediate_size($attachment_id, $size);
         if ($image_path && isset($image_path['path'])) {
             $upload_dir = wp_upload_dir();
@@ -919,6 +936,42 @@ class RestApiIntegration
             }
             
             return $full_path;
+        }
+        
+        // Fallback: Check metadata directly for dimension-based sizes (e.g., 2048x2048, 1536x1536)
+        // These are not registered WordPress sizes but exist in the metadata 'sizes' array
+        $metadata = wp_get_attachment_metadata($attachment_id);
+        
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Ultimate Watermark: Fallback metadata check for size: ' . $size);
+            error_log('Ultimate Watermark: Metadata has sizes: ' . (!empty($metadata['sizes']) ? implode(', ', array_keys($metadata['sizes'])) : 'NONE'));
+            error_log('Ultimate Watermark: Size exists in metadata: ' . (!empty($metadata['sizes'][$size]) ? 'YES' : 'NO'));
+        }
+        
+        if (!empty($metadata['sizes'][$size]['file'])) {
+            $upload_dir = wp_upload_dir();
+            $base_dir = dirname($metadata['file']);
+            $full_path = $upload_dir['basedir'] . '/' . $base_dir . '/' . $metadata['sizes'][$size]['file'];
+            
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark: Constructed path from metadata: ' . $full_path);
+                error_log('Ultimate Watermark: File exists at constructed path: ' . (file_exists($full_path) ? 'YES' : 'NO'));
+            }
+            
+            if (file_exists($full_path)) {
+                // Prefer original formats over WebP/AVIF
+                $ext = strtolower(pathinfo($full_path, PATHINFO_EXTENSION));
+                if (in_array($ext, ['webp', 'avif'])) {
+                    $base = pathinfo($full_path, PATHINFO_DIRNAME) . '/' . pathinfo($full_path, PATHINFO_FILENAME);
+                    foreach (['jpg', 'jpeg', 'png'] as $original_ext) {
+                        $original_path = $base . '.' . $original_ext;
+                        if (file_exists($original_path)) {
+                            return $original_path;
+                        }
+                    }
+                }
+                return $full_path;
+            }
         }
         
         return null;
