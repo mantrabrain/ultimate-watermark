@@ -57,6 +57,13 @@ class Migration
      */
     public static function run(): void
     {
+        // Use static variable to prevent multiple runs in same request
+        static $migration_checked = false;
+        if ($migration_checked) {
+            return;
+        }
+        $migration_checked = true;
+        
         $current_migration = get_option(self::MIGRATION_VERSION_KEY, '0.0.0');
         
         // Check if migration is needed
@@ -68,7 +75,15 @@ class Migration
         if (!self::hasOldPluginData()) {
             // No old data to migrate, mark as migrated
             update_option(self::MIGRATION_VERSION_KEY, self::CURRENT_MIGRATION_VERSION);
+            
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark: No old data found, marking migration as complete');
+            }
             return;
+        }
+        
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Ultimate Watermark: Old plugin data detected, starting migration...');
         }
         
         // Run migration
@@ -77,10 +92,54 @@ class Migration
         // Update migration version
         update_option(self::MIGRATION_VERSION_KEY, self::CURRENT_MIGRATION_VERSION);
         
+        // Set flag to show admin notice
+        set_transient('ultimate_watermark_migration_complete', true, 60);
+        
         // Log migration completion
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log('Ultimate Watermark: Migration from v1.x to v2.x completed successfully');
         }
+    }
+    
+    /**
+     * Display admin notice after migration
+     */
+    public static function showMigrationNotice(): void
+    {
+        if (!get_transient('ultimate_watermark_migration_complete')) {
+            return;
+        }
+        
+        $status = self::getStatus();
+        $backup_stats = $status['backup_migration'];
+        
+        ?>
+        <div class="notice notice-success is-dismissible">
+            <h3><?php _e('Ultimate Watermark Migration Complete', 'ultimate-watermark'); ?></h3>
+            <p>
+                <?php 
+                printf(
+                    __('Successfully migrated from v1.x to v2.x! %d watermark(s) migrated.', 'ultimate-watermark'),
+                    $status['migrated_watermarks_count']
+                );
+                ?>
+            </p>
+            <?php if ($backup_stats['migrated'] > 0): ?>
+                <p>
+                    <?php 
+                    printf(
+                        __('Backup files migrated: %d successful, %d failed.', 'ultimate-watermark'),
+                        $backup_stats['migrated'],
+                        $backup_stats['failed']
+                    );
+                    ?>
+                </p>
+            <?php endif; ?>
+        </div>
+        <?php
+        
+        // Delete transient after showing
+        delete_transient('ultimate_watermark_migration_complete');
     }
     
     /**
@@ -100,6 +159,40 @@ class Migration
             if (get_option($key, null) !== null) {
                 return true;
             }
+        }
+        
+        // Check for old backup directory structure (flat structure)
+        $upload_dir = wp_upload_dir();
+        $old_backup_dir = $upload_dir['basedir'] . '/ulwm-backup';
+        
+        if (is_dir($old_backup_dir)) {
+            // Check if it has the old flat structure (files directly in subdirectories matching upload structure)
+            // vs new structure (YYYY/MM/ subdirectories)
+            $has_old_structure = false;
+            
+            // Look for any files that aren't in YYYY/MM format directories
+            if ($handle = @opendir($old_backup_dir)) {
+                while (false !== ($entry = readdir($handle))) {
+                    if ($entry != "." && $entry != ".." && $entry != "index.html" && $entry != ".htaccess") {
+                        // Check if this is NOT a year directory (4 digits)
+                        if (!preg_match('/^\d{4}$/', $entry)) {
+                            // This is old structure (has files/folders that aren't year directories)
+                            $has_old_structure = true;
+                            break;
+                        }
+                    }
+                }
+                closedir($handle);
+            }
+            
+            if ($has_old_structure) {
+                return true;
+            }
+        }
+        
+        // Check for old install date option
+        if (get_option('ultimate_watermark_install_date', false)) {
+            return true;
         }
         
         return false;

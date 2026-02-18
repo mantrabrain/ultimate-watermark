@@ -22,7 +22,7 @@ echo -e "${GREEN}Building ${PLUGIN_NAME}${NC}"
 echo -e "${GREEN}========================================${NC}"
 
 # Get plugin version from main file
-VERSION=$(grep "Version:" ultimate-watermark.php | awk '{print $2}')
+VERSION=$(grep "^ \* Version:" ultimate-watermark.php | sed 's/.*Version: *//' | tr -d '\r')
 echo -e "${YELLOW}Version: ${VERSION}${NC}"
 
 # Create dist directory if it doesn't exist
@@ -72,9 +72,9 @@ if [ -f "$ZIP_FILE" ]; then
     rm "$ZIP_FILE"
 fi
 
-# Create zip
+# Create zip (use absolute path to avoid directory issues)
 cd "$TEMP_DIR"
-zip -r "../../${PLUGIN_SLUG}-${VERSION}.zip" "$PLUGIN_SLUG" -q
+zip -r "../${PLUGIN_SLUG}-${VERSION}.zip" "$PLUGIN_SLUG" -q
 cd ../..
 
 echo -e "${GREEN}✓ Zip file created: ${ZIP_FILE}${NC}"

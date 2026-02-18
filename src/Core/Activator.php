@@ -26,6 +26,9 @@ class Activator
         // Create upload directories
         self::createDirectories();
         
+        // Run migration check (will only migrate if old data exists)
+        Migration::run();
+        
         // Flush rewrite rules
         flush_rewrite_rules();
     }

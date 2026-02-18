@@ -129,6 +129,9 @@ class Plugin implements PluginInterface
         // Run migration on plugins_loaded (early, before admin_init)
         add_action('plugins_loaded', [$this, 'runMigration'], 5);
         
+        // Show migration notice in admin
+        add_action('admin_notices', [Migration::class, 'showMigrationNotice']);
+        
         // Plugin deactivation hook for cleanup
         register_deactivation_hook(ULTIMATE_WATERMARK_FILE, [$this, 'onDeactivation']);
     }
