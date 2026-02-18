@@ -23,3 +23,7 @@ assets/lib/fullcalendar/examples/
 Thumbs.db
 ultimate-watermark.zip
 ultimate-watermark.tar
+
+# Build artifacts
+dist/
+*.zip
