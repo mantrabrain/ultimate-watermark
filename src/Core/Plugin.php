@@ -125,9 +125,6 @@ class Plugin implements PluginInterface
         add_action('init', [$this, 'init'], 0);
         add_action('admin_init', [$this, 'adminInit'], 10);
         add_action('wp_enqueue_scripts', [$this, 'enqueueAssets'], 10);
-
-         // Run migration on plugins_loaded (early, before admin_init)
-        add_action('plugins_loaded', [$this, 'runMigration'], 5);
         
         // Show migration notice in admin
         add_action('admin_notices', [Migration::class, 'showMigrationNotice']);
@@ -235,7 +232,7 @@ class Plugin implements PluginInterface
         try {
             // Load text domain
             $this->loadTextDomain();
-            Migration::run();
+            
             // Fire init action for other components
             do_action('ultimate_watermark_init', $this);
             
@@ -391,18 +388,4 @@ class Plugin implements PluginInterface
         return !empty($this->components);
     }
 
-    /**
-     * Run migration from old version if needed
-     */
-    public function runMigration(): void
-    {
-        try {
-
-            Migration::run();
-        } catch (\Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark: Migration failed - ' . $e->getMessage());
-            }
-        }
-    }
 }

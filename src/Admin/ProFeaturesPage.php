@@ -42,7 +42,7 @@ class ProFeaturesPage
             <div class="ulwm-pro-cta">
                 <h2><?php esc_html_e('Ready to Upgrade?', 'ultimate-watermark'); ?></h2>
                 <p><?php esc_html_e('Get instant access to all Pro features with a one-time purchase.', 'ultimate-watermark'); ?></p>
-                <a href="<?php echo esc_url('https://store.mantrabrain.com'); ?>" target="_blank" rel="noopener noreferrer" class="button button-primary button-hero">
+                <a href="<?php echo esc_url('https://mantrabrain.com/plugins/ultimate-watermark#pricing'); ?>" target="_blank" rel="noopener noreferrer" class="button button-primary button-hero">
                     <?php esc_html_e('Get Pro Now', 'ultimate-watermark'); ?>
                 </a>
             </div>
@@ -117,6 +117,8 @@ class ProFeaturesPage
             }
             .ulwm-pro-feature-icon .dashicons {
                 font-size: 30px;
+                width: 30px;
+                height: 30px;
                 color: white;
             }
             .ulwm-pro-feature-card h3 {
@@ -168,6 +170,11 @@ class ProFeaturesPage
     {
         return [
             [
+                'title'       => __('Unlimited Watermarks', 'ultimate-watermark'),
+                'icon'        => 'dashicons-yes-alt',
+                'description' => __('Create as many watermark templates as you need without any limitations.', 'ultimate-watermark'),
+            ],
+            [
                 'title'       => __('Dynamic Content Placeholders', 'ultimate-watermark'),
                 'icon'        => 'dashicons-editor-code',
                 'description' => __('Add camera EXIF data, dates, usernames, and custom fields to your watermarks automatically.', 'ultimate-watermark'),
@@ -181,16 +188,6 @@ class ProFeaturesPage
                 'title'       => __('On-the-fly Display', 'ultimate-watermark'),
                 'icon'        => 'dashicons-visibility',
                 'description' => __('Show watermarks to visitors without modifying original files. Role-based bypass for admins.', 'ultimate-watermark'),
-            ],
-            [
-                'title'       => __('Batch Processing', 'ultimate-watermark'),
-                'icon'        => 'dashicons-images-alt2',
-                'description' => __('Apply or remove watermarks across your entire media library with progress tracking.', 'ultimate-watermark'),
-            ],
-            [
-                'title'       => __('Template Library', 'ultimate-watermark'),
-                'icon'        => 'dashicons-layout',
-                'description' => __('20+ pre-built watermark templates for photography, e-commerce, and business use.', 'ultimate-watermark'),
             ],
             [
                 'title'       => __('Priority Support', 'ultimate-watermark'),
@@ -208,14 +205,12 @@ class ProFeaturesPage
         return [
             [__('Text & Image Watermarks', 'ultimate-watermark'), true, true],
             [__('Position & Opacity Control', 'ultimate-watermark'), true, true],
-            [__('Multiple Watermark Profiles', 'ultimate-watermark'), true, true],
+            [__('Watermark Limit', 'ultimate-watermark') . ' (1 vs Unlimited)', false, true],
             [__('Auto-Apply on Upload', 'ultimate-watermark'), true, true],
             [__('Backup & Restore', 'ultimate-watermark'), true, true],
             [__('Dynamic Content Placeholders', 'ultimate-watermark'), false, true],
             [__('WooCommerce Integration', 'ultimate-watermark'), false, true],
             [__('On-the-fly Display', 'ultimate-watermark'), false, true],
-            [__('Batch Processing', 'ultimate-watermark'), false, true],
-            [__('Template Library', 'ultimate-watermark'), false, true],
             [__('Priority Support', 'ultimate-watermark'), false, true],
         ];
     }

@@ -21,6 +21,14 @@ class Layout
      */
     public static function render(string $page_title, callable $content_callback, array $args = []): void
     {
+        // Enqueue upgrade modal CSS
+        wp_enqueue_style(
+            'ultimate-watermark-upgrade-modal',
+            ULTIMATE_WATERMARK_URL . 'assets/css/upgrade-modal.css',
+            [],
+            ULTIMATE_WATERMARK_VERSION
+        );
+        
         ?>
         <div class="ultimate-watermark-layout">
             <?php Header::render(); ?>

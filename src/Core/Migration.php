@@ -70,7 +70,7 @@ class Migration
         // Check if migration is needed
         if (version_compare($current_migration, self::CURRENT_MIGRATION_VERSION, '>=')) {
 
-            //return; // Already migrated
+            return; // Already migrated
         }
         // Check if old plugin data exists
         $has_old_data = self::hasOldPluginData();
@@ -80,7 +80,7 @@ class Migration
             // No old data to migrate, mark as migrated
             update_option(self::MIGRATION_VERSION_KEY, self::CURRENT_MIGRATION_VERSION);
 
-            //return;
+            return;
         }
 
 
@@ -318,7 +318,7 @@ class Migration
 
         update_post_meta($watermark_id, 'watermark_offset_x', $offset_x);
         update_post_meta($watermark_id, 'watermark_offset_y', $offset_y);
-        update_post_meta($watermark_id, 'watermark_offset_unit', $offset_unit === 'pixels' ? 'px' : '%');
+        update_post_meta($watermark_id, 'watermark_offset_unit', $offset_unit === 'pixels' ? 'pixels' : 'percentage');
 
 
         // Migrate size settings
@@ -340,12 +340,12 @@ class Migration
 
         }
 
-        update_post_meta($watermark_id, 'watermark_scale_mode', $scale_mode);
+        update_post_meta($watermark_id, 'watermark_size_type', $scale_mode);
 
 
-        // Migrate opacity (convert from transparency to opacity)
-        $transparency = absint($old_settings['ultimate_watermark_image_transparent'] ?? 50);
-        $opacity = 100 - $transparency; // Convert transparency to opacity
+        // Migrate opacity
+        // Note: Old plugin's 'image_transparent' field is actually opacity (0=transparent, 100=opaque)
+        $opacity = absint($old_settings['ultimate_watermark_image_transparent'] ?? 50);
         update_post_meta($watermark_id, 'watermark_opacity', $opacity);
 
 
@@ -363,6 +363,13 @@ class Migration
         $automatic = ($old_settings['ultimate_watermark_automatic_watermarking'] ?? 'no') === 'yes';
         update_post_meta($watermark_id, 'automatic_watermarking', $automatic ? '1' : '0');
 
+        // Migrate manual watermarking setting (per-watermark in v2.x)
+        $manual = ($old_settings['ultimate_watermark_manual_watermarking'] ?? 'yes') === 'yes';
+        update_post_meta($watermark_id, 'manual_watermarking', $manual ? '1' : '0');
+
+        // Migrate frontend watermarking setting (per-watermark in v2.x)
+        $frontend = ($old_settings['ultimate_watermark_frontend_watermarking'] ?? 'no') === 'yes';
+        update_post_meta($watermark_id, 'frontend_watermarking', $frontend ? '1' : '0');
 
         // Set as active
         update_post_meta($watermark_id, 'active', '1');
@@ -443,8 +450,9 @@ class Migration
                 'watermark_image_id',
                 'watermark_position',
                 'watermark_opacity',
-                'watermark_scale_mode',
+                'watermark_size_type',
                 'watermark_quality',
+                'watermark_offset_unit',
                 'automatic_watermarking',
                 'active'
         ];
@@ -493,76 +501,56 @@ class Migration
     /**
      * Create rules from old settings
      * 
-     * Old plugin logic: watermark applies if post_type matches AND image_size matches
-     * Since an image can only be ONE size, we need separate rules for each combination
-     * 
+     * Creates ONE rule with multiple conditions using OR logic
      * UI expects: associative array with rule_id as key, containing 'name', 'logic_operator', 'conditions', 'is_default'
      */
     private static function createRulesFromOldSettings(string $watermark_on, array $post_types, array $image_sizes): array
     {
         $rules = [];
+        $conditions = [];
+        $rule_name_parts = [];
         
-        // If restricted to specific post types
+        // Build conditions array
         if ($watermark_on !== 'everywhere' && !empty($post_types)) {
-            if (!empty($image_sizes)) {
-                // Create a rule for each post_type + image_size combination
-                foreach ($post_types as $post_type) {
-                    foreach ($image_sizes as $image_size) {
-                        $rule_id = 'migrated_' . $post_type . '_' . $image_size . '_' . time() . '_' . substr(md5(uniqid()), 0, 6);
-                        $rules[$rule_id] = [
-                            'name' => 'Migrated: ' . ucfirst($post_type) . ' - ' . $image_size,
-                            'logic_operator' => 'and',
-                            'conditions' => [
-                                [
-                                    'type' => 'post_type',
-                                    'operator' => 'is',
-                                    'value' => $post_type
-                                ],
-                                [
-                                    'type' => 'image_size',
-                                    'operator' => 'is',
-                                    'value' => $image_size
-                                ]
-                            ],
-                            'is_default' => false
-                        ];
-                    }
-                }
-            } else {
-                // Only post type restriction, any image size
-                foreach ($post_types as $post_type) {
-                    $rule_id = 'migrated_post_type_' . $post_type . '_' . time() . '_' . substr(md5(uniqid()), 0, 6);
-                    $rules[$rule_id] = [
-                        'name' => 'Migrated: ' . ucfirst($post_type) . ' (all sizes)',
-                        'logic_operator' => 'and',
-                        'conditions' => [
-                            [
-                                'type' => 'post_type',
-                                'operator' => 'is',
-                                'value' => $post_type
-                            ]
-                        ],
-                        'is_default' => false
-                    ];
-                }
+            foreach ($post_types as $post_type) {
+                $conditions[] = [
+                    'type' => 'post_type',
+                    'operator' => 'is',
+                    'value' => $post_type
+                ];
+                $rule_name_parts[] = ucfirst($post_type);
             }
-        } elseif (!empty($image_sizes)) {
-            // Only image size restriction, any post type
+        }
+        
+        if (!empty($image_sizes)) {
             foreach ($image_sizes as $image_size) {
-                $rule_id = 'migrated_image_size_' . $image_size . '_' . time() . '_' . substr(md5(uniqid()), 0, 6);
-                $rules[$rule_id] = [
-                    'name' => 'Migrated: ' . $image_size . ' (all post types)',
-                    'logic_operator' => 'and',
-                    'conditions' => [
-                        [
-                            'type' => 'image_size',
-                            'operator' => 'is',
-                            'value' => $image_size
-                        ]
-                    ],
-                    'is_default' => false
+                $conditions[] = [
+                    'type' => 'image_size',
+                    'operator' => 'is',
+                    'value' => $image_size
                 ];
             }
+        }
+        
+        // Create single rule with all conditions
+        if (!empty($conditions)) {
+            $rule_id = 'migrated_rule_' . time() . '_' . substr(md5(uniqid()), 0, 6);
+            
+            // Build descriptive name
+            $name = 'Migrated Rule';
+            if (!empty($rule_name_parts)) {
+                $name .= ': ' . implode(', ', $rule_name_parts);
+            }
+            if (!empty($image_sizes)) {
+                $name .= ' (' . implode(', ', $image_sizes) . ')';
+            }
+            
+            $rules[$rule_id] = [
+                'name' => $name,
+                'logic_operator' => 'or',
+                'conditions' => $conditions,
+                'is_default' => false
+            ];
         }
         
         return $rules;

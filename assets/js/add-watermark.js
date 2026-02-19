@@ -720,9 +720,92 @@
                 error: (xhr, status, error) => {
                     this.hideLoadingState();
                     
-                    // Show error message
-                    UWNotifications.error('Error', 'An error occurred while saving the watermark.');
+                    // Check if this is a watermark limit error (403 status)
+                    if (xhr.status === 403 && xhr.responseJSON) {
+                        const response = xhr.responseJSON;
+                        
+                        if (response.data && response.data.upgrade_required) {
+                            // Show upgrade notice modal
+                            this.showUpgradeNotice(response.data);
+                            return;
+                        }
+                    }
                     
+                    // Show generic error message
+                    const errorMessage = xhr.responseJSON?.data?.message || 'An error occurred while saving the watermark.';
+                    UWNotifications.error('Error', errorMessage);
+                    
+                }
+            });
+        },
+
+        /**
+         * Show upgrade notice modal when watermark limit is reached
+         */
+        showUpgradeNotice: function(data) {
+            const modal = `
+                <div id="watermark-limit-modal" class="ultimate-watermark-modal-overlay" style="display: flex;">
+                    <div class="ultimate-watermark-modal upgrade-modal">
+                        <div class="modal-header">
+                            <h2><span class="dashicons dashicons-lock"></span> ${data.message || 'Watermark Limit Reached'}</h2>
+                            <button class="modal-close" onclick="jQuery('#watermark-limit-modal').remove()">
+                                <span class="dashicons dashicons-no-alt"></span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="upgrade-notice-content">
+                                <div class="limit-info">
+                                    <p class="limit-message">${data.upgrade_message || 'You have reached the watermark limit for the free version.'}</p>
+                                    <div class="limit-stats">
+                                        <span class="stat-item">
+                                            <strong>Current:</strong> ${data.current_count || 1} watermark${data.current_count > 1 ? 's' : ''}
+                                        </span>
+                                        <span class="stat-item">
+                                            <strong>Free Limit:</strong> ${data.limit || 1} watermark
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="pro-features">
+                                    <h3>✨ Upgrade to Pro for:</h3>
+                                    <ul>
+                                        <li><span class="dashicons dashicons-yes"></span> <strong>Unlimited Watermarks</strong> - Create as many watermark templates as you need</li>
+                                        <li><span class="dashicons dashicons-yes"></span> <strong>Advanced Rules Engine</strong> - Complex conditional watermarking</li>
+                                        <li><span class="dashicons dashicons-yes"></span> <strong>WooCommerce Integration</strong> - Per-product watermarks</li>
+                                        <li><span class="dashicons dashicons-yes"></span> <strong>Frontend Watermarking</strong> - Apply watermarks on frontend uploads</li>
+                                        <li><span class="dashicons dashicons-yes"></span> <strong>On-the-fly Watermarking</strong> - Dynamic watermark display</li>
+                                        <li><span class="dashicons dashicons-yes"></span> <strong>Priority Support</strong> - Get help when you need it</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="button" onclick="jQuery('#watermark-limit-modal').remove()">Maybe Later</button>
+                            <a href="${data.upgrade_url || 'https://mantrabrain.com/plugins/ultimate-watermark#pricing'}" target="_blank" class="button button-primary button-hero">
+                                <span class="dashicons dashicons-unlock"></span> Upgrade to Pro
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            $('#watermark-limit-modal').remove();
+            
+            // Append modal to body
+            $('body').append(modal);
+            
+            // Close on overlay click
+            $('#watermark-limit-modal').on('click', function(e) {
+                if (e.target === this) {
+                    $(this).remove();
+                }
+            });
+            
+            // Close on escape key
+            $(document).on('keydown.watermarkLimit', function(e) {
+                if (e.key === 'Escape') {
+                    $('#watermark-limit-modal').remove();
+                    $(document).off('keydown.watermarkLimit');
                 }
             });
         },

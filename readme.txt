@@ -1,286 +1,431 @@
-=== Ultimate Watermark - Advanced Image Watermarking ===
+=== Ultimate Watermark - Protect Images with Professional Watermarks ===
 Contributors: MantraBrain
-Donate link: https://mantrabrain.com
-Tags: image, watermark, media, photo, protection
+Donate link: https://mantrabrain.com/plugins/ultimate-watermark
+Tags: watermark, image protection, copyright, photo watermark, bulk watermark, image security, brand protection
 Requires at least: 5.0
 Tested up to: 6.8
 Stable tag: 2.0.2
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Requires PHP: 7.4
-WC requires at least: 3.0
 
-Automatically add professional watermarks to your images with advanced positioning, protection features, and backup capabilities.
+Automatically protect your images with professional watermarks. Add text or image watermarks to WordPress media uploads with advanced positioning and backup features.
 
 == Description ==
 
-**Ultimate Watermark** is the most comprehensive WordPress image watermarking plugin available. This professional-grade solution automatically adds watermarks to images as they are uploaded to your WordPress media library, protecting your valuable content from unauthorized use.
+**Ultimate Watermark** is the complete WordPress image protection solution trusted by photographers, e-commerce stores, and content creators worldwide. Automatically add professional watermarks to protect your images from unauthorized use while maintaining complete control over positioning, opacity, and appearance.
 
-**🔒 Protect Your Images with Professional Watermarking**
+= 🚀 Why Choose Ultimate Watermark? =
 
-Built with both GD and ImageMagick support, Ultimate Watermark offers enterprise-level watermarking capabilities with extensive customization options. Whether you're a photographer protecting your portfolio, an e-commerce store branding product images, or a content creator safeguarding your work, this plugin provides the tools you need.
+**Protect Your Visual Content** - Whether you're a professional photographer protecting your portfolio, an online store branding product images, or a blogger safeguarding your content, Ultimate Watermark provides enterprise-level protection with an easy-to-use interface.
 
-**🎯 Perfect for:**
-* Professional photographers and studios
-* E-commerce websites and online stores
-* Content creators and bloggers
-* Corporate websites and portfolios
-* Digital artists and designers
-* Media companies and publishers
+**Automatic & Effortless** - Watermarks are applied automatically as images are uploaded to your WordPress media library. No manual work required - just upload and your images are instantly protected.
 
-= 🎯 Key Features & Benefits =
+**Non-Destructive with Backups** - Original images are safely backed up before watermarking, allowing you to remove watermarks and restore originals anytime without quality loss.
 
-**🖼️ Advanced Image Watermarking System**
-* **Automatic Watermark Application** - Watermarks are applied instantly when images are uploaded
-* **Bulk Watermark Operations** - Process existing images in your media library with bulk actions
-* **Frontend Watermarking** - Support for user-uploaded images on the frontend
-* **Multi-Size Targeting** - Watermark specific image sizes (thumbnail, medium, large, custom)
-* **Custom Post Type Support** - Apply watermarks only to specific post types
+= ⭐ Key Features (Free Version) =
 
-**⚙️ Professional Configuration Options**
-* **Watermark Image Management** - Upload and manage multiple watermark images
-* **Flexible Size Control** - Choose from Original size, Custom dimensions, or Scaled percentage (1-100%)
-* **Transparency Control** - Adjust opacity from 0% (invisible) to 100% (fully visible)
-* **Quality Optimization** - Configure output image quality (1-100%) for optimal file sizes
-* **Format Selection** - Choose between Baseline or Progressive JPEG for better compatibility
+**🖼️ Flexible Watermark Types**
+* **Image Watermarks** - Upload your logo, signature, or custom watermark image
+* **Text Watermarks** - Add copyright text, website URL, or custom messages
+* **Unlimited Combinations** - Mix and match watermark styles for different purposes
+* **PNG Transparency Support** - Professional watermarks with transparent backgrounds
 
-**📍 Precise Watermark Positioning**
-* **9-Position Grid System** - Top/Middle/Bottom × Left/Center/Right alignment options
-* **Advanced Offset Controls** - X and Y positioning with pixel or percentage units
-* **Professional Results** - Pixel-perfect positioning for brand consistency
+**⚙️ Advanced Watermark Control**
+* **Automatic Application** - Watermarks applied instantly on image upload
+* **Manual Watermarking** - Bulk watermark existing images in media library
+* **Size Control** - Original size, custom dimensions (pixels), or scaled percentage (1-100%)
+* **Opacity Adjustment** - Control transparency from 0% (invisible) to 100% (opaque)
+* **Quality Optimization** - Set output quality (1-100%) for optimal file sizes
 
-**🛡️ Comprehensive Image Protection**
-* **Right-Click Disable** - Prevent image downloading through right-click
-* **Drag & Drop Prevention** - Stop users from dragging images to their desktop
-* **User-Level Protection** - Optional protection settings for logged-in users
-* **Enhanced Security** - Multiple layers of image protection
+**📍 Precise Positioning**
+* **9-Position Grid** - Top/Middle/Bottom × Left/Center/Right alignment
+* **Pixel-Perfect Offsets** - X and Y positioning with pixel or percentage units
+* **Preview System** - Real-time preview before applying watermarks
+* **Consistent Branding** - Same positioning across all watermarked images
 
-**💾 Smart Backup & Recovery System**
-* **Automatic Backup Creation** - Original images are safely backed up before watermarking
-* **Configurable Backup Quality** - Set backup image quality to balance file size and preservation
-* **Safe Watermark Removal** - Restore original images by removing watermarks
-* **Data Integrity** - Maintain image quality and metadata throughout the process
+**🎯 Smart Targeting**
+* **Image Size Selection** - Watermark specific sizes (thumbnail, medium, large, full)
+* **Post Type Filtering** - Apply watermarks only to selected post types
+* **Conditional Rules** - Create rules for when watermarks should be applied
+* **Custom Image Sizes** - Support for theme and plugin custom image sizes
 
-**🔧 Technical Excellence & Performance**
-* **Dual Library Support** - Works with both GD and ImageMagick for maximum compatibility
-* **Metadata Preservation** - Maintains EXIF and IPTC data for professional workflows
-* **Memory Optimization** - Efficient processing for large image libraries
-* **WordPress 6.4 Ready** - Fully compatible with the latest WordPress version
-* **GPLv3 License** - Open source with WordPress compatibility
+**💾 Backup & Recovery**
+* **Automatic Backups** - Original images backed up before watermarking
+* **Safe Removal** - Restore original images by removing watermarks
+* **Configurable Quality** - Set backup image quality to balance storage and preservation
+* **Bulk Operations** - Remove watermarks from multiple images at once
 
-= 🚀 Quick Setup =
+**🛡️ Image Protection**
+* **Right-Click Disable** - Prevent image downloading via right-click
+* **Drag & Drop Prevention** - Stop users from dragging images to desktop
+* **User-Level Controls** - Optional protection settings for logged-in users
+* **Multi-Layer Security** - Combine watermarks with protection features
 
-1. **Install & Activate** the plugin
-2. **Upload Watermark Image** in Watermark Image settings
-3. **Enable Automatic Watermarking** in General Settings
-4. **Select Target Image Sizes** (avoid full size unless necessary)
-5. **Configure Position & Settings** as needed
+**🔧 Technical Excellence**
+* **Dual Library Support** - Works with GD and ImageMagick for maximum compatibility
+* **WordPress 6.8 Ready** - Fully tested with latest WordPress version
+* **PHP 8.4 Compatible** - Modern PHP support with no deprecation warnings
+* **Metadata Preservation** - Maintains EXIF and IPTC data
+* **Memory Optimized** - Efficient processing for large image libraries
+* **REST API Integration** - Programmatic watermarking support
 
-= 📋 Detailed Features =
+= 🎨 Perfect For =
 
-**General Settings**
-* Toggle automatic watermarking for new uploads
-* Enable manual watermarking for media library
-* Select specific image sizes for watermarking
-* Target custom post types
-* Enable frontend watermarking
+* **Photographers** - Protect portfolio images and client work
+* **E-commerce Stores** - Brand product images and prevent theft
+* **Bloggers & Content Creators** - Safeguard visual content
+* **Digital Artists** - Add copyright protection to artwork
+* **Corporate Websites** - Maintain brand consistency across images
+* **Media Publishers** - Protect editorial and news images
+* **Online Portfolios** - Showcase work while preventing unauthorized use
 
-**Watermark Image Settings**
-* Upload and manage watermark images
-* Size control: Original, Custom (X/Y pixels), or Scaled (1-100%)
-* Transparency adjustment (0-100%)
-* Output quality control (1-100%)
-* Image format selection (Baseline/Progressive)
+= 🚀 Quick Start Guide =
 
-**Position Settings**
-* 9-position alignment grid
-* X and Y offset values
-* Offset units (pixels or percentages)
-* Precise positioning control
+1. **Install & Activate** the plugin from WordPress admin
+2. **Navigate to** Ultimate Watermark → Add New Watermark
+3. **Create Watermark** - Upload image or add text watermark
+4. **Configure Position** - Choose alignment and offset
+5. **Enable Automatic** - Turn on automatic watermarking
+6. **Upload Images** - New uploads are automatically watermarked!
 
-**Protection & Backup**
-* Right-click disable option
-* Drag and drop prevention
-* Logged-in user protection toggle
-* Automatic backup creation
-* Backup quality settings
+= 💎 Pro Features - Upgrade for Advanced Capabilities =
 
-= 🎨 Use Cases =
+**[Upgrade to Ultimate Watermark Pro](https://mantrabrain.com/plugins/ultimate-watermark#pricing)** for powerful features:
 
-* **Photography Websites**: Protect professional images
-* **E-commerce**: Brand product images
-* **Portfolio Sites**: Add copyright protection
-* **Blogs**: Prevent image theft
-* **Corporate Sites**: Maintain brand consistency
+**🎯 Unlimited Watermarks**
+* Create unlimited watermark templates (Free: 1 watermark limit)
+* Different watermarks for different purposes
+* A/B test watermark effectiveness
+* Seasonal and campaign-specific watermarks
 
-= 🔧 Technical Requirements =
+**📝 Dynamic Content Placeholders**
+* **EXIF Data** - Camera model, lens, ISO, aperture, shutter speed
+* **Date & Time** - Upload date, current date, custom formats
+* **User Information** - Author name, username, user ID
+* **Post Data** - Post title, category, tags, custom fields
+* **Site Information** - Site name, URL, tagline
+* **Custom Variables** - Create your own dynamic placeholders
+
+**🛒 WooCommerce Integration**
+* **Per-Product Watermarks** - Different watermarks for different products
+* **Category-Based Watermarks** - Auto-apply based on product category
+* **Bulk Operations** - Watermark all product images at once
+* **Priority Cascade** - Product → Category → Default watermark logic
+* **Variation Support** - Watermark product variation images
+
+**👁️ On-the-Fly Display**
+* **Non-Destructive** - Show watermarks without modifying originals
+* **Role-Based Bypass** - Hide watermarks for admins/logged-in users
+* **Performance Optimized** - Cached watermark generation
+* **Selective Display** - Choose where watermarks appear (frontend/backend)
+* **Dynamic Switching** - Different watermarks for different contexts
+
+**🎯 Advanced Features**
+* **Frontend Watermarking** - Watermark user-uploaded images
+* **Conditional Logic** - Complex rules for watermark application
+* **Batch Processing** - Schedule large watermarking jobs
+* **API Access** - Programmatic watermark control
+* **Custom Hooks** - Extend functionality with WordPress filters/actions
+
+**🆘 Priority Support**
+* **Fast Response Times** - Get help when you need it
+* **Email Support** - Direct access to our expert team
+* **Automatic Updates** - Stay current with latest features
+* **Documentation Access** - Comprehensive guides and tutorials
+* **14-Day Money-Back Guarantee** - Risk-free purchase
+
+**[Get Pro Now →](https://mantrabrain.com/plugins/ultimate-watermark#pricing)**
+
+= 🌐 Links & Resources =
+
+* **[Official Website](https://mantrabrain.com/plugins/ultimate-watermark)** - Plugin homepage
+* **[Documentation](https://mantrabrain.com/docs/ultimate-watermark)** - Complete guides
+* **[Support Forum](https://wordpress.org/support/plugin/ultimate-watermark/)** - Free community support
+* **[Pro Version](https://mantrabrain.com/plugins/ultimate-watermark#pricing)** - Upgrade to Pro
+* **[Changelog](https://mantrabrain.com/plugins/ultimate-watermark/changelog)** - Version history
+* **[Feature Requests](https://mantrabrain.com/support)** - Suggest new features
+
+= 🔧 System Requirements =
 
 * WordPress 5.0 or higher
-* PHP GD extension OR ImageMagick
-* Sufficient server memory for image processing
-* Write permissions for upload directory
+* PHP 7.4 or higher (PHP 8.4 supported)
+* GD Library OR ImageMagick extension
+* Sufficient server memory for image processing (256MB+ recommended)
+* Write permissions for WordPress uploads directory
 
-== Installation =
+== Installation ==
 
-1. Upload the `ultimate-watermark` folder to the `/wp-content/plugins/` directory
-2. Activate the plugin through the 'Plugins' menu in WordPress
-3. Navigate to 'Watermark' in your admin menu
-4. Configure your watermark settings
-5. Upload a watermark image and start protecting your images
+= Automatic Installation =
+
+1. Log in to your WordPress admin panel
+2. Navigate to **Plugins → Add New**
+3. Search for **"Ultimate Watermark"**
+4. Click **"Install Now"** on Ultimate Watermark
+5. Click **"Activate"** after installation completes
+6. Go to **Ultimate Watermark** in your admin menu to configure
+
+= Manual Installation =
+
+1. Download the plugin ZIP file
+2. Log in to WordPress admin panel
+3. Navigate to **Plugins → Add New → Upload Plugin**
+4. Choose the downloaded ZIP file and click **"Install Now"**
+5. Click **"Activate Plugin"** after installation
+6. Configure settings in **Ultimate Watermark** menu
+
+= After Activation =
+
+1. Navigate to **Ultimate Watermark → Add New Watermark**
+2. Create your first watermark (image or text)
+3. Configure position, opacity, and other settings
+4. Enable **Automatic Watermarking** in settings
+5. Upload test images to verify watermark appears correctly
+6. Adjust settings as needed for optimal results
 
 == Frequently Asked Questions ==
 
-= How do I set up Ultimate Watermark Plugin? =
+= How do I add a watermark to my images? =
 
-**Complete Setup Guide:**
-1. **Install and Activate** the plugin through WordPress admin
-2. **Navigate to Watermark Settings** → General Settings
-3. **Enable Automatic Watermarking** for new image uploads
-4. **Enable Manual Watermarking** for existing images in media library
-5. **Select Target Image Sizes** (recommended: avoid full size unless backups are enabled)
-6. **Upload Watermark Image** in Watermark Image settings
-7. **Configure Position & Settings** for optimal results
+**Step-by-Step:**
+1. Go to **Ultimate Watermark → Add New Watermark**
+2. Enter a name for your watermark
+3. Choose watermark type (Image or Text)
+4. For image: Upload your watermark image (PNG recommended)
+5. For text: Enter your watermark text and customize font/color
+6. Set position, opacity, and size
+7. Enable **Automatic Watermarking**
+8. Save your watermark
 
-**Pro Tips:**
-* **Always enable backups** before watermarking full-size images
-* **Test with sample images** before processing your entire library
-* **Use PNG watermarks** with transparency for professional results
-* **Start with smaller image sizes** to test your configuration
+New images uploaded to WordPress will automatically be watermarked!
 
-= Can I watermark existing images in my WordPress media library? =
+= Can I watermark existing images in my media library? =
 
-**Yes!** Ultimate Watermark provides powerful bulk watermarking capabilities:
-* Enable "Manual Watermarking" in General Settings
-* Use bulk actions in your Media Library
-* Select multiple images and apply watermarks
-* Process entire image libraries efficiently
+**Yes!** Use the bulk watermark feature:
+1. Enable **Manual Watermarking** in watermark settings
+2. Go to **Media → Library**
+3. Switch to **List View**
+4. Select images you want to watermark
+5. Choose **"Apply Watermark"** from Bulk Actions dropdown
+6. Click **Apply**
+
+You can watermark hundreds of images at once!
 
 = How do I remove watermarks from images? =
 
-**Safe Watermark Removal Process:**
-* Ensure backup is enabled in Protection & Backup settings
-* Use bulk actions in Media Library
-* Select "Remove Watermark" action
-* Plugin automatically restores original images from backup
-* Maintains image quality and metadata
+**Safe Watermark Removal:**
+1. Ensure **Backup** is enabled in watermark settings (should be on by default)
+2. Go to **Media → Library**
+3. Select watermarked images
+4. Choose **"Remove Watermark"** from Bulk Actions
+5. Click **Apply**
 
-= What image formats does Ultimate Watermark support? =
+The plugin automatically restores original images from backup. If backups weren't enabled, watermark removal isn't possible without re-uploading original images.
+
+= What's the difference between Free and Pro versions? =
+
+**Free Version Includes:**
+* 1 watermark template
+* Image and text watermarks
+* Automatic and manual watermarking
+* Position and opacity control
+* Backup and restore
+* Image protection features
+
+**Pro Version Adds:**
+* **Unlimited watermarks** (vs 1 in free)
+* Dynamic content placeholders (EXIF, dates, user info)
+* WooCommerce integration (per-product/category watermarks)
+* On-the-fly display (non-destructive watermarking)
+* Frontend watermarking
+* Priority support and automatic updates
+
+**[Compare Features & Pricing →](https://mantrabrain.com/plugins/ultimate-watermark#pricing)**
+
+= Can I use different watermarks for different image types? =
+
+In the **Free version**, you can create 1 watermark and use conditional rules to control when it's applied.
+
+In **Pro version**, you can create unlimited watermarks and assign different watermarks to:
+* Different post types
+* Different product categories (WooCommerce)
+* Individual products
+* Frontend vs backend uploads
+* Based on custom conditions
+
+**[Upgrade to Pro →](https://mantrabrain.com/plugins/ultimate-watermark#pricing)**
+
+= Does Ultimate Watermark slow down my website? =
+
+**No!** Ultimate Watermark is highly optimized:
+* Watermarks are applied during upload (one-time process)
+* No performance impact on frontend page loads
+* Efficient memory usage for large images
+* Background processing for bulk operations
+* Cached watermark generation in Pro version
+
+Your website speed remains unaffected.
+
+= What image formats are supported? =
 
 **Supported Formats:**
-* **Source Images:** JPEG, PNG, GIF (all major formats)
-* **Watermark Images:** PNG (recommended for transparency), JPEG
-* **Output Formats:** Baseline or Progressive JPEG
-* **Quality Control:** 1-100% configurable quality settings
+* **Input:** JPEG, PNG, GIF, WebP
+* **Watermark:** PNG (recommended for transparency), JPEG
+* **Output:** JPEG (Baseline or Progressive)
+* **Quality:** Configurable 1-100%
 
-= Can I use different watermarks for different post types? =
+PNG watermarks with transparency provide the most professional results.
 
-**Advanced Post Type Control:**
-* Select "Selected Custom Post Types" in General Settings
-* Choose specific post types for watermarking
-* Apply different watermark strategies per content type
-* Perfect for e-commerce, portfolios, and multi-purpose sites
+= Can I watermark WooCommerce product images? =
 
-= Is Ultimate Watermark compatible with my WordPress version? =
+**Yes!** WooCommerce is fully supported:
 
-**Full Compatibility:**
-* **WordPress:** 5.0+ (tested up to 6.4)
-* **PHP:** 7.4+ recommended
-* **WooCommerce:** 3.0+ compatible
-* **Multisite:** Fully supported
-* **Mobile:** Responsive admin interface
+**Free Version:**
+* Automatic watermarking of product images on upload
+* Bulk watermark existing product images
+* Apply to all product images at once
 
-= What are the system requirements for Ultimate Watermark? =
+**Pro Version Adds:**
+* Per-product watermark override
+* Category-based watermarks
+* Bulk operations for all products
+* Product variation support
+* Priority cascade (product → category → default)
 
-**Technical Requirements:**
-* WordPress 5.0 or higher
-* PHP GD extension OR ImageMagick
-* Sufficient server memory for image processing
-* Write permissions for upload directory
-* Recommended: 256MB+ PHP memory limit
+**[Get WooCommerce Features →](https://mantrabrain.com/plugins/ultimate-watermark#pricing)**
 
-= How does Ultimate Watermark protect my images? =
+= Is my original image quality preserved? =
 
-**Multi-Layer Protection:**
-* **Right-Click Disable** - Prevents image downloading
-* **Drag & Drop Prevention** - Stops desktop saving
-* **User-Level Controls** - Optional protection for logged-in users
-* **Professional Watermarking** - Visible copyright protection
-* **Metadata Preservation** - Maintains image information
+**Yes!** Ultimate Watermark maintains image quality:
+* Original images are backed up before watermarking
+* Configurable output quality (1-100%)
+* EXIF and IPTC metadata preserved
+* No unnecessary compression
+* Restore originals anytime
 
-= Is there a premium or pro version of Ultimate Watermark? =
+We recommend 90-95% quality for optimal balance between file size and visual quality.
 
-**Yes! Ultimate Watermark Pro** extends the free plugin with advanced features:
-* **Dynamic Content Watermarks** - Timestamp, URL, user info placeholders
-* **WooCommerce Integration** - Auto-watermark product images, per-product/category overrides
-* **Frontend On-the-fly Watermarking** - Non-destructive, role-based, cached
-* **Right-click & Hotlink Protection** - Enhanced image security
-* **Batch Processing** - Schedule large watermarking jobs
-* **Conditional Rules** - Advanced targeting logic
-* **Automatic Updates & Priority Support** via license key
-* Learn more at [mantrabrain.com](https://mantrabrain.com)
+= Does Ultimate Watermark work with page builders? =
 
-== Screenshots =
+**Yes!** Ultimate Watermark works with all page builders:
+* Elementor
+* Beaver Builder
+* Divi
+* WPBakery
+* Gutenberg
+* And all others
 
-1. **General Settings** - Configure automatic and manual watermarking
-2. **Watermark Image Settings** - Upload and configure watermark appearance
-3. **Position Settings** - Precise watermark positioning controls
-4. **Image Protection & Backup** - Security and backup options
+Watermarks are applied at the WordPress media library level, so they work with any theme or page builder.
+
+= Can I watermark images uploaded by users? =
+
+**Yes!** With **Ultimate Watermark Pro**:
+* Frontend watermarking for user uploads
+* Contact form image uploads
+* User profile images
+* Community/membership site uploads
+* Any frontend upload form
+
+**[Get Frontend Watermarking →](https://mantrabrain.com/plugins/ultimate-watermark#pricing)**
+
+= How do I get support? =
+
+**Free Version Support:**
+* **[WordPress Support Forum](https://wordpress.org/support/plugin/ultimate-watermark/)** - Community support
+* **[Documentation](https://mantrabrain.com/docs/ultimate-watermark)** - Guides and tutorials
+
+**Pro Version Support:**
+* **Priority Email Support** - Fast response times
+* **Direct Developer Access** - Expert assistance
+* **Comprehensive Documentation** - Detailed guides
+* **Video Tutorials** - Step-by-step walkthroughs
+
+**[Upgrade for Priority Support →](https://mantrabrain.com/plugins/ultimate-watermark#pricing)**
+
+== Screenshots ==
+
+1. **Dashboard Overview** - Analytics and watermark usage statistics
+2. **Add New Watermark** - Create image or text watermarks with live preview
+3. **Watermark Settings** - Configure position, opacity, size, and quality
+4. **Rules Engine** - Set conditions for when watermarks are applied
 5. **Media Library Integration** - Bulk watermark operations
-
+6. **Backup Management** - View and restore original images
+7. **Image Protection** - Right-click disable and drag prevention settings
+8. **Analytics Dashboard** - Track watermark application and usage
 
 == Changelog ==
-= 2.0.2 - 2026/02/17 =
-* Added - Complete architecture rewrite with PSR-4 autoloading
-* Added - Modern admin UI with dashboard, analytics, and backup management pages
-* Added - Real-time watermark preview system
-* Added - Advanced backup & restore system with bulk operations
-* Added - Analytics dashboard with watermark usage tracking
-* Added - REST API integration for programmatic watermarking
-* Added - Text watermark support alongside image watermarks
-* Added - Pro plugin extensibility via filters and hooks
-* Fixed - PHP 8.4 nullable parameter deprecation warnings
-* Fixed - WordPress 6.8 full compatibility
-* Enhanced - GD and ImageMagick processor improvements
-* Enhanced - Media library and media edit integration
 
-= 1.1.1- 2025/10/06 =
-* Fixed - capability check issue fixed
-* Fixed - PHP Deprication warning fixed
-= 1.1 - 2025/07/23 =
-* Fixed - WordPress 6.9 compatibility verified
-* Enhanced - Improved setting page design
+= 2.0.2 - 2026/02/19 =
+**Major Update - Complete Rewrite**
+* **Added** - Modern PSR-4 architecture with autoloading
+* **Added** - Watermark limit: Free version limited to 1 watermark, Pro unlimited
+* **Added** - Upgrade page with Pro features showcase
+* **Added** - Text watermark support with font customization
+* **Added** - Real-time watermark preview system
+* **Added** - Advanced backup & restore with bulk operations
+* **Added** - Analytics dashboard with usage tracking
+* **Added** - REST API integration for programmatic watermarking
+* **Added** - Migration system from v1.x to v2.x (automatic, one-time)
+* **Fixed** - PHP 8.4 compatibility (nullable parameter deprecation warnings)
+* **Fixed** - WordPress 6.8 full compatibility
+* **Fixed** - Migration creating duplicate watermarks
+* **Enhanced** - Modern admin UI with improved UX
+* **Enhanced** - GD and ImageMagick processor improvements
+* **Enhanced** - Media library and media edit integration
+* **Updated** - Pro features list (removed Template Library and Batch Processing)
+* **Updated** - All upgrade URLs to new pricing page
+* **Updated** - Money-back guarantee to 14 days
+
+= 1.1.1 - 2025/10/06 =
+* **Fixed** - Capability check issue resolved
+* **Fixed** - PHP deprecation warning fixed
+
+= 1.1.0 - 2025/07/23 =
+* **Fixed** - WordPress 6.9 compatibility verified
+* **Enhanced** - Improved settings page design
 
 = 1.0.11 - 2023/11/25 =
-* Fixed - WordPress 6.4 compatibility verified
-* Enhanced - Improved performance and stability
+* **Fixed** - WordPress 6.4 compatibility verified
+* **Enhanced** - Performance and stability improvements
 
 = 1.0.10 - 2023/02/04 =
-* Fixed - Frontend watermark issue resolved
-* Fixed - Watermark offset Y not working issue
-* Added - Negative offset option for flexible positioning
+* **Fixed** - Frontend watermark issue resolved
+* **Fixed** - Watermark offset Y not working
+* **Added** - Negative offset option for flexible positioning
 
 = 1.0.9 - 2022/12/13 =
-* Fixed - WordPress 6.1 compatibility issues
-* Fixed - User-reported issues resolved
+* **Fixed** - WordPress 6.1 compatibility issues
+* **Fixed** - User-reported issues resolved
 
 = 1.0.7 - 2022/04/07 =
-* Fixed - Class not found issues resolved
-* Enhanced - Code structure improvements
+* **Fixed** - Class not found issues
+* **Enhanced** - Code structure improvements
 
 = 1.0.5 - 2022/02/01 =
-* Updated - Complete code restructuring
-* Fixed - Version compatibility issues
-* Fixed - Remove watermark display issues
+* **Updated** - Complete code restructuring
+* **Fixed** - Version compatibility issues
+* **Fixed** - Remove watermark display issues
 
 = 1.0.3 - 2020/04/04 =
-* Fixed - Version compatibility verified
+* **Fixed** - Version compatibility verified
 
 = 1.0.2 - 2019/04/14 =
-* Fixed - Minor issues resolved
+* **Fixed** - Minor issues resolved
 
 = 1.0.1 - 2019/02/19 =
-* Fixed - Sanitization issues
-* Fixed - Backup directory issues
+* **Fixed** - Sanitization issues
+* **Fixed** - Backup directory issues
 
 = 1.0.0 - 2019/02/16 =
-* Initial release with core watermarking features
+* **Initial Release** - Core watermarking features
+
+== Upgrade Notice ==
+
+= 2.0.2 =
+Major update with complete rewrite! Automatic migration from v1.x. Free version now limited to 1 watermark. Backup your site before updating.
+
+= 1.1.1 =
+Important bug fixes and compatibility improvements. Update recommended.
+
+= 1.0.11 =
+WordPress 6.4 compatibility verified. Performance improvements included.

@@ -99,7 +99,16 @@ class WatermarkAjaxHandler
             $sanitized_data = $this->validateAndSanitizeInput($_POST);
 
             // Process the watermark save operation
-            $is_update = !empty($sanitized_data['watermark_id']);
+            $is_update = !empty($sanitized_data['watermark_id']) && $sanitized_data['watermark_id'] > 0;
+            
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark: Save request - watermark_id: ' . ($sanitized_data['watermark_id'] ?? 'not set') . ', is_update: ' . ($is_update ? 'yes' : 'no'));
+            }
+            
+            // Check watermark limit for free version (only when creating new watermark)
+            if (!$is_update) {
+                $this->checkWatermarkLimit();
+            }
             $watermark_id = $this->saveWatermark($sanitized_data);
             
             if ($watermark_id) {
@@ -563,6 +572,55 @@ class WatermarkAjaxHandler
         
         // Fire action for other components
         do_action('ultimate_watermark_saved', $watermark_id, $data);
+    }
+
+    /**
+     * Check watermark limit for free version
+     * Free version allows only 1 watermark, Pro allows unlimited
+     */
+    private function checkWatermarkLimit(): void
+    {
+        // Check if Pro version is active
+        $is_pro_active = defined('ULTIMATE_WATERMARK_PRO_VERSION');
+        
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Ultimate Watermark: Checking watermark limit. Pro active: ' . ($is_pro_active ? 'yes' : 'no'));
+        }
+        
+        if ($is_pro_active) {
+            return; // Pro version has no limit
+        }
+        
+        // Count existing watermarks
+        $existing_watermarks = get_posts([
+            'post_type' => WatermarkPostType::POST_TYPE,
+            'post_status' => 'publish',
+            'numberposts' => -1,
+            'fields' => 'ids'
+        ]);
+        
+        $watermark_count = is_array($existing_watermarks) ? count($existing_watermarks) : 0;
+        
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Ultimate Watermark: Current watermark count: ' . $watermark_count);
+        }
+        
+        // Free version limit: 1 watermark
+        if ($watermark_count >= 1) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark: Limit reached! Blocking creation.');
+            }
+            
+            wp_send_json_error([
+                'message' => __('Watermark limit reached', 'ultimate-watermark'),
+                'upgrade_required' => true,
+                'upgrade_message' => __('You have reached the watermark limit for the free version. Upgrade to Pro to create unlimited watermarks with advanced features.', 'ultimate-watermark'),
+                'upgrade_url' => 'https://mantrabrain.com/plugins/ultimate-watermark#pricing',
+                'current_count' => $watermark_count,
+                'limit' => 1
+            ], 403);
+            exit; // Ensure execution stops
+        }
     }
 
     /**

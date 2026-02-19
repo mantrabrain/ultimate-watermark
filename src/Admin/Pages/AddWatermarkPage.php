@@ -33,6 +33,30 @@ class AddWatermarkPage
     {
         $watermark_id = isset($_GET['ID']) ? intval($_GET['ID']) : 0;
         $is_edit_mode = $watermark_id > 0;
+        
+        // Check watermark limit for free version (only when creating new watermark)
+        if (!$is_edit_mode) {
+            $is_pro_active = defined('ULTIMATE_WATERMARK_PRO_VERSION');
+            
+            if (!$is_pro_active) {
+                // Count existing watermarks
+                $existing_watermarks = get_posts([
+                    'post_type' => WatermarkPostType::POST_TYPE,
+                    'post_status' => 'publish',
+                    'numberposts' => -1,
+                    'fields' => 'ids'
+                ]);
+                
+                $watermark_count = is_array($existing_watermarks) ? count($existing_watermarks) : 0;
+                
+                // If limit reached, show upgrade page instead
+                if ($watermark_count >= 1) {
+                    $this->renderUpgradePage($watermark_count);
+                    return;
+                }
+            }
+        }
+        
         $watermark_data = $is_edit_mode ? $this->getWatermarkData($watermark_id) : null;
         
         $page_title = $is_edit_mode ? __('Edit Watermark', 'ultimate-watermark') : __('Add New Watermark', 'ultimate-watermark');
@@ -2107,7 +2131,7 @@ class AddWatermarkPage
         }
         
         // Always add 'full' size (original image)
-        $options['full'] = __('Full Size (Original Image)', 'ultimate-watermark');
+        $options['full'] = __('Full Size (Original)', 'ultimate-watermark');
         
         // Sort options: put 'full' at the end, others alphabetically
         $full_option = ['full' => $options['full']];
@@ -2125,4 +2149,107 @@ class AddWatermarkPage
     public function validateSelect($value, $options = []) { return in_array($value, array_keys($options)); }
     public function validateMediaId($value) { return $value > 0 && wp_attachment_is_image($value); }
     public function validateCheckboxGroup($value) { return is_array($value); }
+
+    /**
+     * Render upgrade page when watermark limit is reached
+     */
+    private function renderUpgradePage(int $current_count): void
+    {
+        $page_title = __('Watermark Limit Reached', 'ultimate-watermark');
+        $actions = '<a href="' . esc_url(admin_url('admin.php?page=ultimate-watermark-watermarks')) . '" class="btn btn-secondary">
+            <span class="dashicons dashicons-arrow-left-alt"></span>
+            ' . esc_html__('Back to Watermarks', 'ultimate-watermark') . '
+        </a>';
+
+        Layout::render(
+            $page_title,
+            function() use ($current_count) {
+                ?>
+                <div class="ultimate-watermark-upgrade-notice">
+                    <div class="upgrade-notice-header">
+                        <div class="upgrade-icon">
+                            <span class="dashicons dashicons-lock"></span>
+                        </div>
+                        <h2><?php esc_html_e('You\'ve Reached the Free Version Limit', 'ultimate-watermark'); ?></h2>
+                        <p class="upgrade-subtitle"><?php esc_html_e('Upgrade to Pro to unlock unlimited watermarks and advanced features', 'ultimate-watermark'); ?></p>
+                    </div>
+
+                    <div class="upgrade-stats">
+                        <div class="stat-box">
+                            <div class="stat-value"><?php echo esc_html($current_count); ?></div>
+                            <div class="stat-label"><?php esc_html_e('Current Watermarks', 'ultimate-watermark'); ?></div>
+                        </div>
+                        <div class="stat-divider">
+                            <span class="dashicons dashicons-arrow-right-alt"></span>
+                        </div>
+                        <div class="stat-box limit-box">
+                            <div class="stat-value">1</div>
+                            <div class="stat-label"><?php esc_html_e('Free Version Limit', 'ultimate-watermark'); ?></div>
+                        </div>
+                    </div>
+
+                    <div class="upgrade-features">
+                        <h3><?php esc_html_e('Upgrade to Pro and Get:', 'ultimate-watermark'); ?></h3>
+                        <div class="features-grid">
+                            <div class="feature-item">
+                                <span class="dashicons dashicons-yes-alt"></span>
+                                <div class="feature-content">
+                                    <h4><?php esc_html_e('Unlimited Watermarks', 'ultimate-watermark'); ?></h4>
+                                    <p><?php esc_html_e('Create as many watermark templates as you need', 'ultimate-watermark'); ?></p>
+                                </div>
+                            </div>
+                            <div class="feature-item">
+                                <span class="dashicons dashicons-admin-settings"></span>
+                                <div class="feature-content">
+                                    <h4><?php esc_html_e('Advanced Rules Engine', 'ultimate-watermark'); ?></h4>
+                                    <p><?php esc_html_e('Complex conditional watermarking based on multiple criteria', 'ultimate-watermark'); ?></p>
+                                </div>
+                            </div>
+                            <div class="feature-item">
+                                <span class="dashicons dashicons-cart"></span>
+                                <div class="feature-content">
+                                    <h4><?php esc_html_e('WooCommerce Integration', 'ultimate-watermark'); ?></h4>
+                                    <p><?php esc_html_e('Per-product and per-category watermarks', 'ultimate-watermark'); ?></p>
+                                </div>
+                            </div>
+                            <div class="feature-item">
+                                <span class="dashicons dashicons-upload"></span>
+                                <div class="feature-content">
+                                    <h4><?php esc_html_e('Frontend Watermarking', 'ultimate-watermark'); ?></h4>
+                                    <p><?php esc_html_e('Apply watermarks to frontend uploads automatically', 'ultimate-watermark'); ?></p>
+                                </div>
+                            </div>
+                            <div class="feature-item">
+                                <span class="dashicons dashicons-visibility"></span>
+                                <div class="feature-content">
+                                    <h4><?php esc_html_e('On-the-fly Watermarking', 'ultimate-watermark'); ?></h4>
+                                    <p><?php esc_html_e('Dynamic watermark display without modifying original images', 'ultimate-watermark'); ?></p>
+                                </div>
+                            </div>
+                            <div class="feature-item">
+                                <span class="dashicons dashicons-sos"></span>
+                                <div class="feature-content">
+                                    <h4><?php esc_html_e('Priority Support', 'ultimate-watermark'); ?></h4>
+                                    <p><?php esc_html_e('Get help from our expert support team when you need it', 'ultimate-watermark'); ?></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="upgrade-cta">
+                        <a href="https://mantrabrain.com/plugins/ultimate-watermark#pricing" target="_blank" class="btn btn-primary btn-large">
+                            <span class="dashicons dashicons-unlock"></span>
+                            <?php esc_html_e('Upgrade to Pro Now', 'ultimate-watermark'); ?>
+                        </a>
+                        <p class="upgrade-note"><?php esc_html_e('14-day money-back guarantee • Instant access • Lifetime updates', 'ultimate-watermark'); ?></p>
+                    </div>
+                </div>
+                <?php
+            },
+            [
+                'subtitle' => __('Free version is limited to 1 watermark', 'ultimate-watermark'),
+                'actions' => $actions
+            ]
+        );
+    }
 }
