@@ -233,6 +233,9 @@ class Plugin implements PluginInterface
             // Load text domain
             $this->loadTextDomain();
             
+            // Run migration check (only runs once with proper flags)
+            Migration::run();
+            
             // Fire init action for other components
             do_action('ultimate_watermark_init', $this);
             

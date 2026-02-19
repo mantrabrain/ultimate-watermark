@@ -72,6 +72,10 @@ class AdminManager
         add_action('wp_ajax_ultimate_watermark_update_toggle_state', [$this, 'handleUpdateToggleState']);
         add_action('wp_ajax_ultimate_watermark_get_analytics_data', [$this, 'handleGetAnalyticsData']);
         add_action('wp_ajax_ultimate_watermark_get_paginated_backups', [$this, 'handleGetPaginatedBackups']);
+        
+        // Add plugin action links
+        add_filter('plugin_action_links_' . plugin_basename(ULTIMATE_WATERMARK_FILE), [$this, 'addPluginActionLinks']);
+        
         // Remove asset enqueuing from here - let AssetManager handle it
     }
 
@@ -1059,4 +1063,24 @@ class AdminManager
         return $filtered;
     }
 
+    /**
+     * Add plugin action links
+     * 
+     * @param array $links Existing plugin action links
+     * @return array Modified plugin action links
+     */
+    public function addPluginActionLinks($links)
+    {
+        // Add Settings link
+        $settings_link = '<a href="' . esc_url(admin_url('admin.php?page=ultimate-watermark')) . '">' . __('Settings', 'ultimate-watermark') . '</a>';
+        array_unshift($links, $settings_link);
+        
+        // Add Get Pro link only if Pro is not active
+        if (!defined('ULTIMATE_WATERMARK_PRO_VERSION')) {
+            $pro_link = '<a href="' . esc_url('https://mantrabrain.com/plugins/ultimate-watermark#pricing') . '" target="_blank" rel="noopener noreferrer" style="color: #f18500; font-weight: 700;">' . __('Get Pro', 'ultimate-watermark') . '</a>';
+            array_unshift($links, $pro_link);
+        }
+        
+        return $links;
+    }
 }
