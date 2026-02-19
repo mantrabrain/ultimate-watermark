@@ -132,11 +132,15 @@ class WatermarkHelper
             // Image watermark settings
             'watermark_image_id' => $metadata['watermark_image_id'],
             
-            // Size settings
+            // Size settings (include both old and new keys for compatibility)
             'watermark_size_type' => $metadata['watermark_size_type'],
+            'watermark_scale_mode' => $metadata['watermark_scale_mode'],
             'watermark_scale_percentage' => $metadata['watermark_scale_percentage'],
+            'watermark_scale' => $metadata['watermark_scale'],
             'watermark_custom_width' => $metadata['watermark_custom_width'],
+            'watermark_width' => $metadata['watermark_width'],
             'watermark_custom_height' => $metadata['watermark_custom_height'],
+            'watermark_height' => $metadata['watermark_height'],
             
             // Offset settings
             'watermark_offset_x' => $metadata['watermark_offset_x'],
@@ -181,13 +185,18 @@ class WatermarkHelper
             'watermark_font_weight' => 'normal',
             'watermark_font_style' => 'normal',
             'watermark_text_decoration' => 'none',
+            // Size settings (both old and new keys for compatibility)
             'watermark_size_type' => 'original',
+            'watermark_scale_mode' => 'original',
             'watermark_scale_percentage' => 80,
+            'watermark_scale' => 80,
             'watermark_custom_width' => 100,
+            'watermark_width' => 100,
             'watermark_custom_height' => 100,
+            'watermark_height' => 100,
             'watermark_offset_x' => 0,
             'watermark_offset_y' => 0,
-            'watermark_offset_unit' => 'pixels',
+            'watermark_offset_unit' => 'px',
             'watermark_rotation' => 0,
             'watermark_quality' => 90,
             'image_format' => 'baseline',
@@ -228,8 +237,11 @@ class WatermarkHelper
             case 'watermark_opacity':
             case 'watermark_font_size':
             case 'watermark_scale_percentage':
+            case 'watermark_scale':
             case 'watermark_custom_width':
+            case 'watermark_width':
             case 'watermark_custom_height':
+            case 'watermark_height':
             case 'watermark_offset_x':
             case 'watermark_offset_y':
             case 'watermark_rotation':
@@ -246,6 +258,7 @@ class WatermarkHelper
             case 'watermark_font_style':
             case 'watermark_text_decoration':
             case 'watermark_size_type':
+            case 'watermark_scale_mode':
             case 'watermark_offset_unit':
             case 'image_format':
             case 'watermark_on':
@@ -261,8 +274,14 @@ class WatermarkHelper
                 return self::validateArrayMetadata($value);
             
             case 'watermark_rules':
-                // Rules are stored as serialized array; ensure we return an array
+                // Rules can be stored as JSON or serialized array
                 if (is_string($value)) {
+                    // Try JSON decode first (migration uses wp_json_encode)
+                    $decoded = json_decode($value, true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        return $decoded;
+                    }
+                    // Fall back to unserialize for backward compatibility
                     $unserialized = maybe_unserialize($value);
                     return is_array($unserialized) ? $unserialized : [];
                 }
@@ -289,7 +308,8 @@ class WatermarkHelper
             'watermark_font_style' => ['normal', 'italic', 'oblique'],
             'watermark_text_decoration' => ['none', 'underline', 'overline', 'line-through'],
             'watermark_size_type' => ['original', 'custom', 'scaled'],
-            'watermark_offset_unit' => ['pixels', 'percentage'],
+            'watermark_scale_mode' => ['original', 'custom', 'scale'],
+            'watermark_offset_unit' => ['px', '%', 'pixels', 'percentage'],
             'image_format' => ['baseline', 'progressive'],
             'watermark_on' => ['everywhere', 'selected_post_types']
         ];

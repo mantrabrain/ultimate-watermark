@@ -576,11 +576,11 @@
 }
 
 .type-column {
-    width: 120px;
+    width: 80px;
 }
 
 .preview-column {
-    width: 80px;
+    width: 60px;
 }
 
 .behavior-column {
@@ -954,8 +954,8 @@
 
 /* Type & Preview Column Styles */
 .type-preview-column {
-    width: 200px;
-    min-width: 180px;
+    width: 140px;
+    min-width: 120px;
 }
 
 .watermark-type-preview {
