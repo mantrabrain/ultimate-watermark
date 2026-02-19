@@ -23,11 +23,11 @@ class Activator
         // Set default options
         self::setDefaultOptions();
         
-        // Create upload directories
+        // Create required directories
         self::createDirectories();
         
-        // Run migration check (will only migrate if old data exists)
-        Migration::run();
+        // Migration runs automatically on init hook (see Plugin.php)
+        // No need to run here to avoid duplicate execution
         
         // Flush rewrite rules
         flush_rewrite_rules();

@@ -345,17 +345,16 @@ Watermarks are applied at the WordPress media library level, so they work with a
 == Screenshots ==
 
 1. **Dashboard Overview** - Analytics and watermark usage statistics
-2. **Add New Watermark** - Create image or text watermarks with live preview
-3. **Watermark Settings** - Configure position, opacity, size, and quality
-4. **Rules Engine** - Set conditions for when watermarks are applied
-5. **Media Library Integration** - Bulk watermark operations
+2. **Analytics** - Analytics page
+3. **Watermark Listing** - List all the watermark templates.
+4. **Add/Edit Watermark** - Add/Edit watermark page
+5. **Settings** - Settings page
 6. **Backup Management** - View and restore original images
-7. **Image Protection** - Right-click disable and drag prevention settings
-8. **Analytics Dashboard** - Track watermark application and usage
+7. **Media Watermark** - apply watermark from media page.
 
 == Changelog ==
 
-= 2.0.2 - 2026/02/19 =
+= 2.0 - 2026/02/19 =
 **Major Update - Complete Rewrite**
 * **Added** - Modern PSR-4 architecture with autoloading
 * **Added** - Watermark limit: Free version limited to 1 watermark, Pro unlimited
@@ -375,10 +374,6 @@ Watermarks are applied at the WordPress media library level, so they work with a
 * **Updated** - Pro features list (removed Template Library and Batch Processing)
 * **Updated** - All upgrade URLs to new pricing page
 * **Updated** - Money-back guarantee to 14 days
-
-= 2.0 - 2026/02/19 =
-* **Refactored** - All refactored
-* **Pro** - Introduce the pro version
 
 = 1.1.1 - 2025/10/06 =
 * **Fixed** - Capability check issue resolved
