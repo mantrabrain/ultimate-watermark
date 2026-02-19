@@ -11,13 +11,13 @@
  * Text Domain: ultimate-watermark
  * Domain Path: /languages
  * Requires at least: 5.0
- * Tested up to: 6.8
+ * Tested up to: 6.9
  * Requires PHP: 7.4
  * Network: false
  *
  * @package UltimateWatermark
  * @author MantraBrain
- * @version 2.0.2
+ * @version 2.0
  */
 
 // Prevent direct access
