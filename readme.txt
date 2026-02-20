@@ -4,7 +4,7 @@ Donate link: https://mantrabrain.com/plugins/ultimate-watermark
 Tags: watermark, image protection, copyright, photo watermark, bulk watermark
 Requires at least: 5.0
 Tested up to: 6.9
-Stable tag: 2.0.1
+Stable tag: 2.0.2
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Requires PHP: 7.4
@@ -361,8 +361,9 @@ Watermarks are applied at the WordPress media library level, so they work with a
 
 == Changelog ==
 
-= 2.0.1 - 2026/02/20  =
+= 2.0.2- 2026/02/20  =
 * **Fixed** - Duplication issue fixed
+* **Fixed** - GD library issue fixed
 
 = 2.0 - 2026/02/19 =
 **Major Update - Complete Rewrite**
