@@ -60,6 +60,23 @@ class WatermarkActionsHandler
             return;
         }
 
+        // Check if Pro is active
+        $is_pro_active = defined('ULTIMATE_WATERMARK_PRO_VERSION');
+        
+        // Count existing watermarks
+        $watermark_count = wp_count_posts('ultimate_watermark');
+        $total_watermarks = isset($watermark_count->publish) ? intval($watermark_count->publish) : 0;
+        
+        // Restrict duplicate if user has 1+ watermarks and Pro is not active
+        if (!$is_pro_active && $total_watermarks >= 1) {
+            wp_send_json_error([
+                'message' => __('Upgrade to Pro to duplicate watermarks', 'ultimate-watermark'),
+                'upgrade_required' => true,
+                'upgrade_url' => 'https://store.mantrabrain.com/checkout/?edd_action=add_to_cart&download_id=36499&edd_options[price_id]=1'
+            ]);
+            return;
+        }
+
         // Create duplicate - sanitize post data before insertion
         $duplicate_data = [
             'post_title' => sanitize_text_field($original_post->post_title . ' (Copy)'),
@@ -74,11 +91,51 @@ class WatermarkActionsHandler
             return;
         }
 
-        // Copy all meta data
-        $meta_data = get_post_meta($watermark_id);
-        foreach ($meta_data as $key => $values) {
-            foreach ($values as $value) {
-                add_post_meta($duplicate_id, $key, $value);
+        // Define all metadata fields that need to be copied
+        $meta_fields = [
+            'watermark_type', 'watermark_position', 'watermark_opacity', 'watermark_image_id',
+            'watermark_text', 'watermark_color', 'watermark_font_size', 'watermark_font_family',
+            'watermark_font_weight', 'watermark_font_style', 'watermark_text_decoration',
+            'watermark_size_type', 'watermark_scale_mode', 'watermark_scale_percentage', 'watermark_scale',
+            'watermark_custom_width', 'watermark_width', 'watermark_custom_height', 'watermark_height',
+            'watermark_offset_x', 'watermark_offset_y', 'watermark_offset_unit', 'watermark_rotation',
+            'watermark_quality', 'image_format', 'automatic_watermarking', 'manual_watermarking',
+            'frontend_watermarking', 'watermark_on', 'watermark_post_types', 'watermark_sizes',
+            'watermark_rules', 'active'
+        ];
+
+        // Copy each metadata field properly
+        foreach ($meta_fields as $meta_key) {
+            $meta_value = get_post_meta($watermark_id, $meta_key, true);
+            
+            // Skip if meta doesn't exist
+            if ($meta_value === '' || $meta_value === false) {
+                continue;
+            }
+            
+            // For watermark_rules, ensure it's properly handled as an array
+            if ($meta_key === 'watermark_rules') {
+                // If it's a JSON string, decode it
+                if (is_string($meta_value)) {
+                    $decoded = json_decode($meta_value, true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        $meta_value = $decoded;
+                    }
+                }
+                // Store as array (WordPress will serialize it)
+                update_post_meta($duplicate_id, $meta_key, $meta_value);
+            }
+            // For array fields, ensure they're properly handled
+            elseif (in_array($meta_key, ['watermark_post_types', 'watermark_sizes'])) {
+                // Ensure it's an array
+                if (!is_array($meta_value)) {
+                    $meta_value = maybe_unserialize($meta_value);
+                }
+                update_post_meta($duplicate_id, $meta_key, $meta_value);
+            }
+            // For all other fields, copy directly
+            else {
+                update_post_meta($duplicate_id, $meta_key, $meta_value);
             }
         }
 

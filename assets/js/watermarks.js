@@ -216,7 +216,13 @@
                         // Reload the page to show the duplicated watermark
                         location.reload();
                     } else {
-                        UWNotifications.error('Error', 'Error duplicating watermark: ' + (response.data || 'Unknown error'));
+                        // Check if upgrade is required
+                        if (response.data && response.data.upgrade_required) {
+                            // Show upgrade modal with nice UI
+                            WatermarksPage.showUpgradeModal(response.data.message, response.data.upgrade_url);
+                        } else {
+                            UWNotifications.error('Error', response.data.message || 'Error duplicating watermark');
+                        }
                         $button.text(originalText).prop('disabled', false);
                     }
                 },
@@ -988,12 +994,108 @@
         },
 
         /**
+         * Show upgrade modal for Pro features
+         */
+        showUpgradeModal: function(message, upgradeUrl) {
+            // Create modal HTML
+            const modalHtml = `
+                <div class="uw-upgrade-modal-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 999999; display: flex; align-items: center; justify-content: center;">
+                    <div class="uw-upgrade-modal" style="background: #fff; border-radius: 12px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: slideIn 0.3s ease;">
+                        <div class="uw-upgrade-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+                            <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: 15px;">
+                                <circle cx="32" cy="32" r="30" fill="rgba(255,255,255,0.2)"/>
+                                <path d="M32 16L36 28L48 32L36 36L32 48L28 36L16 32L28 28L32 16Z" fill="white"/>
+                            </svg>
+                            <h2 style="margin: 0; font-size: 24px; font-weight: 700;">Upgrade to Pro</h2>
+                        </div>
+                        <div class="uw-upgrade-body" style="padding: 30px; text-align: center;">
+                            <p style="font-size: 16px; color: #374151; margin: 0 0 20px 0; line-height: 1.6;">${message}</p>
+                            <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+                                <h3 style="margin: 0 0 15px 0; font-size: 18px; color: #1d2327;">Pro Features Include:</h3>
+                                <ul style="list-style: none; padding: 0; margin: 0; text-align: left;">
+                                    <li style="padding: 8px 0; color: #374151; display: flex; align-items: center;">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 10px; flex-shrink: 0;">
+                                            <circle cx="10" cy="10" r="9" fill="#10b981"/>
+                                            <path d="M6 10L9 13L14 7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                        Unlimited Watermarks
+                                    </li>
+                                    <li style="padding: 8px 0; color: #374151; display: flex; align-items: center;">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 10px; flex-shrink: 0;">
+                                            <circle cx="10" cy="10" r="9" fill="#10b981"/>
+                                            <path d="M6 10L9 13L14 7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                        Dynamic Content Watermarks
+                                    </li>
+                                    <li style="padding: 8px 0; color: #374151; display: flex; align-items: center;">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 10px; flex-shrink: 0;">
+                                            <circle cx="10" cy="10" r="9" fill="#10b981"/>
+                                            <path d="M6 10L9 13L14 7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                        WooCommerce Integration
+                                    </li>
+                                    <li style="padding: 8px 0; color: #374151; display: flex; align-items: center;">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 10px; flex-shrink: 0;">
+                                            <circle cx="10" cy="10" r="9" fill="#10b981"/>
+                                            <path d="M6 10L9 13L14 7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                        Advanced Rules Engine
+                                    </li>
+                                </ul>
+                            </div>
+                            <div style="display: flex; gap: 10px; justify-content: center;">
+                                <a href="${upgradeUrl}" target="_blank" class="uw-upgrade-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; transition: transform 0.2s;">
+                                    Upgrade Now - $79/year
+                                </a>
+                                <button class="uw-upgrade-close" style="background: #f3f4f6; color: #374151; padding: 12px 30px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: background 0.2s;">
+                                    Maybe Later
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <style>
+                    @keyframes slideIn {
+                        from { transform: translateY(-50px); opacity: 0; }
+                        to { transform: translateY(0); opacity: 1; }
+                    }
+                    .uw-upgrade-btn:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+                    }
+                    .uw-upgrade-close:hover {
+                        background: #e5e7eb;
+                    }
+                </style>
+            `;
+            
+            // Append to body
+            $('body').append(modalHtml);
+            
+            // Close modal on button click or overlay click
+            $('.uw-upgrade-close, .uw-upgrade-modal-overlay').on('click', function(e) {
+                if (e.target === this) {
+                    $('.uw-upgrade-modal-overlay').fadeOut(200, function() {
+                        $(this).remove();
+                    });
+                }
+            });
+        },
+
+        /**
          * Handle keyboard shortcuts
          */
         handleKeyboardShortcuts: function(e) {
             // Escape key to close modal
             if (e.keyCode === 27 && $('#watermark-modal').is(':visible')) {
                 WatermarksPage.closeModal();
+            }
+            
+            // Escape key to close upgrade modal
+            if (e.keyCode === 27 && $('.uw-upgrade-modal-overlay').is(':visible')) {
+                $('.uw-upgrade-modal-overlay').fadeOut(200, function() {
+                    $(this).remove();
+                });
             }
             
             // Ctrl/Cmd + N to add new watermark
