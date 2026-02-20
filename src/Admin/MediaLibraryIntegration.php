@@ -293,6 +293,10 @@ class MediaLibraryIntegration
         $image_sizes = get_intermediate_image_sizes();
         $image_sizes[] = 'full';
         
+        // CRITICAL: Check if attachment has metadata with sizes
+        $attachment_metadata = wp_get_attachment_metadata($attachment_id);
+        $mime_type = get_post_mime_type($attachment_id);
+        
         // Extract watermark_rules for per-size evaluation
         $rules = $watermark_data['watermark_rules'] ?? [];
         $has_rule_conditions = false;
@@ -305,14 +309,8 @@ class MediaLibraryIntegration
             }
         }
         
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark [Manual]: Attachment ' . $attachment_id . ', Watermark ' . $watermark_id);
-            error_log('Ultimate Watermark [Manual]: has_rule_conditions=' . ($has_rule_conditions ? 'YES' : 'NO'));
-            error_log('Ultimate Watermark [Manual]: Rules data: ' . print_r($rules, true));
-            error_log('Ultimate Watermark [Manual]: Image sizes to process: ' . implode(', ', $image_sizes));
-        }
-        
         $success_count = 0;
+        $rules_skipped_sizes = []; // Track sizes skipped due to rule conditions
         
         // Apply watermarks to each size, evaluating rules per-size
         foreach ($image_sizes as $size) {
@@ -320,9 +318,6 @@ class MediaLibraryIntegration
             // If watermark has unified rules with conditions, skip legacy filter
             if (!$has_rule_conditions) {
                 if (!WatermarkHelper::shouldApplyWatermarkByImageSize($watermark_data, $size)) {
-                    if (defined('WP_DEBUG') && WP_DEBUG) {
-                        error_log('Ultimate Watermark [Manual]: Size "' . $size . '" SKIPPED by legacy shouldApplyWatermarkByImageSize');
-                    }
                     continue;
                 }
             }
@@ -332,19 +327,15 @@ class MediaLibraryIntegration
             if ($has_rule_conditions) {
                 $eval_context = RulesEvaluator::buildContext($attachment_id, $size, 0);
                 $rule_result = RulesEvaluator::evaluate($rules, $eval_context);
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('Ultimate Watermark [Manual]: Size "' . $size . '" rules evaluate=' . ($rule_result ? 'PASS' : 'FAIL') . ', context image_size=' . ($eval_context['image_size'] ?? 'N/A'));
-                }
                 if (!$rule_result) {
+                    // Track that this size was skipped due to rule conditions
+                    $rules_skipped_sizes[] = $size;
                     continue; // Rules don't match for this size
                 }
             }
             
             // All rules passed, apply watermark
             $image_path = $this->getImagePathForSize($attachment_id, $size);
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark [Manual]: Size "' . $size . '" path=' . ($image_path ?: 'NULL') . ', exists=' . ($image_path && file_exists($image_path) ? 'YES' : 'NO'));
-            }
             if (!$image_path || !file_exists($image_path)) {
                 $result['skipped_sizes'][] = [
                     'size' => $size,
@@ -379,9 +370,6 @@ class MediaLibraryIntegration
                         ),
                     ];
                 }
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('Ultimate Watermark [Manual]: Size "' . $size . '" watermark apply=' . ($apply_success ? 'SUCCESS' : 'FAILED'));
-                }
             } catch (\Exception $e) {
                 \MantraBrain\UltimateWatermark\Watermark\WatermarkService::setAttachmentContext([]);
                 $result['failed_sizes'][] = [
@@ -393,9 +381,6 @@ class MediaLibraryIntegration
                         $e->getMessage()
                     ),
                 ];
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('Ultimate Watermark [Manual]: Size "' . $size . '" EXCEPTION: ' . $e->getMessage());
-                }
             }
         }
         
@@ -410,7 +395,16 @@ class MediaLibraryIntegration
                 implode(', ', $result['applied_sizes'])
             );
         } else {
-            $result['message'] = __('Watermark was not applied to any size.', 'ultimate-watermark');
+            // Provide specific reason why watermark wasn't applied
+            if (!empty($rules_skipped_sizes)) {
+                $result['message'] = sprintf(
+                    /* translators: %s: comma-separated list of size names */
+                    __('Watermark was not applied to any size. The watermark rules did not match any of the available image sizes (%s). Please check your watermark rule conditions.', 'ultimate-watermark'),
+                    implode(', ', $rules_skipped_sizes)
+                );
+            } else {
+                $result['message'] = __('Watermark was not applied to any size.', 'ultimate-watermark');
+            }
         }
         
         if (!empty($result['skipped_sizes'])) {
@@ -999,6 +993,16 @@ class MediaLibraryIntegration
                             $thisInfo.slideUp(200);
                         }
                         window.ultimateWatermarkUpdateToggleState();
+                        
+                        // CRITICAL: Immediately update all plupload instances with new toggle state
+                        // This ensures uploads that happen right after toggling use the correct state
+                        if (window.ultimateWatermarkUploaders && window.ultimateWatermarkUploaders.length > 0) {
+                            window.ultimateWatermarkUploaders.forEach(function(up) {
+                                if (up && up.settings && typeof updateMultipartParamsForUploader === 'function') {
+                                    updateMultipartParamsForUploader(up);
+                                }
+                            });
+                        }
                     });
                     
                     // Initialize visibility based on toggle state - use multiple checks
@@ -1105,17 +1109,21 @@ class MediaLibraryIntegration
                                 const toggleState = localStorage.getItem('ultimate_watermark_toggle_state');
                                 if (toggleState === '1') {
                                     result['ultimate_watermark_auto_apply'] = '1';
-                                }
-                                try {
-                                    const savedIds = localStorage.getItem('ultimate_watermark_selected_ids');
-                                    if (savedIds) {
-                                        const parsed = JSON.parse(savedIds);
-                                        if (Array.isArray(parsed) && parsed.length > 0) {
-                                            result['ultimate_watermark_ids'] = parsed.join(',');
+                                    try {
+                                        const savedIds = localStorage.getItem('ultimate_watermark_selected_ids');
+                                        if (savedIds) {
+                                            const parsed = JSON.parse(savedIds);
+                                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                                result['ultimate_watermark_ids'] = parsed.join(',');
+                                            }
                                         }
+                                    } catch (e) {
+                                        // Silent fail
                                     }
-                                } catch (e) {
-                                    // Silent fail
+                                } else {
+                                    // CRITICAL: Delete the parameter when toggle is OFF
+                                    delete result['ultimate_watermark_auto_apply'];
+                                    delete result['ultimate_watermark_ids'];
                                 }
                             }
                             
@@ -1133,17 +1141,21 @@ class MediaLibraryIntegration
                                 const toggleState = localStorage.getItem('ultimate_watermark_toggle_state');
                                 if (toggleState === '1') {
                                     obj['ultimate_watermark_auto_apply'] = '1';
-                                }
-                                try {
-                                    const savedIds = localStorage.getItem('ultimate_watermark_selected_ids');
-                                    if (savedIds) {
-                                        const parsed = JSON.parse(savedIds);
-                                        if (Array.isArray(parsed) && parsed.length > 0) {
-                                            obj['ultimate_watermark_ids'] = parsed.join(',');
+                                    try {
+                                        const savedIds = localStorage.getItem('ultimate_watermark_selected_ids');
+                                        if (savedIds) {
+                                            const parsed = JSON.parse(savedIds);
+                                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                                obj['ultimate_watermark_ids'] = parsed.join(',');
+                                            }
                                         }
+                                    } catch (e) {
+                                        // Silent fail
                                     }
-                                } catch (e) {
-                                    // Silent fail
+                                } else {
+                                    // CRITICAL: Delete the parameter when toggle is OFF
+                                    delete obj['ultimate_watermark_auto_apply'];
+                                    delete obj['ultimate_watermark_ids'];
                                 }
                             }
                             return originalEach.apply(this, arguments);
@@ -1209,10 +1221,12 @@ class MediaLibraryIntegration
                     return;
                 }
                 
-                // Check if toggle is ON
-                const $toggle = $('#ultimate-watermark-auto-apply:checked, #ultimate-watermark-auto-apply-popup:checked');
+                // CRITICAL: Read toggle state from localStorage, NOT from checkbox DOM
+                // This ensures we use the latest saved state even if checkbox was just changed
+                const toggleState = localStorage.getItem('ultimate_watermark_toggle_state');
+                const isToggleEnabled = (toggleState === '1');
                 
-                if ($toggle.length) {
+                if (isToggleEnabled) {
                     // Ensure multipart_params exists
                     if (!up.settings.multipart_params) {
                         up.settings.multipart_params = {};
@@ -1403,16 +1417,9 @@ class MediaLibraryIntegration
         // Store the IDs in a temporary option (one-time use, read by upload_post_params filter)
         $ids_string = isset($_POST['ids']) ? sanitize_text_field($_POST['ids']) : '';
         
-        // Always log for debugging
-        error_log('Ultimate Watermark: handleSetTempSelectedIds - Received IDs: [' . $ids_string . ']');
-        
         update_option('ultimate_watermark_temp_selected_ids', $ids_string, false);
         
-        // Verify it was stored
-        $stored = get_option('ultimate_watermark_temp_selected_ids', '');
-        error_log('Ultimate Watermark: handleSetTempSelectedIds - Stored and verified: [' . $stored . ']');
-        
-        wp_send_json_success(['message' => 'IDs stored temporarily', 'ids' => $ids_string, 'stored' => $stored]);
+        wp_send_json_success(['message' => 'IDs stored temporarily', 'ids' => $ids_string]);
     }
 
     /**
