@@ -590,9 +590,9 @@ class WatermarkPage
     {
         $watermark_rules = $watermark['watermark_rules'] ?? [];
         
-        // If no unified rules, fall back to legacy display
+        // If no unified rules, show "No rules"
         if (empty($watermark_rules) || !is_array($watermark_rules)) {
-            return $this->formatLegacyRules($watermark);
+            return '<span class="rule-item no-rules">' . __('No rules', 'ultimate-watermark') . '</span>';
         }
         
         // Check if any rule has conditions
@@ -604,9 +604,9 @@ class WatermarkPage
             }
         }
         
-        // If no conditions defined, show as "No restrictions"
+        // If no conditions defined, show as "No rules"
         if (!$has_conditions) {
-            return '<span class="rule-item no-restrictions">' . __('No restrictions', 'ultimate-watermark') . '</span>';
+            return '<span class="rule-item no-rules">' . __('No rules', 'ultimate-watermark') . '</span>';
         }
         
         $rule_summaries = [];
@@ -648,7 +648,7 @@ class WatermarkPage
         }
         
         if (empty($rule_summaries)) {
-            return '<span class="rule-item no-restrictions">' . __('No restrictions', 'ultimate-watermark') . '</span>';
+            return '<span class="rule-item no-rules">' . __('No rules', 'ultimate-watermark') . '</span>';
         }
         
         return implode('', $rule_summaries);

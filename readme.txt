@@ -427,14 +427,3 @@ Watermarks are applied at the WordPress media library level, so they work with a
 
 = 1.0.0 - 2019/02/16 =
 * **Initial Release** - Core watermarking features
-
-== Upgrade Notice ==
-
-= 2.0.2 =
-Major update with complete rewrite! Automatic migration from v1.x. Free version now limited to 1 watermark. Backup your site before updating.
-
-= 1.1.1 =
-Important bug fixes and compatibility improvements. Update recommended.
-
-= 1.0.11 =
-WordPress 6.4 compatibility verified. Performance improvements included.

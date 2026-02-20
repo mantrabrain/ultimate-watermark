@@ -723,86 +723,70 @@ class WatermarkHelper
                     return false;
                 }
                 
-                // Check unified watermark_rules conditions first (if any exist with conditions)
+                // Check unified watermark_rules - MUST have rules to apply
                 $rules = $watermark['watermark_rules'] ?? [];
-                if (!empty($rules) && is_array($rules)) {
-                    // Check if any rule actually has conditions defined
-                    $has_conditions = false;
-                    foreach ($rules as $rule) {
-                        if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
-                            $has_conditions = true;
-                            break;
+                if (empty($rules) || !is_array($rules)) {
+                    return false; // No rules = don't apply watermark
+                }
+                
+                // Check if any rule actually has conditions defined
+                $has_conditions = false;
+                foreach ($rules as $rule) {
+                    if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
+                        $has_conditions = true;
+                        break;
+                    }
+                }
+                
+                if (!$has_conditions) {
+                    return false; // No conditions defined = don't apply watermark
+                }
+                
+                // Build context for evaluation
+                $eval_context = [
+                    'image_size' => $image_size,
+                    'post_type' => '',
+                ];
+                
+                // Resolve post type from context
+                if ($post_id) {
+                    $parent_post_id = self::getParentPostId($post_id);
+                    if ($parent_post_id > 0) {
+                        $parent = get_post($parent_post_id);
+                        if ($parent) {
+                            $eval_context['post_type'] = $parent->post_type;
+                            $categories = wp_get_post_categories($parent_post_id, ['fields' => 'slugs']);
+                            if (!empty($categories) && !is_wp_error($categories)) {
+                                $eval_context['post_category'] = $categories[0];
+                            }
+
+                            // WooCommerce product taxonomies
+                            if ($parent->post_type === 'product') {
+                                $product_cats = wp_get_post_terms($parent_post_id, 'product_cat', ['fields' => 'slugs']);
+                                if (!is_wp_error($product_cats) && !empty($product_cats)) {
+                                    $eval_context['product_cat'] = $product_cats[0];
+                                    $eval_context['product_cats'] = $product_cats;
+                                }
+                                $product_tags = wp_get_post_terms($parent_post_id, 'product_tag', ['fields' => 'slugs']);
+                                if (!is_wp_error($product_tags) && !empty($product_tags)) {
+                                    $eval_context['product_tag'] = $product_tags[0];
+                                    $eval_context['product_tags'] = $product_tags;
+                                }
+                            }
                         }
                     }
                     
-                    if ($has_conditions) {
-                        // Build context for evaluation
-                        $eval_context = [
-                            'image_size' => $image_size,
-                            'post_type' => '',
-                        ];
-                        
-                        // Resolve post type from context
-                        if ($post_id) {
-                            $parent_post_id = self::getParentPostId($post_id);
-                            if ($parent_post_id > 0) {
-                                $parent = get_post($parent_post_id);
-                                if ($parent) {
-                                    $eval_context['post_type'] = $parent->post_type;
-                                    $categories = wp_get_post_categories($parent_post_id, ['fields' => 'slugs']);
-                                    if (!empty($categories) && !is_wp_error($categories)) {
-                                        $eval_context['post_category'] = $categories[0];
-                                    }
-
-                                    // WooCommerce product taxonomies
-                                    if ($parent->post_type === 'product') {
-                                        $product_cats = wp_get_post_terms($parent_post_id, 'product_cat', ['fields' => 'slugs']);
-                                        if (!is_wp_error($product_cats) && !empty($product_cats)) {
-                                            $eval_context['product_cat'] = $product_cats[0];
-                                            $eval_context['product_cats'] = $product_cats;
-                                        }
-                                        $product_tags = wp_get_post_terms($parent_post_id, 'product_tag', ['fields' => 'slugs']);
-                                        if (!is_wp_error($product_tags) && !empty($product_tags)) {
-                                            $eval_context['product_tag'] = $product_tags[0];
-                                            $eval_context['product_tags'] = $product_tags;
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            // File info from attachment
-                            $file_path = get_attached_file($post_id);
-                            if ($file_path && file_exists($file_path)) {
-                                $eval_context['file_path'] = $file_path;
-                                $eval_context['mime_type'] = wp_check_filetype($file_path)['type'] ?? '';
-                                $eval_context['file_size_kb'] = round(filesize($file_path) / 1024);
-                            }
-                        }
-                        
-                        // Evaluate unified rules
-                        if (!RulesEvaluator::evaluate($rules, $eval_context)) {
-                            return false;
-                        }
-                        
-                        // Unified rules passed — skip legacy checks since rules cover everything
-                        return true;
+                    // File info from attachment
+                    $file_path = get_attached_file($post_id);
+                    if ($file_path && file_exists($file_path)) {
+                        $eval_context['file_path'] = $file_path;
+                        $eval_context['mime_type'] = wp_check_filetype($file_path)['type'] ?? '';
+                        $eval_context['file_size_kb'] = round(filesize($file_path) / 1024);
                     }
                 }
                 
-                // Fallback: legacy post type and image size checks
-                $post_type_check = self::shouldApplyWatermarkByPostType($watermark, $context, $post_id);
-                if (!$post_type_check) {
-                    return false;
-                }
-                
-                // Check image size rules
-                $size_check = self::shouldApplyWatermarkByImageSize($watermark, $image_size);
-                if (!$size_check) {
-                    return false;
-                }
-                
-                // Both checks passed
-                return true;
+                // Evaluate unified rules
+                return RulesEvaluator::evaluate($rules, $eval_context);
             });
 
         } catch (\Exception $e) {

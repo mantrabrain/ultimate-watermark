@@ -716,7 +716,7 @@ class RestApiIntegration
             $automatic_watermarks = array_filter($automatic_watermarks, function($watermark) use ($attachment_id, $size, $parent_post_id) {
                 $rules = $watermark['watermark_rules'] ?? [];
                 if (empty($rules) || !is_array($rules)) {
-                    return true; // No unified rules = no extra restriction
+                    return false; // No unified rules = don't apply watermark
                 }
                 // Check if any rule has conditions
                 $has_conditions = false;
@@ -727,7 +727,7 @@ class RestApiIntegration
                     }
                 }
                 if (!$has_conditions) {
-                    return true; // No conditions defined = no restriction
+                    return false; // No conditions defined = don't apply watermark
                 }
                 $eval_context = \MantraBrain\UltimateWatermark\Utils\RulesEvaluator::buildContext(
                     $attachment_id, $size, intval($parent_post_id ?: 0)

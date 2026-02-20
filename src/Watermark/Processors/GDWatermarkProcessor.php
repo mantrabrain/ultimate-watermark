@@ -299,7 +299,7 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         $currentHeight = imagesy($image);
 
         // Get full size dimensions with fallback strategies
-        $fullDimensions = $this->getFullSizeDimensions($watermarkData);
+        $fullDimensions = $this->getFullSizeDimensions($watermarkData, $currentWidth, $currentHeight);
         
         // Calculate scaling ratio
         $ratioX = $currentWidth / $fullDimensions['width'];
@@ -320,7 +320,7 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
     /**
      * Get full size dimensions using multiple strategies
      */
-    private function getFullSizeDimensions(array $watermarkData): array
+    private function getFullSizeDimensions(array $watermarkData, int $currentWidth, int $currentHeight): array
     {
         // Strategy 1: From watermark data
         $width = $watermarkData['_full_size_width'] ?? null;
@@ -332,7 +332,7 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
 
         // Strategy 2: From source image path
         $sourcePath = $watermarkData['_source_image_path'] ?? '';
-        if ($sourcePath) {
+        if ($sourcePath && file_exists($sourcePath)) {
             $attachmentId = $this->getAttachmentIdFromPath($sourcePath);
             if ($attachmentId) {
                 $metadata = wp_get_attachment_metadata($attachmentId);
@@ -343,7 +343,8 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         }
 
         // Strategy 3: Use current image dimensions (fallback)
-        throw new \RuntimeException('Unable to determine full size image dimensions');
+        // This is safe for preview generation and when full size info is unavailable
+        return ['width' => $currentWidth, 'height' => $currentHeight];
     }
 
     /**
@@ -549,19 +550,77 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
     }
 
     /**
-     * Get attachment ID from file path
+     * Get attachment ID from image file path
+     * Handles both full size images and thumbnails/resized versions
      */
-    private function getAttachmentIdFromPath(string $filePath): int
+    private function getAttachmentIdFromPath(string $imagePath): ?int
     {
-        global $wpdb;
+        if (empty($imagePath)) {
+            return null;
+        }
         
-        $fileName = basename($filePath);
+        // Normalize path
+        $normalizedPath = wp_normalize_path($imagePath);
+        $uploadDir = wp_upload_dir();
+        $baseDir = wp_normalize_path($uploadDir['basedir']);
+        
+        // Get relative path from uploads directory
+        if (strpos($normalizedPath, $baseDir) !== 0) {
+            return null;
+        }
+        
+        $relativePath = str_replace($baseDir . '/', '', $normalizedPath);
+        $pathInfo = pathinfo($relativePath);
+        $baseFilename = $pathInfo['filename'];
+        $directory = $pathInfo['dirname'];
+        
+        // First, try exact match (for full size images)
+        global $wpdb;
         $attachmentId = $wpdb->get_var($wpdb->prepare(
-            "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_wp_attached_file' AND meta_value LIKE %s",
-            '%' . $wpdb->esc_like($fileName)
+            "SELECT post_id FROM {$wpdb->postmeta} 
+            WHERE meta_key = '_wp_attached_file' 
+            AND meta_value = %s 
+            LIMIT 1",
+            $relativePath
         ));
-
-        return (int) $attachmentId;
+        
+        if ($attachmentId) {
+            return (int) $attachmentId;
+        }
+        
+        // If exact match fails, try to match by base filename and directory
+        // This handles thumbnails and resized images (e.g., image-150x150.jpg -> image.jpg)
+        // Remove size suffix (e.g., -150x150) from filename
+        $baseFilenameClean = preg_replace('/-\d+x\d+$/', '', $baseFilename);
+        $extension = isset($pathInfo['extension']) ? '.' . $pathInfo['extension'] : '';
+        
+        // Try to find attachment with matching base filename in same directory
+        $possiblePath = $directory === '.' ? $baseFilenameClean . $extension : $directory . '/' . $baseFilenameClean . $extension;
+        
+        $attachmentId = $wpdb->get_var($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta} 
+            WHERE meta_key = '_wp_attached_file' 
+            AND meta_value = %s 
+            LIMIT 1",
+            $possiblePath
+        ));
+        
+        if ($attachmentId) {
+            return (int) $attachmentId;
+        }
+        
+        // Last resort: search by base filename pattern in metadata
+        $attachmentId = $wpdb->get_var($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta} pm
+            INNER JOIN {$wpdb->posts} p ON pm.post_id = p.ID
+            WHERE pm.meta_key = '_wp_attached_file'
+            AND pm.meta_value LIKE %s
+            AND p.post_type = 'attachment'
+            LIMIT 1",
+            '%' . $wpdb->esc_like($baseFilenameClean) . '%'
+        ));
+        
+        return $attachmentId ? (int) $attachmentId : null;
     }
 
     /**
@@ -771,5 +830,25 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
                 imagesetpixel($image, $x, $y, imagecolorallocatealpha($image, $colors['red'], $colors['green'], $colors['blue'], $alpha));
             }
         }
+    }
+
+    /**
+     * Get supported image formats
+     * 
+     * @return array Array of supported formats
+     */
+    public function getSupportedFormats(): array
+    {
+        return ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    }
+
+    /**
+     * Check if processor is available
+     * 
+     * @return bool True if GD library is available
+     */
+    public function isAvailable(): bool
+    {
+        return extension_loaded('gd') && function_exists('gd_info');
     }
 }

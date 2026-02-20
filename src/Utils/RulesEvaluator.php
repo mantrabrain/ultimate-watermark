@@ -18,7 +18,7 @@ class RulesEvaluator
      * 
      * If ANY rule passes (rules are OR'd at the top level), the watermark applies.
      * Within a rule, conditions are combined using the rule's logic_operator (AND/OR).
-     * If no rules have conditions, watermark applies (no restrictions).
+     * If no rules are set, watermark does NOT apply (must have rules to apply).
      *
      * @param array $rules      The watermark_rules array (keyed by rule_id)
      * @param array $context    Contextual data for evaluation
@@ -27,10 +27,10 @@ class RulesEvaluator
     public static function evaluate(array $rules, array $context): bool
     {
         if (empty($rules)) {
-            return true; // No rules = no restrictions
+            return false; // No rules = don't apply watermark
         }
 
-        // Check if ALL rules have zero conditions — treat as unrestricted
+        // Check if ALL rules have zero conditions — treat as no rules set
         $has_any_conditions = false;
         foreach ($rules as $rule) {
             if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
@@ -40,7 +40,7 @@ class RulesEvaluator
         }
 
         if (!$has_any_conditions) {
-            return true; // All rules have empty conditions = no restrictions
+            return false; // All rules have empty conditions = no rules set, don't apply
         }
 
         // Evaluate each rule: if ANY rule passes, watermark applies
