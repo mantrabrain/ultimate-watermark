@@ -4,7 +4,7 @@ Donate link: https://mantrabrain.com/plugins/ultimate-watermark
 Tags: watermark, image protection, copyright, photo watermark, bulk watermark
 Requires at least: 5.0
 Tested up to: 6.9
-Stable tag: 2.0.2
+Stable tag: 2.0.3
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Requires PHP: 7.4
@@ -29,6 +29,12 @@ Automatically protect your images with professional watermarks. Add text or imag
 * **[Plugin Homepage](https://mantrabrain.com/plugins/ultimate-watermark)** - Official landing page with features and demos
 * **[Get Support](https://wordpress.org/support/plugin/ultimate-watermark/)** - Free community support forum
 * **[Feature Requests](https://mantrabrain.com/contact)** - Suggest new features and improvements
+
+= 📺 Video Walkthrough =
+
+Watch this quick video tutorial to see Ultimate Watermark in action and learn how to protect your images in minutes:
+
+https://www.youtube.com/watch?v=6QcDWgtaJRU
 
 = ⭐ Key Features (Free Version) =
 
@@ -361,9 +367,10 @@ Watermarks are applied at the WordPress media library level, so they work with a
 
 == Changelog ==
 
-= 2.0.2- 2026/02/20  =
+= 2.0.3- 2026/02/20  =
 * **Fixed** - Duplication issue fixed
 * **Fixed** - GD library issue fixed
+* **Fixed** - Minor other issues
 
 = 2.0 - 2026/02/19 =
 **Major Update - Complete Rewrite**
