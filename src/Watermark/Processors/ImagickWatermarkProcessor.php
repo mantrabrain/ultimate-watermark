@@ -480,15 +480,6 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
             return;
         }
         
-        
-        // Check if watermark image has any non-transparent pixels
-        $watermarkImage->setImageAlphaChannel(\Imagick::ALPHACHANNEL_DEACTIVATE);
-        $watermarkImage->setImageBackgroundColor('white');
-        $watermarkImage->setImageAlphaChannel(\Imagick::ALPHACHANNEL_DEACTIVATE);
-        
-        // Get image statistics to check if it has content
-        $stats = $watermarkImage->getImageChannelStatistics();
-        
         $rotation = $watermarkData['watermark_rotation'] ?? 0;
         $opacity = $watermarkData['watermark_opacity'] ?? 50;
         

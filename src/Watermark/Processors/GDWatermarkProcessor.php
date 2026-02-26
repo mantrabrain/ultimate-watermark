@@ -238,6 +238,11 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
                 break;
             case IMAGETYPE_PNG:
                 $image = imagecreatefrompng($imagePath);
+                // Preserve PNG transparency
+                if ($image) {
+                    imagealphablending($image, false);
+                    imagesavealpha($image, true);
+                }
                 break;
             case IMAGETYPE_GIF:
                 $image = imagecreatefromgif($imagePath);
@@ -245,6 +250,11 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             case IMAGETYPE_WEBP:
                 if (function_exists('imagecreatefromwebp')) {
                     $image = imagecreatefromwebp($imagePath);
+                    // Preserve WebP transparency
+                    if ($image) {
+                        imagealphablending($image, false);
+                        imagesavealpha($image, true);
+                    }
                 } else {
                     throw new \RuntimeException('WebP format not supported by this GD version');
                 }
@@ -448,11 +458,17 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             $watermarkDimensions = $this->calculateWatermarkDimensions($watermarkImg, $watermarkData);
             $position = $this->calculateImagePosition($image, $watermarkDimensions, $watermarkData);
 
-            // Apply transparency
-            $opacity = $watermarkData['watermark_opacity'] ?? 50;
-            $this->applyImageTransparency($watermarkImg, $opacity);
+            // Enable alpha blending on destination image
+            imagealphablending($image, true);
+            imagesavealpha($image, true);
 
-            // Copy watermark to main image
+            // Apply opacity to watermark if needed
+            $opacity = $watermarkData['watermark_opacity'] ?? 100;
+            if ($opacity < 100) {
+                $this->applyImageTransparency($watermarkImg, $opacity);
+            }
+
+            // Copy watermark to main image with alpha blending
             $result = imagecopyresampled(
                 $image,
                 $watermarkImg,
@@ -808,26 +824,44 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
     }
 
     /**
-     * Apply transparency to image
+     * Apply transparency to image while preserving original alpha channel
      */
-    private function applyImageTransparency(\GdImage $image, int $transparency): void
+    private function applyImageTransparency(\GdImage $image, int $opacity): void
     {
-        if ($transparency >= 100) {
+        if ($opacity >= 100) {
             return; // Fully opaque, no changes needed
         }
 
-        $alpha = $this->calculateAlpha($transparency);
-        
-        // Create transparent overlay
+        // Preserve alpha blending settings
         imagealphablending($image, false);
         imagesavealpha($image, true);
         
-        // Apply alpha blending
-        for ($x = 0; $x < imagesx($image); $x++) {
-            for ($y = 0; $y < imagesy($image); $y++) {
-                $color = imagecolorat($image, $x, $y);
-                $colors = imagecolorsforindex($image, $color);
-                imagesetpixel($image, $x, $y, imagecolorallocatealpha($image, $colors['red'], $colors['green'], $colors['blue'], $alpha));
+        // Calculate opacity multiplier (0-1)
+        $opacityMultiplier = $opacity / 100;
+        
+        // Apply opacity while preserving original transparency
+        $width = imagesx($image);
+        $height = imagesy($image);
+        
+        for ($x = 0; $x < $width; $x++) {
+            for ($y = 0; $y < $height; $y++) {
+                $colorIndex = imagecolorat($image, $x, $y);
+                $colors = imagecolorsforindex($image, $colorIndex);
+                
+                // Preserve original alpha and multiply by opacity
+                // Alpha in GD: 0 = opaque, 127 = transparent
+                $originalAlpha = $colors['alpha'];
+                $newAlpha = 127 - ((127 - $originalAlpha) * $opacityMultiplier);
+                $newAlpha = max(0, min(127, (int)round($newAlpha)));
+                
+                $newColor = imagecolorallocatealpha(
+                    $image,
+                    $colors['red'],
+                    $colors['green'],
+                    $colors['blue'],
+                    $newAlpha
+                );
+                imagesetpixel($image, $x, $y, $newColor);
             }
         }
     }
