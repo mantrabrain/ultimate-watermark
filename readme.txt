@@ -9,7 +9,7 @@ License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Requires PHP: 7.4
 
-Automatically protect your images with professional watermarks. Add text or image watermarks to WordPress media uploads with advanced positioning and backup features.
+Automatically protect your images with professional watermarks. Add text or image watermarks to WordPress media uploads with advanced positioning.
 
 == Description ==
 
