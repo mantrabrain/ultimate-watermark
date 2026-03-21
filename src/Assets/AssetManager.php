@@ -393,8 +393,8 @@ class AssetManager
 
         // Localize settings script with specific nonce
         if (wp_script_is('ultimate-watermark-settings', 'enqueued')) {
-            wp_localize_script('ultimate-watermark-settings', 'ultimate_watermark_settings', [
-                'ajax_url' => esc_url(admin_url('admin-ajax.php')),
+            wp_localize_script('ultimate-watermark-settings', 'ultimateWatermarkSettings', [
+                'ajaxurl' => esc_url(admin_url('admin-ajax.php')),
                 'nonce' => wp_create_nonce('ultimate_watermark_settings'),
                 'strings' => [
                     'saving' => __('Saving settings...', 'ultimate-watermark'),

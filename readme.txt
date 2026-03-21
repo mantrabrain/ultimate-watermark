@@ -4,7 +4,7 @@ Donate link: https://mantrabrain.com/plugins/ultimate-watermark
 Tags: watermark, image protection, copyright, photo watermark, bulk watermark
 Requires at least: 5.0
 Tested up to: 6.9
-Stable tag: 2.0.4
+Stable tag: 2.0.5
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Requires PHP: 7.4
@@ -366,6 +366,11 @@ Watermarks are applied at the WordPress media library level, so they work with a
 7. **Media Watermark** - apply watermark from media page.
 
 == Changelog ==
+
+= 2.0.5 - 2026/03/21 =
+* **Fixed** - JavaScript error in settings page - Fixed "ultimateWatermarkSettings is not defined" error
+* **Fixed** - Variable name mismatch between PHP localization and JavaScript usage
+* **Fixed** - Settings form now submits properly without JavaScript errors
 
 = 2.0.4- 2026/02/26  =
 * **Fixed** - PNG transparency issue - Transparent PNG watermarks now render correctly with preserved transparency
