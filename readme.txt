@@ -4,7 +4,7 @@ Donate link: https://mantrabrain.com/plugins/ultimate-watermark
 Tags: watermark, image protection, copyright, photo watermark, bulk watermark
 Requires at least: 5.0
 Tested up to: 6.9
-Stable tag: 2.0.6
+Stable tag: 2.0.7
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Requires PHP: 7.4
@@ -366,6 +366,13 @@ Watermarks are applied at the WordPress media library level, so they work with a
 7. **Media Watermark** - apply watermark from media page.
 
 == Changelog ==
+
+= 2.0.7 - 2026/04/05 =
+* **Fixed** - Media popup toggle now appears reliably in ALL WordPress media popups
+* **Fixed** - Replaced broken timeout/event approach with modal-detect + poll loop
+* **Fixed** - Toggle injection waits for plupload to finish building the .browser button
+* **Fixed** - Works for all admin pages (post editor, page editor, widgets, etc.)
+* **Fixed** - Expanded page whitelist to include media-new.php and media-upload.php
 
 = 2.0.6 - 2026/04/05 =
 * **Fixed** - post-upload-ui hook now restricted to the media library page (upload.php) only, preventing interference with other plugins or themes that use the same hook

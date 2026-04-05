@@ -528,12 +528,13 @@ class MediaLibraryIntegration
     public function addUploadToggle(bool $force = false): void
     {
         global $pagenow;
-        // Only render inline via post-upload-ui on the dedicated media library page.
-        // On other admin pages (post editor, page editor, etc.) the toggle HTML is
-        // output hidden in the footer via addUploadToggleToFooter() and injected into
-        // media popups by JavaScript - preventing interference with other plugins that
-        // also use the post-upload-ui hook.
-        if (!$force && $pagenow !== 'upload.php') {
+        // Only render inline via post-upload-ui on dedicated media pages.
+        // On other admin pages (post editor, page editor, WooCommerce, etc.) the
+        // toggle HTML is output hidden in the footer via addUploadToggleToFooter()
+        // and injected into media popups by JavaScript - preventing interference with
+        // other plugins/themes that also use the post-upload-ui hook on those pages.
+        $media_pages = ['upload.php', 'media-new.php', 'media-upload.php', 'async-upload.php'];
+        if (!$force && !in_array($pagenow, $media_pages, true)) {
             return;
         }
 
@@ -1188,8 +1189,11 @@ class MediaLibraryIntegration
                         ready: function() {
                             wp.media.view.UploaderWindow.__super__.ready.apply(this, arguments);
                             
-                            // Initialize toggle if it exists in the uploader
+                            // First inject the toggle into the popup, then initialize it
                             setTimeout(function() {
+                                if (typeof window.injectToggleIntoMediaPopup === 'function') {
+                                    window.injectToggleIntoMediaPopup();
+                                }
                                 initToggle();
                                 
                                 // Hook into plupload to send toggle state and selected IDs
@@ -2085,8 +2089,10 @@ class MediaLibraryIntegration
                 
             } // end if (!window.initToggle)
             
-            // Inject toggle into media popup if it doesn't exist
-            function injectToggleIntoMediaPopup() {
+            // Inject toggle into media popup if it doesn't exist.
+            // Exposed on window so the UploaderWindow.ready() extension in the
+            // addUploadToggle() script block can call it across IIFE boundaries.
+            window.injectToggleIntoMediaPopup = function() {
                 // Check if toggle already exists (in visible area, not hidden footer)
                 if ($('#ultimate-watermark-upload-toggle-popup').length || 
                     $('#ultimate-watermark-upload-toggle').closest('.uploader-inline, .plupload_dropbox, .upload-ui').length) {
@@ -2158,7 +2164,7 @@ class MediaLibraryIntegration
                         }, 100);
                     }
                 }
-            }
+            };
             
             // Move toggle after browse button (for upload page)
             function moveWatermarkToggle() {
@@ -2190,61 +2196,112 @@ class MediaLibraryIntegration
             }
             
             $(document).ready(function() {
-                // Try to move immediately (for upload page)
+                // For dedicated upload pages: move toggle immediately and after a delay
                 moveWatermarkToggle();
-                
-                // Inject into media popup when it opens
-                if (typeof wp !== 'undefined' && wp.media) {
-                    $(document).on('click', '.insert-media, .add_media', function() {
-                        setTimeout(function() {
-                            injectToggleIntoMediaPopup();
-                            moveWatermarkToggle();
-                        }, 500);
-                    });
-                    
-                    // Also watch for media modal open event
-                    wp.media.controller.Library = wp.media.controller.Library.extend({
-                        activate: function() {
-                            wp.media.controller.Library.__super__.activate.apply(this, arguments);
-                            setTimeout(function() {
-                                injectToggleIntoMediaPopup();
-                                moveWatermarkToggle();
-                            }, 500);
-                        }
-                    });
+                setTimeout(moveWatermarkToggle, 800);
+
+                // ── Reliable media-popup injection ──────────────────────────────
+                // Strategy: watch document.body (shallow) for .media-modal insertion.
+                // Once the modal is in the DOM, poll every 300 ms until plupload
+                // has finished building the .browser button, then inject the toggle.
+                // This is more reliable than fixed timeouts or wp.media events because
+                // plupload initialises asynchronously AFTER UploaderWindow.ready().
+
+                var uwPollTimer  = null;
+                var uwPollCount  = 0;
+                var UW_MAX_POLLS = 40; // 40 × 300 ms = 12 s max wait
+
+                function uwStopPoll() {
+                    if (uwPollTimer) { clearInterval(uwPollTimer); uwPollTimer = null; }
+                    uwPollCount = 0;
                 }
-                
-                // Also try after delays in case plupload loads later
-                setTimeout(moveWatermarkToggle, 500);
-                setTimeout(injectToggleIntoMediaPopup, 1000);
-                
-                // Watch for DOM changes (in case plupload loads dynamically)
-                const observer = new MutationObserver(function(mutations) {
-                    mutations.forEach(function(mutation) {
-                        if (mutation.type === 'childList') {
-                            // Support both classic and modern selectors
-                            const $browseButton = $('.plupload-browse-button, .uploader-inline .browser, .upload-ui .browser').first();
-                            const $watermarkToggle = $('#ultimate-watermark-upload-toggle, #ultimate-watermark-upload-toggle-popup');
-                            
-                            // Move toggle if it exists
-                            if ($browseButton.length && $watermarkToggle.length && 
-                                !$browseButton.next().is($watermarkToggle)) {
-                                moveWatermarkToggle();
-                            }
-                            
-                            // Inject toggle if it doesn't exist in media popup
-                            if ($browseButton.length && $watermarkToggle.length === 0) {
-                                injectToggleIntoMediaPopup();
+
+                function uwStartPoll() {
+                    uwStopPoll();
+                    uwPollTimer = setInterval(function() {
+                        uwPollCount++;
+
+                        // Safety: give up after UW_MAX_POLLS attempts
+                        if (uwPollCount > UW_MAX_POLLS) { uwStopPoll(); return; }
+
+                        // Already injected – nothing to do
+                        if ($('#ultimate-watermark-upload-toggle-popup').length) {
+                            uwStopPoll(); return;
+                        }
+
+                        // Popup closed without the upload tab being opened
+                        if (!$('.media-modal').length) { uwStopPoll(); return; }
+
+                        // Wait until plupload has rendered the browse button
+                        var $btn = $(
+                            '#plupload-browse-button,' +
+                            '.uploader-inline .browser,' +
+                            '.upload-ui .browser,' +
+                            '.plupload-browse-button'
+                        ).first();
+
+                        if ($btn.length) {
+                            uwStopPoll();
+                            window.injectToggleIntoMediaPopup();
+                        }
+                    }, 300);
+                }
+
+                // Watch document.body (shallow) for .media-modal being added/removed
+                var modalObserver = new MutationObserver(function(mutations) {
+                    for (var i = 0; i < mutations.length; i++) {
+                        var m = mutations[i];
+
+                        // Modal opened?
+                        for (var a = 0; a < m.addedNodes.length; a++) {
+                            var node = m.addedNodes[a];
+                            if (node.nodeType === 1 &&
+                                (node.classList.contains('media-modal') ||
+                                 node.querySelector && node.querySelector('.media-modal'))) {
+                                uwStartPoll();
+                                break;
                             }
                         }
-                    });
+
+                        // Modal closed? Reset so next open gets a fresh poll
+                        for (var r = 0; r < m.removedNodes.length; r++) {
+                            var rnode = m.removedNodes[r];
+                            if (rnode.nodeType === 1 &&
+                                (rnode.classList.contains('media-modal') ||
+                                 rnode.querySelector && rnode.querySelector('.media-modal'))) {
+                                uwStopPoll();
+                                break;
+                            }
+                        }
+                    }
                 });
-                
-                // Start observing
-                observer.observe(document.body, {
-                    childList: true,
-                    subtree: true
+
+                // Observe only direct children of body – the modal wrapper is always
+                // inserted directly into <body> by WordPress
+                modalObserver.observe(document.body, { childList: true });
+
+                // Also watch subtree for the upload tab switching inside an already
+                // open modal (e.g. user clicks "Upload files" tab after opening)
+                var uploaderObserver = new MutationObserver(function(mutations) {
+                    if ($('.media-modal').length &&
+                        !$('#ultimate-watermark-upload-toggle-popup').length) {
+                        for (var i = 0; i < mutations.length; i++) {
+                            for (var a = 0; a < mutations[i].addedNodes.length; a++) {
+                                var n = mutations[i].addedNodes[a];
+                                if (n.nodeType === 1) {
+                                    var $n = $(n);
+                                    if ($n.hasClass('uploader-window') ||
+                                        $n.hasClass('uploader-inline') ||
+                                        $n.find('.uploader-inline').length) {
+                                        uwStartPoll();
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 });
+                uploaderObserver.observe(document.body, { childList: true, subtree: true });
             });
         })(jQuery);
         </script>
