@@ -522,9 +522,21 @@ class MediaLibraryIntegration
 
     /**
      * Add upload toggle to upload page
+     *
+     * @param bool $force Skip the upload.php page restriction (used by addUploadToggleToFooter).
      */
-    public function addUploadToggle(): void
+    public function addUploadToggle(bool $force = false): void
     {
+        global $pagenow;
+        // Only render inline via post-upload-ui on the dedicated media library page.
+        // On other admin pages (post editor, page editor, etc.) the toggle HTML is
+        // output hidden in the footer via addUploadToggleToFooter() and injected into
+        // media popups by JavaScript - preventing interference with other plugins that
+        // also use the post-upload-ui hook.
+        if (!$force && $pagenow !== 'upload.php') {
+            return;
+        }
+
         // Prevent duplicate output (this method is hooked to multiple actions)
         static $already_output = false;
         if ($already_output) {
@@ -2258,7 +2270,7 @@ class MediaLibraryIntegration
         // Check this via JavaScript to avoid duplicate output
         ?>
         <div id="ultimate-watermark-upload-toggle-footer" style="display: none !important;">
-            <?php $this->addUploadToggle(); ?>
+            <?php $this->addUploadToggle(true); ?>
         </div>
         <?php
     }
