@@ -4,7 +4,7 @@ Donate link: https://mantrabrain.com/plugins/ultimate-watermark
 Tags: watermark, image protection, copyright, photo watermark, bulk watermark
 Requires at least: 5.0
 Tested up to: 6.9
-Stable tag: 2.0.7
+Stable tag: 2.0.8
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Requires PHP: 7.4
@@ -366,6 +366,10 @@ Watermarks are applied at the WordPress media library level, so they work with a
 7. **Media Watermark** - apply watermark from media page.
 
 == Changelog ==
+
+= 2.0.8 - 2026/04/27 =
+* **Fixed** - Legacy targeting rules (post types + image sizes) now apply correctly when `watermark_rules` conditions are not configured
+* **Fixed** - REST API upload watermarking no longer incorrectly skips eligible watermarks that use legacy rules
 
 = 2.0.7 - 2026/04/05 =
 * **Fixed** - Media popup toggle now appears reliably in ALL WordPress media popups

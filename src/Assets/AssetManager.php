@@ -74,7 +74,7 @@ class AssetManager
      */
     private function getVersion(): string
     {
-        return defined('ULTIMATE_WATERMARK_VERSION') ? ULTIMATE_WATERMARK_VERSION : '2.0.2';
+        return defined('ULTIMATE_WATERMARK_VERSION') ? ULTIMATE_WATERMARK_VERSION : '2.0.8';
     }
 
     /**

@@ -4,7 +4,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Ultimate Watermark 2.0.6\n"
+"Project-Id-Version: Ultimate Watermark 2.0.8\n"
 "Report-Msgid-Bugs-To: https://mantrabrain.com/support\n"
 "POT-Creation-Date: 2026-04-05 16:33+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"

@@ -584,26 +584,32 @@ class RestApiIntegration
                 });
             }
             
-            // Final filter: evaluate unified watermark_rules conditions
+            // Final filter: evaluate unified watermark_rules conditions (only when present).
+            // If a watermark has no unified conditions, it should still be eligible via legacy rules.
             $automatic_watermarks = array_filter($automatic_watermarks, function($watermark) use ($attachment_id, $size, $parent_post_id) {
                 $rules = $watermark['watermark_rules'] ?? [];
-                if (empty($rules) || !is_array($rules)) {
-                    return false; // No unified rules = don't apply watermark
-                }
-                // Check if any rule has conditions
+
                 $has_conditions = false;
-                foreach ($rules as $rule) {
-                    if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
-                        $has_conditions = true;
-                        break;
+                if (!empty($rules) && is_array($rules)) {
+                    foreach ($rules as $rule) {
+                        if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
+                            $has_conditions = true;
+                            break;
+                        }
                     }
                 }
+
+                // No unified conditions => do not filter out here (legacy filtering already happened above)
                 if (!$has_conditions) {
-                    return false; // No conditions defined = don't apply watermark
+                    return true;
                 }
+
                 $eval_context = \MantraBrain\UltimateWatermark\Utils\RulesEvaluator::buildContext(
-                    $attachment_id, $size, intval($parent_post_id ?: 0)
+                    $attachment_id,
+                    $size,
+                    intval($parent_post_id ?: 0)
                 );
+
                 return \MantraBrain\UltimateWatermark\Utils\RulesEvaluator::evaluate($rules, $eval_context);
             });
             
