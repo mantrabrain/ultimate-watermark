@@ -26,4 +26,5 @@ ultimate-watermark.tar
 
 # Build artifacts
 dist/
+builder/
 *.zip
