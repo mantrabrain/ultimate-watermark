@@ -19,18 +19,319 @@ class RestApiIntegration
     {
         // Hook into add_attachment (fires for ALL attachment creation, including REST API)
         add_action('add_attachment', [$this, 'markForWatermarking']);
-        
+
+        // CRITICAL: Capture watermark toggle state BEFORE the raw request body is consumed
+        // by WordPress REST API file upload handler. This ensures we can detect the toggle
+        // state even when the raw input has been consumed by the time other hooks fire.
+        add_filter('rest_request_before_callbacks', [$this, 'captureWatermarkToggleFromRequest'], 1, 3);
+
         // Hook into REST API attachment creation (for page/post editor uploads)
         add_action('rest_insert_attachment', [$this, 'handleRestApiAttachmentUpload'], 10, 3);
         add_action('rest_after_insert_attachment', [$this, 'handleRestApiAttachmentUpload'], 10, 3);
-        
+
+        // CRITICAL: Hook into REST API when a product/post is updated to detect featured image changes.
+        // When an image is uploaded via the media popup and then set as featured image,
+        // the attachment is created first (without parent), then the product is updated with
+        // the new _thumbnail_id. This hook catches that update and applies watermarks based
+        // on the parent post type rules.
+        add_filter('rest_request_before_callbacks', [$this, 'handleFeaturedImageChangeViaRest'], 15, 3);
+
         // Hook into wp_insert_post for attachments as ultimate fallback
         // This fires for ALL post creation including REST API
         add_action('wp_insert_post', [$this, 'handleAttachmentPostInsert'], 10, 3);
-        
+
         // Hook into metadata generation to apply watermarks after thumbnails are created
         add_filter('wp_generate_attachment_metadata', [$this, 'processAfterMetadataGeneration'], 10, 2);
     }
+
+    /**
+     * Handle featured image changes via REST API.
+     *
+     * When a user uploads an image via the media popup (e.g., WooCommerce featured image),
+     * the attachment is created first without a parent post. Then WordPress updates the
+     * parent post (product/page/post) to set the _thumbnail_id meta. This hook intercepts
+     * that update to detect newly assigned featured images and apply watermarks based on
+     * the parent post type rules.
+     *
+     * @param WP_REST_Response|WP_Error $response The response object.
+     * @param WP_REST_Request           $request  The request object.
+     * @param WP_REST_Server            $server   The server object.
+     * @return WP_REST_Response|WP_Error
+     */
+    public function handleFeaturedImageChangeViaRest($response, \WP_REST_Request $request, \WP_REST_Server $server)
+    {
+        // Only process POST/PUT requests to post endpoints (products, posts, pages, etc.)
+        $route = $request->get_route();
+        if (strpos($route, '/wp/v2/') === false) {
+            return $response;
+        }
+
+        $method = strtoupper($request->get_method());
+        if (!in_array($method, ['POST', 'PUT', 'PATCH'], true)) {
+            return $response;
+        }
+
+        // Check if the request includes a featured_media change
+        $featuredMedia = $request->get_param('featured_media');
+        if ($featuredMedia === null || $featuredMedia === 0 || !is_numeric($featuredMedia)) {
+            return $response;
+        }
+
+        $attachmentId = absint($featuredMedia);
+
+        // Verify it's a valid image attachment
+        if (!wp_attachment_is_image($attachmentId)) {
+            return $response;
+        }
+
+        // Check if this attachment has already been watermarked (skip if yes)
+        $alreadyWatermarked = get_post_meta($attachmentId, '_ulwm_watermarked', true);
+        if ($alreadyWatermarked) {
+            // Still being processed, skip
+            return $response;
+        }
+
+        // Check if watermark was already applied to this attachment
+        $appliedWatermarks = get_post_meta($attachmentId, 'applied_watermarks', true);
+        if (!empty($appliedWatermarks)) {
+            // Already has watermarks applied, skip
+            return $response;
+        }
+
+        // Get the parent post ID from the request URL
+        $postId = $request->get_param('id');
+        if (!$postId || !is_numeric($postId)) {
+            return $response;
+        }
+
+        $postId = absint($postId);
+        $parentPost = get_post($postId);
+        if (!$parentPost) {
+            return $response;
+        }
+
+        // Store the parent post ID for rule-based watermarking
+        update_post_meta($attachmentId, '_ulwm_uploaded_to_post_id', $postId);
+
+        // Get all active automatic watermarks
+        $allActive = WatermarkHelper::getActiveWatermarks();
+        $automaticWatermarks = array_filter($allActive, function ($watermark) {
+            return $watermark['automatic_watermarking'] === '1' || (boolean) $watermark['automatic_watermarking'] === true;
+        });
+
+        if (empty($automaticWatermarks)) {
+            return $response;
+        }
+
+        // Filter by post type rules - check if any watermarks match the parent post type
+        $parentPostType = $parentPost->post_type;
+        $matchingWatermarks = array_filter($automaticWatermarks, function ($watermark) use ($parentPostType) {
+            $watermarkOn = $watermark['watermark_on'] ?? 'everywhere';
+
+            if ($watermarkOn === 'everywhere' || $watermarkOn === '') {
+                return true;
+            }
+
+            if ($watermarkOn === 'selected_post_types') {
+                $allowedPostTypes = $watermark['watermark_post_types'] ?? [];
+
+                if (is_string($allowedPostTypes)) {
+                    $allowedPostTypes = maybe_unserialize($allowedPostTypes);
+                    if (is_string($allowedPostTypes)) {
+                        $allowedPostTypes = maybe_unserialize($allowedPostTypes);
+                    }
+                }
+
+                if (!is_array($allowedPostTypes)) {
+                    $allowedPostTypes = [];
+                }
+
+                $allowedPostTypes = array_map('strval', array_values($allowedPostTypes));
+
+                return in_array(strval($parentPostType), $allowedPostTypes, true);
+            }
+
+            return false;
+        });
+
+        if (empty($matchingWatermarks)) {
+            return $response;
+        }
+
+        // Mark the attachment for watermarking so processAfterMetadataGeneration applies watermarks
+        // with the correct parent post type context
+        update_post_meta($attachmentId, '_ulwm_watermarked', true);
+
+        // Apply watermarks immediately since metadata has already been generated
+        try {
+            $this->applyWatermarksForFeaturedImage($attachmentId, $matchingWatermarks, $postId);
+        } catch (\Exception $e) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark: Error applying watermark to featured image ' . $attachmentId . ': ' . $e->getMessage());
+            }
+        }
+
+        return $response;
+    }
+
+    /**
+     * Apply watermarks to a featured image that was just assigned to a post.
+     *
+     * This method respects ALL watermark rules: post type rules, image size rules,
+     * and watermark_rules conditions (unified rules with image_size, product_cat, etc.).
+     *
+     * @param int   $attachmentId       The attachment ID.
+     * @param array $matchingWatermarks Watermarks that match the parent post type.
+     * @param int   $parentPostId       The parent post ID.
+     */
+    private function applyWatermarksForFeaturedImage(int $attachmentId, array $matchingWatermarks, int $parentPostId): void
+    {
+        // Get all registered image sizes
+        $imageSizes = get_intermediate_image_sizes();
+        $imageSizes[] = 'full';
+
+        // Create backup before applying watermarks
+        $this->createBackupForWatermarking($attachmentId);
+
+        foreach ($imageSizes as $size) {
+            // Apply the FULL rule system for each size
+            $watermarksForSize = [];
+
+            foreach ($matchingWatermarks as $watermark) {
+                // Step 1: Legacy image size filter (only if no unified rules exist)
+                $rules = $watermark['watermark_rules'] ?? [];
+                $hasUnifiedConditions = false;
+
+                if (!empty($rules) && is_array($rules)) {
+                    foreach ($rules as $rule) {
+                        if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
+                            $hasUnifiedConditions = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!$hasUnifiedConditions) {
+                    // Apply legacy size filter
+                    if (!WatermarkHelper::shouldApplyWatermarkByImageSize($watermark, $size)) {
+                        continue;
+                    }
+                }
+
+                // Step 2: Unified watermark_rules conditions
+                if ($hasUnifiedConditions) {
+                    $evalContext = \MantraBrain\UltimateWatermark\Utils\RulesEvaluator::buildContext(
+                        $attachmentId,
+                        $size,
+                        $parentPostId
+                    );
+
+                    if (!\MantraBrain\UltimateWatermark\Utils\RulesEvaluator::evaluate($rules, $evalContext)) {
+                        continue;
+                    }
+                }
+
+                // All rules passed - include this watermark for this size
+                $watermarksForSize[] = $watermark;
+            }
+
+            if (empty($watermarksForSize)) {
+                continue;
+            }
+
+            // Apply each watermark for this size
+            foreach ($watermarksForSize as $watermark) {
+                $this->applyWatermarkToAttachmentSize($attachmentId, $watermark, $size);
+            }
+        }
+
+        // Clean up the flag
+        delete_post_meta($attachmentId, '_ulwm_watermarked');
+    }
+
+    /**
+     * Capture watermark toggle state from REST API request before raw body is consumed.
+     *
+     * When images are uploaded via the media popup (e.g., WooCommerce featured image),
+     * plupload sends the watermark toggle state and selected watermark IDs as multipart
+     * form fields alongside the file. This method captures those values early in the
+     * REST API request lifecycle, before WordPress consumes the raw request body for
+     * file processing, and stores them in a static property for later retrieval.
+     *
+     * @param WP_REST_Response|WP_Error $response The response object.
+     * @param WP_REST_Request           $request  The request object.
+     * @param WP_REST_Server            $server   The server object.
+     * @return WP_REST_Response|WP_Error
+     */
+    public function captureWatermarkToggleFromRequest($response, \WP_REST_Request $request, \WP_REST_Server $server)
+    {
+        // Only process media endpoint requests
+        $route = $request->get_route();
+        if (strpos($route, '/wp/v2/media') === false) {
+            return $response;
+        }
+
+        // Only process POST requests (uploads)
+        if (strtoupper($request->get_method()) !== 'POST') {
+            return $response;
+        }
+
+        // Check for toggle state in request parameters
+        $toggleEnabled = false;
+        $selectedWatermarkIds = [];
+
+        // Check REST request parameters for toggle state
+        $toggleParam = $request->get_param('ultimate_watermark_auto_apply');
+        if ($toggleParam === '1' || $toggleParam === 1 || $toggleParam === true) {
+            $toggleEnabled = true;
+        }
+
+        // Get selected watermark IDs from REST request parameters
+        if ($toggleEnabled) {
+            $idsParam = $request->get_param('ultimate_watermark_ids');
+            if ($idsParam !== null && $idsParam !== '') {
+                if (is_string($idsParam)) {
+                    $selectedWatermarkIds = array_filter(array_map('absint', explode(',', trim($idsParam))));
+                } elseif (is_array($idsParam)) {
+                    $selectedWatermarkIds = array_filter(array_map('absint', $idsParam));
+                }
+            }
+        }
+
+        // Also check $_POST/$_REQUEST as fallback
+        if (!$toggleEnabled) {
+            if (isset($_POST['ultimate_watermark_auto_apply']) && $_POST['ultimate_watermark_auto_apply'] === '1') {
+                $toggleEnabled = true;
+            } elseif (isset($_REQUEST['ultimate_watermark_auto_apply']) && $_REQUEST['ultimate_watermark_auto_apply'] === '1') {
+                $toggleEnabled = true;
+            }
+        }
+
+        if ($toggleEnabled && empty($selectedWatermarkIds)) {
+            if (isset($_POST['ultimate_watermark_ids']) && !empty($_POST['ultimate_watermark_ids'])) {
+                $selectedWatermarkIds = array_filter(array_map('absint', explode(',', sanitize_text_field($_POST['ultimate_watermark_ids']))));
+            } elseif (isset($_REQUEST['ultimate_watermark_ids']) && !empty($_REQUEST['ultimate_watermark_ids'])) {
+                $selectedWatermarkIds = array_filter(array_map('absint', explode(',', sanitize_text_field($_REQUEST['ultimate_watermark_ids']))));
+            }
+        }
+
+        // Store in static property for later retrieval by markForWatermarking and handleRestApiAttachmentUpload
+        if ($toggleEnabled) {
+            self::$capturedToggleState = [
+                'enabled' => true,
+                'watermark_ids' => $selectedWatermarkIds,
+            ];
+        }
+
+        return $response;
+    }
+
+    /**
+     * Captured toggle state from REST API request (set by captureWatermarkToggleFromRequest).
+     *
+     * @var array|null
+     */
+    private static ?array $capturedToggleState = null;
 
     /**
      * Handle REST API attachment upload (for page/post editor)
@@ -54,11 +355,66 @@ class RestApiIntegration
         }
         
         // If we have a parent post, store it for rule checking later
-        // CRITICAL: Do NOT set _ulwm_watermarked here - that flag is ONLY for toggle-based uploads
-        // Rule-based watermarking will be handled in processAfterMetadataGeneration
         if ($parent_post_id > 0) {
             // Store parent post_id for later use in processAfterMetadataGeneration
             update_post_meta($attachment->ID, '_ulwm_uploaded_to_post_id', $parent_post_id);
+        }
+        
+        // CRITICAL FIX: Check if the watermark toggle was enabled in the media popup
+        // When users upload via the media popup (e.g., WooCommerce featured image),
+        // the toggle state is sent as a REST API parameter. We need to detect this
+        // and set the appropriate meta flags so watermarks are applied.
+        $toggleEnabled = false;
+        $selectedWatermarkIds = [];
+        
+        // Check REST request parameters for toggle state
+        $toggleParam = $request->get_param('ultimate_watermark_auto_apply');
+        if ($toggleParam === '1' || $toggleParam === 1 || $toggleParam === true) {
+            $toggleEnabled = true;
+        }
+        
+        // Also check HTTP headers as fallback (set by client-side code)
+        if (!$toggleEnabled) {
+            $toggleHeader = $request->get_header('x-ultimate-watermark-auto-apply');
+            if ($toggleHeader === '1' || $toggleHeader === 1) {
+                $toggleEnabled = true;
+            }
+        }
+        
+        // Also check $_POST/$_REQUEST as fallback for sideload uploads
+        if (!$toggleEnabled) {
+            if (isset($_POST['ultimate_watermark_auto_apply']) && $_POST['ultimate_watermark_auto_apply'] === '1') {
+                $toggleEnabled = true;
+            } elseif (isset($_REQUEST['ultimate_watermark_auto_apply']) && $_REQUEST['ultimate_watermark_auto_apply'] === '1') {
+                $toggleEnabled = true;
+            }
+        }
+        
+        if ($toggleEnabled) {
+            // Get selected watermark IDs from REST request parameters
+            $idsParam = $request->get_param('ultimate_watermark_ids');
+            if ($idsParam !== null && $idsParam !== '') {
+                if (is_string($idsParam)) {
+                    $selectedWatermarkIds = array_filter(array_map('absint', explode(',', trim($idsParam))));
+                } elseif (is_array($idsParam)) {
+                    $selectedWatermarkIds = array_filter(array_map('absint', $idsParam));
+                }
+            }
+            
+            // Fallback: check $_POST/$_REQUEST for watermark IDs
+            if (empty($selectedWatermarkIds)) {
+                if (isset($_POST['ultimate_watermark_ids']) && !empty($_POST['ultimate_watermark_ids'])) {
+                    $selectedWatermarkIds = array_filter(array_map('absint', explode(',', sanitize_text_field($_POST['ultimate_watermark_ids']))));
+                } elseif (isset($_REQUEST['ultimate_watermark_ids']) && !empty($_REQUEST['ultimate_watermark_ids'])) {
+                    $selectedWatermarkIds = array_filter(array_map('absint', explode(',', sanitize_text_field($_REQUEST['ultimate_watermark_ids']))));
+                }
+            }
+            
+            // Store selected watermark IDs in attachment meta
+            update_post_meta($attachment->ID, '_ulwm_selected_watermark_ids', $selectedWatermarkIds);
+            
+            // Mark this attachment for watermarking
+            update_post_meta($attachment->ID, '_ulwm_watermarked', true);
         }
     }
 
