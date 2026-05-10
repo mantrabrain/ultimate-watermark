@@ -1,0 +1,393 @@
+/**
+ * Ultimate Watermark — Get Pro / Pro Features page
+ *
+ * Built on top of the design tokens declared in admin.css.
+ *
+ * @package UltimateWatermark
+ * @since   2.0.9
+ */
+
+.ulwm-pro-features-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--uw-space-6);
+    width: 100%;
+}
+
+/* =========================================================================
+   Hero
+   ========================================================================= */
+
+.ulwm-pro-hero {
+    position: relative;
+    overflow: hidden;
+    text-align: center;
+    padding: var(--uw-space-12) var(--uw-space-6);
+    background: var(--uw-pro-gradient, linear-gradient(135deg, #fbbf24 0%, #d97706 100%));
+    color: #ffffff;
+    border-radius: var(--uw-radius-lg);
+    box-shadow: 0 16px 40px rgba(var(--uw-pro-color-rgb, 245, 158, 11), 0.32);
+}
+
+.ulwm-pro-hero::before,
+.ulwm-pro-hero::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    pointer-events: none;
+}
+
+.ulwm-pro-hero::before {
+    width: 360px;
+    height: 360px;
+    top: -160px;
+    right: -120px;
+}
+
+.ulwm-pro-hero::after {
+    width: 220px;
+    height: 220px;
+    bottom: -120px;
+    left: -80px;
+}
+
+.ulwm-pro-hero h1 {
+    position: relative;
+    color: #ffffff;
+    font-size: 32px;
+    line-height: 1.15;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    margin: 0 0 var(--uw-space-3) 0;
+}
+
+.ulwm-pro-hero h1::before {
+    content: '\f160'; /* dashicons-star-filled */
+    font-family: 'dashicons';
+    display: inline-block;
+    font-weight: 400;
+    font-size: 28px;
+    margin-right: 8px;
+    vertical-align: -3px;
+    color: #fde68a;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.ulwm-pro-subtitle {
+    position: relative;
+    font-size: 16px;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.92);
+    margin: 0 auto;
+    max-width: 620px;
+}
+
+@media (max-width: 600px) {
+    .ulwm-pro-hero { padding: var(--uw-space-8) var(--uw-space-4); }
+    .ulwm-pro-hero h1 { font-size: 24px; }
+    .ulwm-pro-subtitle { font-size: 14px; }
+}
+
+/* =========================================================================
+   Features grid
+   ========================================================================= */
+
+.ulwm-pro-features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: var(--uw-space-4);
+}
+
+.ulwm-pro-feature-card {
+    background: var(--uw-surface);
+    border: 1px solid var(--uw-border);
+    border-radius: var(--uw-radius-lg);
+    box-shadow: var(--uw-shadow-sm);
+    padding: var(--uw-space-6) var(--uw-space-5);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--uw-space-3);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.ulwm-pro-feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--uw-gradient);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.ulwm-pro-feature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--uw-shadow-md);
+    border-color: var(--uw-border-strong);
+}
+
+.ulwm-pro-feature-card:hover::before { opacity: 1; }
+
+.ulwm-pro-feature-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--uw-pro-gradient, linear-gradient(135deg, #fbbf24 0%, #d97706 100%));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 18px rgba(var(--uw-pro-color-rgb, 245, 158, 11), 0.32);
+    flex-shrink: 0;
+}
+
+.ulwm-pro-feature-icon .dashicons {
+    font-size: 26px;
+    width: 26px;
+    height: 26px;
+    color: #ffffff;
+}
+
+.ulwm-pro-feature-card h3 {
+    margin: 0;
+    font-size: var(--uw-font-h3-size);
+    font-weight: 700;
+    color: var(--uw-text);
+    letter-spacing: -0.005em;
+}
+
+.ulwm-pro-feature-card p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--uw-text-subtle);
+    line-height: var(--uw-line-snug);
+}
+
+/* =========================================================================
+   CTA
+   ========================================================================= */
+
+.ulwm-pro-cta {
+    background: var(--uw-surface);
+    border: 1px solid var(--uw-border);
+    border-radius: var(--uw-radius-lg);
+    box-shadow: var(--uw-shadow-sm);
+    padding: var(--uw-space-10) var(--uw-space-6);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.ulwm-pro-cta::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 12% 20%, rgba(var(--uw-pro-color-rgb, 245, 158, 11), 0.10), transparent 38%),
+        radial-gradient(circle at 88% 80%, rgba(var(--uw-pro-color-rgb, 245, 158, 11), 0.07), transparent 38%);
+    pointer-events: none;
+}
+
+.ulwm-pro-cta > * { position: relative; }
+
+.ulwm-pro-cta h2 {
+    margin: 0 0 var(--uw-space-2) 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--uw-text);
+    letter-spacing: -0.01em;
+}
+
+.ulwm-pro-cta p {
+    margin: 0 0 var(--uw-space-5) 0;
+    font-size: var(--uw-font-body-size);
+    color: var(--uw-text-subtle);
+    line-height: var(--uw-line-snug);
+}
+
+/* CTA button — sizing here, brand color comes from admin.css's .uw-pro-cta
+   override block which also targets .ulwm-pro-cta .button-hero etc. */
+.ulwm-pro-cta .button-hero,
+.ulwm-pro-cta .button.button-primary,
+.ulwm-pro-cta .button-primary {
+    height: 48px;
+    padding: 0 28px;
+    font-size: 15px;
+    font-weight: 700;
+    border-radius: var(--uw-radius-md);
+    text-shadow: none;
+    line-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ulwm-pro-cta .button-hero::after,
+.ulwm-pro-cta .button.button-primary::after,
+.ulwm-pro-cta .button-primary::after {
+    content: '\f345'; /* dashicons-arrow-right-alt */
+    font-family: 'dashicons';
+    font-size: 18px;
+    line-height: 1;
+}
+
+/* =========================================================================
+   Comparison table
+   ========================================================================= */
+
+.ulwm-pro-comparison {
+    background: var(--uw-surface);
+    border: 1px solid var(--uw-border);
+    border-radius: var(--uw-radius-lg);
+    box-shadow: var(--uw-shadow-sm);
+    overflow: hidden;
+}
+
+.ulwm-pro-comparison h2 {
+    margin: 0;
+    padding: var(--uw-space-5) var(--uw-space-6);
+    font-size: var(--uw-font-h3-size);
+    font-weight: 700;
+    color: var(--uw-text);
+    border-bottom: 1px solid var(--uw-border);
+    text-align: left;
+    letter-spacing: -0.005em;
+}
+
+.ulwm-pro-comparison .widefat,
+.ulwm-pro-comparison table.widefat {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    margin: 0;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.ulwm-pro-comparison thead th {
+    background: var(--uw-surface-soft);
+    color: var(--uw-text-muted);
+    font-size: var(--uw-font-caption-size);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 14px 16px;
+    text-align: center;
+    border-bottom: 1px solid var(--uw-border);
+    border-top: 0;
+}
+
+.ulwm-pro-comparison thead th:first-child {
+    text-align: left;
+}
+
+.ulwm-pro-comparison thead th:last-child {
+    background: var(--uw-pro-color-soft, #fef3c7);
+    color: var(--uw-pro-color-active, #b45309);
+    position: relative;
+}
+
+.ulwm-pro-comparison thead th:last-child::after {
+    content: 'PRO';
+    position: absolute;
+    top: 6px;
+    right: 12px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    background: var(--uw-pro-color, #f59e0b);
+    color: #ffffff;
+    padding: 2px 6px;
+    border-radius: var(--uw-radius-pill);
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+.ulwm-pro-comparison tbody td {
+    padding: 14px 16px;
+    text-align: center;
+    border-bottom: 1px solid var(--uw-border-soft);
+    background: var(--uw-surface);
+    color: var(--uw-text);
+    font-size: var(--uw-font-body-size);
+    vertical-align: middle;
+}
+
+.ulwm-pro-comparison tbody td:first-child {
+    text-align: left;
+    font-weight: 500;
+}
+
+.ulwm-pro-comparison tbody td:last-child {
+    background: rgba(var(--uw-pro-color-rgb, 245, 158, 11), 0.06);
+}
+
+.ulwm-pro-comparison tbody tr:hover td {
+    background: var(--uw-surface-soft);
+}
+
+.ulwm-pro-comparison tbody tr:hover td:last-child {
+    background: var(--uw-primary-soft);
+}
+
+.ulwm-pro-comparison tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+/* Yes/no glyphs in comparison cells */
+.ulwm-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.ulwm-check.dashicons {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+}
+
+.ulwm-check--yes {
+    background: var(--uw-success-soft);
+    color: var(--uw-success);
+}
+
+.ulwm-check--no {
+    background: var(--uw-surface-muted);
+    color: var(--uw-text-faint);
+}
+
+/* =========================================================================
+   Responsive
+   ========================================================================= */
+
+@media (max-width: 768px) {
+    .ulwm-pro-features-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    .ulwm-pro-cta { padding: var(--uw-space-6) var(--uw-space-5); }
+}
+
+@media (max-width: 480px) {
+    .ulwm-pro-features-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ulwm-pro-comparison thead th,
+    .ulwm-pro-comparison tbody td {
+        padding: 12px 10px;
+    }
+}

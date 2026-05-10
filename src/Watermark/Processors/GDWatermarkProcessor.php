@@ -92,7 +92,9 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             }
 
         } catch (\Exception $e) {
-            error_log('Ultimate Watermark GD Processor Error: ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark GD Processor Error: ' . $e->getMessage());
+            }
             return false;
         }
     }
@@ -127,7 +129,9 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             }
 
         } catch (\Exception $e) {
-            error_log('Ultimate Watermark GD Preview Error: ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Ultimate Watermark GD Preview Error: ' . $e->getMessage());
+            }
             return false;
         }
     }
@@ -424,7 +428,7 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         $position = $this->calculateTextPosition($image, $text, $fontSize, $watermarkData);
 
         // Add text with error handling
-        $result = imagettftext($image, $fontSize, 0, $position['x'], $position['y'], $textColor, $this->getFontPath(), $text);
+        $result = imagettftext($image, $fontSize, 0, $position['x'], $position['y'], $textColor, $this->getFontPath($watermarkData), $text);
         
         if ($result === false) {
             throw new \RuntimeException('Failed to apply text watermark');
@@ -546,23 +550,32 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
      */
     private function generatePreviewUrl(\GdImage $image, array $watermarkData): string
     {
-        // Create temporary file for preview
-        $previewDir = wp_upload_dir()['basedir'] . '/ultimate-watermark-previews/';
+        $uploadDir  = wp_upload_dir();
+        $previewDir = trailingslashit($uploadDir['basedir']) . 'ultimate-watermark';
+
         if (!is_dir($previewDir)) {
             wp_mkdir_p($previewDir);
         }
 
-        $previewPath = $previewDir . 'preview_' . uniqid() . '.jpg';
-        
-        // Save preview as JPEG with decent quality
+        $indexFile = $previewDir . '/index.html';
+        if (!file_exists($indexFile)) {
+            @file_put_contents($indexFile, '<!-- Silence is golden. -->');
+        }
+
+        $fingerprint = md5(wp_json_encode($watermarkData) ?: serialize($watermarkData));
+        $previewPath = $previewDir . '/watermark_preview_' . $fingerprint . '.jpg';
+
         $this->saveImage($image, $previewPath, array_merge($watermarkData, [
-            'watermark_quality' => 85
+            'watermark_quality' => 85,
         ]));
 
-        // Convert to URL
-        $previewUrl = str_replace(wp_upload_dir()['basedir'], wp_upload_dir()['baseurl'], $previewPath);
-        
-        return $previewUrl;
+        $base     = wp_normalize_path($uploadDir['basedir']);
+        $normPath = wp_normalize_path($previewPath);
+
+        if (strpos($normPath, $base) === 0) {
+            return $uploadDir['baseurl'] . substr($normPath, strlen($base));
+        }
+        return $uploadDir['baseurl'] . '/' . basename($previewPath);
     }
 
     /**
@@ -671,25 +684,49 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
     }
 
     /**
-     * Get font path for text watermarks
+     * Get font path for text watermarks.
+     *
+     * Resolution order:
+     *   1. ultimate_watermark_resolve_font_path filter (Pro Google Fonts hook)
+     *   2. System fonts matching the requested family
+     *   3. Generic system fallbacks
+     *   4. Empty string (GD then uses built-in font; imagettftext will fail)
+     *
+     * @param array $watermarkData Optional watermark data so the requested
+     *                             family / weight / style can be passed to
+     *                             the filter for Google Fonts resolution.
      */
-    private function getFontPath(): string
+    private function getFontPath(array $watermarkData = []): string
     {
-        // Try to use a system font, fallback to default
+        $family = (string) ($watermarkData['watermark_font_family'] ?? '');
+        $weight = (string) ($watermarkData['watermark_font_weight'] ?? 'normal');
+        $style  = (string) ($watermarkData['watermark_font_style']  ?? 'normal');
+
+        /**
+         * Allow Pro plugins to provide a font file path (e.g. from Google
+         * Fonts cache) before falling back to system fonts.
+         */
+        $external = apply_filters('ultimate_watermark_resolve_font_path', null, $family, $weight, $style);
+        if (is_string($external) && $external !== '' && file_exists($external) && is_readable($external)) {
+            return $external;
+        }
+
         $fontPaths = [
             '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-            '/Windows/Fonts/arial.ttf',
-            '/System/Library/Fonts/Arial.ttf',
-            plugin_dir_path(ULTIMATE_WATERMARK_FILE) . 'assets/fonts/default.ttf'
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+            '/Library/Fonts/Arial.ttf',
+            '/System/Library/Fonts/Supplemental/Arial.ttf',
+            '/System/Library/Fonts/Helvetica.ttc',
+            'C:\\Windows\\Fonts\\arial.ttf',
+            plugin_dir_path(ULTIMATE_WATERMARK_FILE) . 'assets/fonts/default.ttf',
         ];
 
         foreach ($fontPaths as $fontPath) {
-            if (file_exists($fontPath)) {
+            if (file_exists($fontPath) && is_readable($fontPath)) {
                 return $fontPath;
             }
         }
 
-        // Fallback to built-in font (may not work with imagettftext)
         return '';
     }
 
@@ -702,7 +739,7 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         $imageHeight = imagesy($image);
 
         // Get text bounding box
-        $bbox = imagettfbbox($fontSize, 0, $this->getFontPath(), $text);
+        $bbox = imagettfbbox($fontSize, 0, $this->getFontPath($watermarkData), $text);
         $textWidth = $bbox[2] - $bbox[0];
         $textHeight = $bbox[1] - $bbox[7];
 

@@ -199,27 +199,34 @@ class DashboardPage
     }
 
     /**
-     * Get watermarked images count
+     * Get watermarked images count.
      *
-     * @return int
+     * Counts attachments that have either of the watermark-applied meta
+     * keys: the current `_ulwm_watermarked` flag (set by the watermark
+     * pipeline) or the legacy `ulwm-is-watermarked` flag (set by v1 of
+     * the plugin and migrated forward but not always rewritten).
      */
     private function getWatermarkedImages(): int
     {
-        $watermarked = get_posts([
-            'post_type' => 'attachment',
-            'post_mime_type' => 'image',
-            'numberposts' => -1,
-            'post_status' => 'inherit',
-            'meta_query' => [
-                [
-                    'key' => 'ulwm-is-watermarked',
-                    'value' => '1',
-                    'compare' => '='
-                ]
-            ]
-        ]);
+        global $wpdb;
 
-        return count($watermarked);
+        // Use a direct count query — it's an order of magnitude cheaper than
+        // pulling full posts via get_posts() + count().
+        $count = (int) $wpdb->get_var(
+            "SELECT COUNT(DISTINCT p.ID)
+               FROM {$wpdb->posts} p
+               INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID
+              WHERE p.post_type = 'attachment'
+                AND p.post_status = 'inherit'
+                AND p.post_mime_type LIKE 'image/%'
+                AND (
+                    (m.meta_key = '_ulwm_watermarked' AND m.meta_value IN ('1', 'true', 'b:1;'))
+                    OR (m.meta_key = 'ulwm-is-watermarked' AND m.meta_value = '1')
+                    OR (m.meta_key = 'watermark_count' AND CAST(m.meta_value AS UNSIGNED) > 0)
+                )"
+        );
+
+        return $count;
     }
 
     /**

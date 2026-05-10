@@ -26,24 +26,26 @@ class RulesEvaluator
      */
     public static function evaluate(array $rules, array $context): bool
     {
+        // Empty rules array = no constraints set by the user → apply everywhere.
+        // (This is how every other watermarking plugin behaves and matches user
+        // expectation: "I haven't filtered, so use this watermark on all images.")
         if (empty($rules)) {
-            return false; // No rules = don't apply watermark
+            return true;
         }
 
-        // Check if ALL rules have zero conditions — treat as no rules set
+        // If every rule we were handed is empty, that's still "no constraints".
         $has_any_conditions = false;
         foreach ($rules as $rule) {
-            if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
+            if (is_array($rule) && !empty($rule['conditions']) && is_array($rule['conditions'])) {
                 $has_any_conditions = true;
                 break;
             }
         }
-
         if (!$has_any_conditions) {
-            return false; // All rules have empty conditions = no rules set, don't apply
+            return true;
         }
 
-        // Evaluate each rule: if ANY rule passes, watermark applies
+        // Top-level rules are OR'd together — if any single rule passes, apply.
         foreach ($rules as $rule) {
             if (!is_array($rule)) {
                 continue;
@@ -51,19 +53,17 @@ class RulesEvaluator
 
             $conditions = $rule['conditions'] ?? [];
             if (empty($conditions) || !is_array($conditions)) {
-                // Rule with no conditions always passes
+                // A rule that lists no conditions matches everything.
                 return true;
             }
 
-            $logic = strtolower($rule['logic_operator'] ?? 'and');
-            $rule_passes = self::evaluateConditions($conditions, $logic, $context);
-
-            if ($rule_passes) {
-                return true; // At least one rule passed
+            $logic = strtolower((string) ($rule['logic_operator'] ?? 'and'));
+            if (self::evaluateConditions($conditions, $logic, $context)) {
+                return true;
             }
         }
 
-        return false; // No rules passed
+        return false;
     }
 
     /**
@@ -86,17 +86,6 @@ class RulesEvaluator
             }
 
             $result = self::evaluateSingleCondition($condition, $context);
-
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                $actual = self::getContextValue($condition['type'] ?? '', $context);
-                error_log('Ultimate Watermark [RulesEval]: condition type=' . ($condition['type'] ?? '') 
-                    . ' operator=' . ($condition['operator'] ?? '') 
-                    . ' expected=' . ($condition['value'] ?? '') 
-                    . ' actual=' . (is_array($actual) ? implode(',', $actual) : strval($actual))
-                    . ' result=' . ($result ? 'TRUE' : 'FALSE')
-                    . ' logic=' . $logic
-                    . ' context_image_size=' . ($context['image_size'] ?? 'N/A'));
-            }
 
             if ($logic === 'or' && $result) {
                 return true; // OR: one true is enough
@@ -137,18 +126,66 @@ class RulesEvaluator
             return (bool) $custom_result;
         }
 
-        // Multi-value taxonomy conditions: check against ALL terms, not just first
-        if (in_array($type, ['product_cat', 'product_tag'], true)) {
-            $all_key = $type === 'product_cat' ? 'product_cats' : 'product_tags';
-            $all_slugs = $context[$all_key] ?? [];
-            if (!empty($all_slugs) && is_array($all_slugs)) {
-                $found = in_array(strval($expected), array_map('strval', $all_slugs), true);
-                return $operator === 'is' ? $found : !$found;
+        // Multi-value taxonomy conditions: check against ALL terms, not just the first.
+        // Works for every operator the user might pick (is / is_not / contains / in / not_in).
+        if (\in_array($type, ['product_cat', 'product_tag', 'post_categories'], true)) {
+            $all_key = [
+                'product_cat'      => 'product_cats',
+                'product_tag'      => 'product_tags',
+                'post_categories'  => 'post_categories',
+            ][$type] ?? null;
+            $all_slugs = ($all_key && isset($context[$all_key]) && \is_array($context[$all_key]))
+                ? array_map('strval', $context[$all_key])
+                : [];
+
+            if (!empty($all_slugs)) {
+                $expected_str = \strval($expected);
+                switch ($operator) {
+                    case 'is':
+                    case 'equals':
+                        return \in_array($expected_str, $all_slugs, true);
+                    case 'is_not':
+                    case 'not_equals':
+                        return !\in_array($expected_str, $all_slugs, true);
+                    case 'contains':
+                        foreach ($all_slugs as $slug) {
+                            if (stripos($slug, $expected_str) !== false) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    case 'not_contains':
+                        foreach ($all_slugs as $slug) {
+                            if (stripos($slug, $expected_str) !== false) {
+                                return false;
+                            }
+                        }
+                        return true;
+                    case 'in':
+                        $expected_list = self::splitListValue($expected_str);
+                        return (bool) array_intersect($all_slugs, $expected_list);
+                    case 'not_in':
+                        $expected_list = self::splitListValue($expected_str);
+                        return !array_intersect($all_slugs, $expected_list);
+                }
+                // Unknown operator — fall through to compareValues against the first term.
             }
-            // Fallback to single value comparison
         }
 
         return self::compareValues($operator, $actual, $expected);
+    }
+
+    /**
+     * Split a user-supplied "in" / "not_in" value into a normalized list.
+     * Accepts comma-, semicolon-, or pipe-separated values; trims whitespace.
+     */
+    private static function splitListValue(string $value): array
+    {
+        $parts = preg_split('/[,;|]+/', $value) ?: [];
+        $parts = array_map('trim', $parts);
+        return array_values(array_filter($parts, static function ($v) {
+            return $v !== '';
+        }));
     }
 
     /**
@@ -239,7 +276,18 @@ class RulesEvaluator
                 return $context['image_aspect_ratio'] ?? 0;
 
             case 'date_range':
-                return $context['upload_date'] ?? date('Y-m-d');
+            case 'upload_date':
+                // Return as a Unix timestamp so the comparator can do real
+                // numeric / range math instead of floatval() on a date string.
+                $raw = $context['upload_date'] ?? '';
+                if ($raw === '' && !empty($context['attachment_id'])) {
+                    $raw = get_the_date('Y-m-d', (int) $context['attachment_id']);
+                }
+                if ($raw === '') {
+                    $raw = date('Y-m-d');
+                }
+                $ts = strtotime((string) $raw);
+                return $ts !== false ? $ts : 0;
 
             default:
                 // Allow plugins to provide values for custom types
@@ -250,6 +298,15 @@ class RulesEvaluator
     /**
      * Compare actual value against expected using the given operator.
      *
+     * Supports the full operator vocabulary used by the Pro UI:
+     *   is / is_not / equals / not_equals
+     *   greater_than / less_than / greater_equal / less_equal
+     *   contains / not_contains
+     *   in / not_in
+     *   between / not_between
+     *
+     * For range-y operators the "expected" string is split on `,`, `;`, or `|`.
+     *
      * @param string $operator  Comparison operator
      * @param mixed  $actual    Actual value from context
      * @param mixed  $expected  Expected value from condition
@@ -257,27 +314,147 @@ class RulesEvaluator
      */
     private static function compareValues(string $operator, $actual, $expected): bool
     {
+        $actual_str = is_scalar($actual) ? \strval($actual) : '';
+        $expected_str = is_scalar($expected) ? \strval($expected) : '';
+
         switch ($operator) {
             case 'is':
-                return strval($actual) === strval($expected);
+            case 'equals':
+                if (is_numeric($actual_str) && is_numeric($expected_str)) {
+                    return \floatval($actual_str) == \floatval($expected_str);
+                }
+                return $actual_str === $expected_str;
 
             case 'is_not':
-                return strval($actual) !== strval($expected);
+            case 'not_equals':
+                if (is_numeric($actual_str) && is_numeric($expected_str)) {
+                    return \floatval($actual_str) != \floatval($expected_str);
+                }
+                return $actual_str !== $expected_str;
 
             case 'greater_than':
-                return floatval($actual) > floatval($expected);
+                return self::asNumber($actual) > self::asNumber($expected);
 
             case 'less_than':
-                return floatval($actual) < floatval($expected);
+                return self::asNumber($actual) < self::asNumber($expected);
 
-            case 'equals':
-                return floatval($actual) == floatval($expected);
+            case 'greater_equal':
+            case 'gte':
+                return self::asNumber($actual) >= self::asNumber($expected);
+
+            case 'less_equal':
+            case 'lte':
+                return self::asNumber($actual) <= self::asNumber($expected);
+
+            case 'contains':
+                if ($expected_str === '') {
+                    return false;
+                }
+                return stripos($actual_str, $expected_str) !== false;
+
+            case 'not_contains':
+                if ($expected_str === '') {
+                    return true;
+                }
+                return stripos($actual_str, $expected_str) === false;
+
+            case 'starts_with':
+                return $expected_str !== '' && stripos($actual_str, $expected_str) === 0;
+
+            case 'ends_with':
+                $needle = $expected_str;
+                if ($needle === '') {
+                    return false;
+                }
+                return substr($actual_str, -\strlen($needle)) === $needle;
+
+            case 'in':
+                $list = self::splitListValue($expected_str);
+                if (empty($list)) {
+                    return false;
+                }
+                if (is_numeric($actual_str)) {
+                    foreach ($list as $candidate) {
+                        if (is_numeric($candidate) && \floatval($actual_str) == \floatval($candidate)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                return \in_array($actual_str, $list, true);
+
+            case 'not_in':
+                $list = self::splitListValue($expected_str);
+                if (empty($list)) {
+                    return true;
+                }
+                if (is_numeric($actual_str)) {
+                    foreach ($list as $candidate) {
+                        if (is_numeric($candidate) && \floatval($actual_str) == \floatval($candidate)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+                return !\in_array($actual_str, $list, true);
+
+            case 'between':
+            case 'not_between':
+                $list = self::splitListValue($expected_str);
+                if (count($list) < 2) {
+                    return false;
+                }
+                $low  = self::asNumber($list[0]);
+                $high = self::asNumber($list[1]);
+                if ($low > $high) {
+                    [$low, $high] = [$high, $low];
+                }
+                $value = self::asNumber($actual);
+                $is_between = ($value >= $low && $value <= $high);
+                return $operator === 'between' ? $is_between : !$is_between;
 
             default:
-                // Allow plugins to handle custom operators
+                // Allow plugins to handle truly custom operators
                 $result = apply_filters('uwm_compare_values', null, $operator, $actual, $expected);
                 return $result !== null ? (bool) $result : false;
         }
+    }
+
+    /**
+     * Coerce a mixed value into a comparable number. Strings with units
+     * ("100KB", "1.5MB") get the unit stripped before parsing.
+     */
+    private static function asNumber($value): float
+    {
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
+        if (!is_scalar($value)) {
+            return 0.0;
+        }
+
+        $str = trim((string) $value);
+
+        // Strip common suffixes — numeric extraction is intentionally permissive.
+        if (preg_match('/^([\-+]?\d+(?:\.\d+)?)\s*(kb|mb|gb|tb|b|px)?$/i', $str, $m)) {
+            $base = (float) $m[1];
+            $unit = isset($m[2]) ? strtolower($m[2]) : '';
+            switch ($unit) {
+                case 'gb': return $base * 1024 * 1024;
+                case 'mb': return $base * 1024;
+                case 'tb': return $base * 1024 * 1024 * 1024;
+                case 'b':  return $base / 1024;
+                default:   return $base;
+            }
+        }
+
+        // Date-shaped strings (YYYY-MM-DD, etc.) — convert to timestamp.
+        if (preg_match('/^\d{4}-\d{1,2}-\d{1,2}/', $str)) {
+            $ts = strtotime($str);
+            return $ts !== false ? (float) $ts : 0.0;
+        }
+
+        return (float) $str;
     }
 
     /**

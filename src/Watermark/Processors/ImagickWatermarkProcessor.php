@@ -4,741 +4,377 @@ namespace MantraBrain\UltimateWatermark\Watermark\Processors;
 
 use MantraBrain\UltimateWatermark\Watermark\WatermarkProcessorInterface;
 
+/**
+ * Imagick Watermark Processor
+ *
+ * Renders text and image watermarks using the ImageMagick PHP extension.
+ *
+ * @package UltimateWatermark
+ * @since   2.0.0
+ */
 class ImagickWatermarkProcessor implements WatermarkProcessorInterface
 {
+    private const MIN_FONT_SIZE = 8;
+
     /**
-     * Apply watermark to image
+     * Cached resolved TTF font path (per-request).
+     */
+    private static ?string $fallbackFontPath = null;
+
+    /**
+     * Apply watermark to image and write to $outputImagePath.
      */
     public function applyWatermark(string $sourceImagePath, string $outputImagePath, array $watermarkData): bool
     {
-        
-        // Load source image
-        $image = new \Imagick($sourceImagePath);
-        if (!$image) {
+        try {
+            $image = $this->loadImage($sourceImagePath);
+
+            try {
+                $scaled = $this->scaleWatermarkDataForImage($image, $watermarkData);
+                $this->renderWatermark($image, $scaled);
+                return $this->saveImage($image, $outputImagePath, $watermarkData);
+            } finally {
+                $image->clear();
+                $image->destroy();
+            }
+        } catch (\Throwable $e) {
+            $this->logError('applyWatermark', $e);
             return false;
         }
-        
-        // Scale watermark data proportionally based on image size
-        $scaledWatermarkData = $this->scaleWatermarkDataForImage($image, $watermarkData);
-        
-        $watermarkType = $scaledWatermarkData['watermark_type'] ?? 'text';
-        
-        if ($watermarkType === 'text') {
-            $this->applyTextWatermark($image, $scaledWatermarkData);
-        } elseif ($watermarkType === 'image') {
-            $this->applyImageWatermark($image, $scaledWatermarkData);
-        } else {
-        }
-        
-        // Save watermarked image with quality and format settings
-        $result = $this->saveImage($image, $outputImagePath, $watermarkData);
-        $image->destroy();
-        
-        return $result;
     }
-    
+
     /**
-     * Scale watermark data proportionally based on current image size vs full size (original)
-     * This ensures watermarks look correct on different image sizes (thumbnails, medium, full, etc.)
-     * The watermark is configured for the FULL SIZE image, and we scale DOWN for smaller sizes
-     */
-    private function scaleWatermarkDataForImage(\Imagick $image, array $watermarkData): array
-    {
-        // Get current image dimensions
-        $currentWidth = $image->getImageWidth();
-        $currentHeight = $image->getImageHeight();
-        
-        // Get full size (original) image dimensions
-        // First, try to get from watermark data if stored
-        $fullWidth = $watermarkData['_full_size_width'] ?? null;
-        $fullHeight = $watermarkData['_full_size_height'] ?? null;
-        
-        // If not in watermark data, try to get from source image path context
-        if ($fullWidth === null || $fullHeight === null) {
-            // Try to get attachment ID from source image path
-            $attachmentId = $this->getAttachmentIdFromPath($watermarkData['_source_image_path'] ?? '');
-            
-            if ($attachmentId) {
-                // Get full size image metadata
-                $metadata = wp_get_attachment_metadata($attachmentId);
-                if ($metadata && isset($metadata['width']) && isset($metadata['height'])) {
-                    $fullWidth = $metadata['width'];
-                    $fullHeight = $metadata['height'];
-                }
-            }
-        }
-        
-        // If still don't have full size dimensions, assume current image IS full size
-        if ($fullWidth === null || $fullHeight === null) {
-            $fullWidth = $currentWidth;
-            $fullHeight = $currentHeight;
-        }
-        
-        // Calculate scaling ratio: current size / full size
-        // This will be < 1 for smaller sizes (thumbnail, medium, etc.) and = 1 for full size
-        $ratioX = $currentWidth / $fullWidth;
-        $ratioY = $currentHeight / $fullHeight;
-        $scaleRatio = min($ratioX, $ratioY); // Use minimum to ensure watermark fits
-        
-        // Create scaled copy of watermark data
-        $scaled = $watermarkData;
-        
-        // Scale font size for text watermarks
-        if (isset($scaled['watermark_font_size'])) {
-            $scaled['watermark_font_size'] = max(8, (int) round($scaled['watermark_font_size'] * $scaleRatio)); // Minimum 8px
-        }
-        
-        // Scale offset values
-        if (isset($scaled['watermark_offset_x'])) {
-            $scaled['watermark_offset_x'] = max(0, (int) round($scaled['watermark_offset_x'] * $scaleRatio));
-        }
-        if (isset($scaled['watermark_offset_y'])) {
-            $scaled['watermark_offset_y'] = max(0, (int) round($scaled['watermark_offset_y'] * $scaleRatio));
-        }
-        
-        // Scale custom dimensions for image watermarks
-        if (isset($scaled['watermark_custom_width'])) {
-            $scaled['watermark_custom_width'] = max(10, (int) round($scaled['watermark_custom_width'] * $scaleRatio)); // Minimum 10px
-        }
-        if (isset($scaled['watermark_custom_height'])) {
-            $scaled['watermark_custom_height'] = max(10, (int) round($scaled['watermark_custom_height'] * $scaleRatio)); // Minimum 10px
-        }
-        
-        // Store current image dimensions for reference
-        $scaled['_current_image_width'] = $currentWidth;
-        $scaled['_current_image_height'] = $currentHeight;
-        $scaled['_scale_ratio'] = $scaleRatio;
-        
-        return $scaled;
-    }
-    
-    /**
-     * Get attachment ID from image file path
-     * Handles both full size images and thumbnails/resized versions
-     */
-    private function getAttachmentIdFromPath(string $imagePath): ?int
-    {
-        if (empty($imagePath)) {
-            return null;
-        }
-        
-        // Normalize path
-        $normalizedPath = wp_normalize_path($imagePath);
-        $uploadDir = wp_upload_dir();
-        $baseDir = wp_normalize_path($uploadDir['basedir']);
-        
-        // Get relative path from uploads directory
-        if (strpos($normalizedPath, $baseDir) !== 0) {
-            return null;
-        }
-        
-        $relativePath = str_replace($baseDir . '/', '', $normalizedPath);
-        $pathInfo = pathinfo($relativePath);
-        $baseFilename = $pathInfo['filename'];
-        $directory = $pathInfo['dirname'];
-        
-        // First, try exact match (for full size images)
-        global $wpdb;
-        $attachmentId = $wpdb->get_var($wpdb->prepare(
-            "SELECT post_id FROM {$wpdb->postmeta} 
-            WHERE meta_key = '_wp_attached_file' 
-            AND meta_value = %s 
-            LIMIT 1",
-            $relativePath
-        ));
-        
-        if ($attachmentId) {
-            return (int) $attachmentId;
-        }
-        
-        // If exact match fails, try to match by base filename and directory
-        // This handles thumbnails and resized images (e.g., image-150x150.jpg -> image.jpg)
-        // Remove size suffix (e.g., -150x150) from filename
-        $baseFilenameClean = preg_replace('/-\d+x\d+$/', '', $baseFilename);
-        $extension = isset($pathInfo['extension']) ? '.' . $pathInfo['extension'] : '';
-        
-        // Try to find attachment with matching base filename in same directory
-        $possiblePath = $directory === '.' ? $baseFilenameClean . $extension : $directory . '/' . $baseFilenameClean . $extension;
-        
-        $attachmentId = $wpdb->get_var($wpdb->prepare(
-            "SELECT post_id FROM {$wpdb->postmeta} 
-            WHERE meta_key = '_wp_attached_file' 
-            AND meta_value = %s 
-            LIMIT 1",
-            $possiblePath
-        ));
-        
-        if ($attachmentId) {
-            return (int) $attachmentId;
-        }
-        
-        // Last resort: search by base filename pattern in metadata
-        $attachmentId = $wpdb->get_var($wpdb->prepare(
-            "SELECT post_id FROM {$wpdb->postmeta} pm
-            INNER JOIN {$wpdb->posts} p ON pm.post_id = p.ID
-            WHERE pm.meta_key = '_wp_attached_file'
-            AND pm.meta_value LIKE %s
-            AND p.post_type = 'attachment'
-            LIMIT 1",
-            '%' . $wpdb->esc_like($baseFilenameClean) . '%'
-        ));
-        
-        return $attachmentId ? (int) $attachmentId : null;
-    }
-    
-    /**
-     * Generate preview image
+     * Generate a preview image and return its public URL.
+     *
+     * @return string|false URL on success, false on failure
      */
     public function generatePreview(string $sourceImagePath, array $watermarkData)
     {
-        
-        // Load source image
-        $image = new \Imagick($sourceImagePath);
-        if (!$image) {
+        try {
+            $image = $this->loadImage($sourceImagePath);
+
+            try {
+                // Treat the preview source as the "full size" reference so that
+                // user-configured offsets/font sizes render at their natural scale.
+                $previewData = $watermarkData;
+                $previewData['_full_size_width']  = $image->getImageWidth();
+                $previewData['_full_size_height'] = $image->getImageHeight();
+
+                $scaled = $this->scaleWatermarkDataForImage($image, $previewData);
+                $this->renderWatermark($image, $scaled);
+
+                $previewPath = $this->preparePreviewPath($watermarkData);
+
+                if (!$this->saveImage($image, $previewPath, $watermarkData)) {
+                    throw new \RuntimeException('Imagick failed to write preview file: ' . $previewPath);
+                }
+
+                return $this->pathToUrl($previewPath);
+            } finally {
+                $image->clear();
+                $image->destroy();
+            }
+        } catch (\Throwable $e) {
+            $this->logError('generatePreview', $e);
             return false;
         }
-        
-        $watermarkType = $watermarkData['watermark_type'] ?? 'text';
-        
-        if ($watermarkType === 'text') {
-            $this->applyTextWatermark($image, $watermarkData);
-        } elseif ($watermarkType === 'image') {
-            $this->applyImageWatermark($image, $watermarkData);
-        } else {
-        }
-        
-        // Create preview path in WordPress uploads directory
-        $uploadDir = wp_upload_dir();
-        
-        // Clean up any existing preview images first
-        $previewDir = $uploadDir['basedir'] . '/ultimate-watermark';
-        if (file_exists($previewDir)) {
-            $existingFiles = glob($previewDir . '/watermark_preview_*.png');
-            foreach ($existingFiles as $file) {
-                // Security: Validate path to prevent directory traversal
-                $normalized_file = wp_normalize_path($file);
-                if (strpos($normalized_file, $previewDir) === 0 && file_exists($normalized_file) && is_file($normalized_file)) {
-                    unlink($normalized_file);
-                }
-            }
-        }
-        
-        // Generate a consistent filename based on watermark data hash
-        $watermarkHash = md5(serialize($watermarkData));
-        $previewPath = $uploadDir['basedir'] . '/ultimate-watermark/watermark_preview_' . $watermarkHash . '.png';
-        
-        // Ensure directory exists
-        $previewDir = dirname($previewPath);
-        if (!file_exists($previewDir)) {
-            wp_mkdir_p($previewDir);
-        }
-        
-        // Save preview image with quality and format settings
-        $result = $this->saveImage($image, $previewPath, $watermarkData);
-        $image->destroy();
-        
-        if ($result) {
-            // Return the web-accessible URL instead of the file path
-            $uploadDir = wp_upload_dir();
-            $relativePath = str_replace($uploadDir['basedir'], '', $previewPath);
-            return $uploadDir['baseurl'] . $relativePath;
-        }
-        
-        return false;
     }
-    
+
     /**
-     * Get supported image formats
+     * Get supported image formats.
      */
     public function getSupportedFormats(): array
     {
         return ['jpg', 'jpeg', 'png', 'gif', 'webp'];
     }
-    
+
     /**
-     * Apply text watermark - Simple and clean implementation
+     * Whether this processor is usable on the current host.
      */
+    public function isAvailable(): bool
+    {
+        return extension_loaded('imagick') && class_exists('\Imagick');
+    }
+
+    // ---------------------------------------------------------------------
+    // Internal helpers
+    // ---------------------------------------------------------------------
+
+    private function loadImage(string $sourceImagePath): \Imagick
+    {
+        if (!file_exists($sourceImagePath) || !is_readable($sourceImagePath)) {
+            throw new \RuntimeException('Source image not found or unreadable: ' . $sourceImagePath);
+        }
+
+        $image = new \Imagick();
+        $image->readImage($sourceImagePath);
+
+        // Strip EXIF orientation so preview/output match the displayed image.
+        if (method_exists($image, 'autoOrient')) {
+            $image->autoOrient();
+        }
+
+        return $image;
+    }
+
+    private function renderWatermark(\Imagick $image, array $watermarkData): void
+    {
+        $type = $watermarkData['watermark_type'] ?? 'text';
+
+        // Allow Pro plugin (or other extensions) to handle custom watermark types.
+        // Same filter name used by GD processor for cross-library compatibility.
+        $handled = apply_filters('ultimate_watermark_handle_custom_type', false, $image, $watermarkData, $type);
+        if ($handled) {
+            return;
+        }
+
+        if ($type === 'text') {
+            $this->applyTextWatermark($image, $watermarkData);
+            return;
+        }
+
+        if ($type === 'image') {
+            $this->applyImageWatermark($image, $watermarkData);
+            return;
+        }
+
+        // Unknown types: let Pro hook in.
+        do_action('ultimate_watermark_apply_custom_type', $image, $watermarkData, $type);
+    }
+
+    /**
+     * Scale font/offset/dimension fields proportionally for the current image.
+     *
+     * Watermarks are configured against the original (full-size) image; when
+     * applied to a thumbnail or smaller preview we scale values down so visual
+     * weight stays consistent.
+     */
+    private function scaleWatermarkDataForImage(\Imagick $image, array $watermarkData): array
+    {
+        $currentWidth  = $image->getImageWidth();
+        $currentHeight = $image->getImageHeight();
+
+        $fullWidth  = $watermarkData['_full_size_width']  ?? null;
+        $fullHeight = $watermarkData['_full_size_height'] ?? null;
+
+        if (($fullWidth === null || $fullHeight === null) && !empty($watermarkData['_source_image_path'])) {
+            $attachmentId = $this->getAttachmentIdFromPath($watermarkData['_source_image_path']);
+            if ($attachmentId) {
+                $metadata = wp_get_attachment_metadata($attachmentId);
+                if (!empty($metadata['width']) && !empty($metadata['height'])) {
+                    $fullWidth  = (int) $metadata['width'];
+                    $fullHeight = (int) $metadata['height'];
+                }
+            }
+        }
+
+        if (!$fullWidth || !$fullHeight) {
+            $fullWidth  = $currentWidth;
+            $fullHeight = $currentHeight;
+        }
+
+        $scaleRatio = min($currentWidth / $fullWidth, $currentHeight / $fullHeight);
+        $scaleRatio = max(0.05, min(1.0, $scaleRatio)); // safety clamp
+
+        $scaled = $watermarkData;
+
+        if (isset($scaled['watermark_font_size'])) {
+            $scaled['watermark_font_size'] = max(self::MIN_FONT_SIZE, (int) round($scaled['watermark_font_size'] * $scaleRatio));
+        }
+        if (isset($scaled['watermark_offset_x'])) {
+            $scaled['watermark_offset_x'] = (int) round($scaled['watermark_offset_x'] * $scaleRatio);
+        }
+        if (isset($scaled['watermark_offset_y'])) {
+            $scaled['watermark_offset_y'] = (int) round($scaled['watermark_offset_y'] * $scaleRatio);
+        }
+        if (isset($scaled['watermark_custom_width'])) {
+            $scaled['watermark_custom_width']  = max(10, (int) round($scaled['watermark_custom_width'] * $scaleRatio));
+        }
+        if (isset($scaled['watermark_custom_height'])) {
+            $scaled['watermark_custom_height'] = max(10, (int) round($scaled['watermark_custom_height'] * $scaleRatio));
+        }
+
+        $scaled['_current_image_width']  = $currentWidth;
+        $scaled['_current_image_height'] = $currentHeight;
+        $scaled['_scale_ratio']          = $scaleRatio;
+
+        return $scaled;
+    }
+
+    private function getAttachmentIdFromPath(string $imagePath): ?int
+    {
+        if ($imagePath === '') {
+            return null;
+        }
+
+        $normalizedPath = wp_normalize_path($imagePath);
+        $uploadDir      = wp_upload_dir();
+        $baseDir        = wp_normalize_path($uploadDir['basedir']);
+
+        if (strpos($normalizedPath, $baseDir) !== 0) {
+            return null;
+        }
+
+        $relativePath = ltrim(str_replace($baseDir, '', $normalizedPath), '/');
+        $pathInfo     = pathinfo($relativePath);
+        $directory    = $pathInfo['dirname'] ?? '.';
+        $extension    = isset($pathInfo['extension']) ? '.' . $pathInfo['extension'] : '';
+        $baseClean    = preg_replace('/-\d+x\d+$/', '', $pathInfo['filename'] ?? '');
+
+        global $wpdb;
+
+        $candidates = [$relativePath];
+        if ($baseClean !== '') {
+            $candidates[] = ($directory === '.' ? '' : $directory . '/') . $baseClean . $extension;
+        }
+        $candidates = array_unique(array_filter($candidates));
+
+        foreach ($candidates as $candidate) {
+            $id = $wpdb->get_var($wpdb->prepare(
+                "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_wp_attached_file' AND meta_value = %s LIMIT 1",
+                $candidate
+            ));
+            if ($id) {
+                return (int) $id;
+            }
+        }
+
+        return null;
+    }
+
+    // ---------------------------------------------------------------------
+    // Text watermark
+    // ---------------------------------------------------------------------
+
     private function applyTextWatermark(\Imagick $image, array $watermarkData): void
     {
-        
-        $text = $watermarkData['watermark_text'] ?? 'Watermark';
-        $fontSize = $watermarkData['watermark_font_size'] ?? 24;
-        $color = $this->hexToRgb($watermarkData['watermark_color'] ?? '#000000');
-        $opacity = $watermarkData['watermark_opacity'] ?? 50;
-        $rotation = $watermarkData['watermark_rotation'] ?? 0;
-        $fontFamily = $watermarkData['watermark_font_family'] ?? 'Arial';
-        
-        
-        $imageWidth = $image->getImageWidth();
-        $imageHeight = $image->getImageHeight();
-        
-        // Map font family names to system font names with weight and style
-        $fontWeight = $watermarkData['watermark_font_weight'] ?? 'normal';
-        $fontStyle = $watermarkData['watermark_font_style'] ?? 'normal';
-        $systemFontName = $this->getSystemFontName($fontFamily, $fontWeight, $fontStyle);
-        
-        
-        
-        // Create a temporary draw object to get accurate text dimensions
-        $tempDraw = new \ImagickDraw();
-        $tempDraw->setFontSize($fontSize);
-        
-        // Try to set the font with error handling
-        try {
-            $tempDraw->setFont($systemFontName);
-        } catch (Exception $e) {
-            // Fallback to basic Arial
-            $tempDraw->setFont('Arial');
-            $systemFontName = 'Arial';
+        $text = (string) ($watermarkData['watermark_text'] ?? '');
+        if ($text === '') {
+            return;
         }
-        
-        // Create text watermark
+
+        $fontSize = max(self::MIN_FONT_SIZE, (int) ($watermarkData['watermark_font_size'] ?? 24));
+        $opacity  = max(0, min(100, (int) ($watermarkData['watermark_opacity'] ?? 50)));
+        $rotation = (int) ($watermarkData['watermark_rotation'] ?? 0);
+
+        $draw = $this->createTextDrawObject($watermarkData, $fontSize, $opacity);
+
+        // Mirror the resolved font onto the Imagick image as well — this
+        // works around a long-standing macOS Homebrew ImageMagick bug where
+        // ImagickDraw::setFont() with a path containing spaces (e.g. the
+        // Local Sites/ folder on a Local-by-Flywheel install) is silently
+        // dropped by the MVG parser. Setting on the image is a separate
+        // code path and accepts the same path verbatim.
+        $imageFontPath = $this->resolvedFontPathFor($watermarkData);
+        if ($imageFontPath !== null) {
+            try {
+                $image->setFont($imageFontPath);
+            } catch (\Throwable $e) {
+                // Non-fatal — annotateImage will use the draw's font instead.
+            }
+        }
+
+        if ($rotation === 0) {
+            $metrics    = $image->queryFontMetrics($draw, $text);
+            $textWidth  = (int) $metrics['textWidth'];
+            $textHeight = (int) $metrics['textHeight'];
+
+            $position = $this->calculatePosition(
+                $watermarkData,
+                $image->getImageWidth(),
+                $image->getImageHeight(),
+                $textWidth,
+                $textHeight
+            );
+
+            // annotateImage draws from the text baseline, so we offset by the ascender.
+            $ascender = (int) ($metrics['ascender'] ?? $textHeight);
+            $image->annotateImage($draw, $position['x'], $position['y'] + $ascender, 0, $text);
+            return;
+        }
+
+        $this->drawRotatedText($image, $draw, $text, $rotation, $watermarkData);
+    }
+
+    private function createTextDrawObject(array $watermarkData, int $fontSize, int $opacity): \ImagickDraw
+    {
+        $color = $this->hexToRgb((string) ($watermarkData['watermark_color'] ?? '#000000'));
+
         $draw = new \ImagickDraw();
         $draw->setFontSize($fontSize);
         $draw->setFillColor($color);
         $draw->setFillOpacity($opacity / 100);
-        
-        // Try to set the font with error handling
-        try {
-            $draw->setFont($systemFontName);
-        } catch (Exception $e) {
-            // Fallback to basic Arial
-            $draw->setFont('Arial');
+        $draw->setTextAntialias(true);
+
+        $family = (string) ($watermarkData['watermark_font_family'] ?? 'Arial');
+        $weight = (string) ($watermarkData['watermark_font_weight'] ?? 'normal');
+        $style  = (string) ($watermarkData['watermark_font_style']  ?? 'normal');
+
+        $fontPath = $this->resolveFontPath($family, $weight, $style);
+
+        if ($fontPath !== null) {
+            try {
+                $draw->setFont($fontPath);
+            } catch (\Throwable $e) {
+                // Non-fatal — Imagick will fall back to its default font.
+            }
         }
-        
-        // Apply text with rotation (position will be calculated inside based on rotation)
-        $this->drawTextWithRotation($image, $draw, $text, $watermarkData);
-    }
-    
-    /**
-     * Draw text with rotation
-     */
-    private function drawTextWithRotation(\Imagick $image, \ImagickDraw $draw, string $text, array $watermarkData): void
-    {
-        $rotation = $watermarkData['watermark_rotation'] ?? 0;
-        
-        // If no rotation, use simple positioning
-        if ($rotation == 0) {
-            // Calculate position for non-rotated text
-            $textMetrics = $image->queryFontMetrics($draw, $text);
-            $textWidth = (int) $textMetrics['textWidth'];
-            $textHeight = (int) $textMetrics['textHeight'];
-            $position = $this->calculatePosition($watermarkData, $image->getImageWidth(), $image->getImageHeight(), $textWidth, $textHeight);
-            $this->drawTextAtPosition($image, $draw, $text, $position, $watermarkData);
-            return;
-        }
-        
-        // For rotated text, we need to create a temporary image and rotate it
-        $this->drawRotatedText($image, $draw, $text, $rotation, $watermarkData);
-    }
-    
-    /**
-     * Draw text at specified position (no rotation)
-     */
-    private function drawTextAtPosition(\Imagick $image, \ImagickDraw $draw, string $text, array $position, array $watermarkData): void
-    {
-        $watermarkPosition = $watermarkData['watermark_position'] ?? 'bottom-right';
-        $fontSize = $watermarkData['watermark_font_size'] ?? 24;
-        $imageWidth = $image->getImageWidth();
-        $imageHeight = $image->getImageHeight();
-        
-        // Adjust Y position based on watermark position
-        if (strpos($watermarkPosition, 'top') !== false) {
-            // For top positions, ensure text is fully visible (add font size to Y)
-            $y = $position['y'] + $fontSize;
-        } elseif (strpos($watermarkPosition, 'bottom') !== false) {
-            // For bottom positions, position text so it's fully visible at bottom
-            // annotateImage() positions from baseline, so we need to account for font size
-            $y = $imageHeight - $fontSize;
-        } else {
-            // For center positions, use calculated position
-            $y = $position['y'];
-        }
-        
-        // Ensure text stays within bounds
-        $x = max(0, min($position['x'], $imageWidth - 1));
-        $y = max(0, min($y, $imageHeight - 1));
-        
-        // Apply text decoration if specified (before drawing text)
+
         $this->applyTextDecoration($draw, $watermarkData);
-        
-        $image->annotateImage($draw, $x, $y, 0, $text);
+
+        return $draw;
     }
-    
-    /**
-     * Draw rotated text using temporary image
-     */
+
     private function drawRotatedText(\Imagick $image, \ImagickDraw $draw, string $text, int $rotation, array $watermarkData): void
     {
-        $watermarkPosition = $watermarkData['watermark_position'] ?? 'bottom-right';
-        $offsetX = $watermarkData['watermark_offset_x'] ?? 10;
-        $offsetY = $watermarkData['watermark_offset_y'] ?? 10;
-        $fontSize = $watermarkData['watermark_font_size'] ?? 24;
-        $imageWidth = $image->getImageWidth();
-        $imageHeight = $image->getImageHeight();
-        
-        // Get text dimensions
-        $textMetrics = $image->queryFontMetrics($draw, $text);
-        $textWidth = (int) $textMetrics['textWidth'];
-        $textHeight = (int) $textMetrics['textHeight'];
-        
-        // Create temporary image for text
+        $metrics    = $image->queryFontMetrics($draw, $text);
+        $textWidth  = (int) $metrics['textWidth'];
+        $textHeight = (int) $metrics['textHeight'];
+        $ascender   = (int) ($metrics['ascender'] ?? $textHeight);
+
+        $padding = 10;
+
         $tempImage = new \Imagick();
-        $tempImage->newImage($textWidth + 20, $textHeight + 20, 'transparent');
+        $tempImage->newImage($textWidth + $padding * 2, $textHeight + $padding * 2, new \ImagickPixel('transparent'));
         $tempImage->setImageFormat('png');
-        
-        // Create temporary draw object
-        $tempDraw = new \ImagickDraw();
-        $tempDraw->setFontSize($fontSize);
-        $tempDraw->setFillColor($draw->getFillColor());
-        $tempDraw->setFillOpacity($draw->getFillOpacity());
-        $tempDraw->setFont($draw->getFont());
-        
-        // Apply text decoration to the temporary draw object (before drawing text)
-        $this->applyTextDecoration($tempDraw, $watermarkData);
-        
-        // Draw text on temporary image
-        $tempImage->annotateImage($tempDraw, 10, $textHeight + 10, 0, $text);
-        
-        // Rotate the temporary image
-        $tempImage->rotateImage('transparent', $rotation);
-        
-        // Get rotated image dimensions
-        $rotatedWidth = $tempImage->getImageWidth();
+
+        // Same path-with-spaces workaround as applyTextWatermark — set the
+        // resolved font on the temp image so annotateImage doesn't fall back
+        // to the system default through the broken MVG codepath.
+        $imageFontPath = $this->resolvedFontPathFor($watermarkData);
+        if ($imageFontPath !== null) {
+            try {
+                $tempImage->setFont($imageFontPath);
+            } catch (\Throwable $e) {
+                // Non-fatal — draw still has the font set.
+            }
+        }
+
+        $tempImage->annotateImage($draw, $padding, $padding + $ascender, 0, $text);
+        $tempImage->rotateImage(new \ImagickPixel('transparent'), $rotation);
+
+        $rotatedWidth  = $tempImage->getImageWidth();
         $rotatedHeight = $tempImage->getImageHeight();
-        
-        // Calculate position based on watermark position and rotated text dimensions
-        $x = 0;
-        $y = 0;
-        
-        switch ($watermarkPosition) {
-            case 'top-left':
-                $x = $offsetX;
-                $y = $offsetY;
-                break;
-            case 'top-center':
-                $x = ($imageWidth - $rotatedWidth) / 2;
-                $y = $offsetY;
-                break;
-            case 'top-right':
-                $x = $imageWidth - $rotatedWidth - $offsetX;
-                $y = $offsetY;
-                break;
-            case 'center-left':
-                $x = $offsetX;
-                $y = ($imageHeight - $rotatedHeight) / 2;
-                break;
-            case 'center':
-                $x = ($imageWidth - $rotatedWidth) / 2;
-                $y = ($imageHeight - $rotatedHeight) / 2;
-                break;
-            case 'center-right':
-                $x = $imageWidth - $rotatedWidth - $offsetX;
-                $y = ($imageHeight - $rotatedHeight) / 2;
-                break;
-            case 'bottom-left':
-                $x = $offsetX;
-                $y = $imageHeight - $rotatedHeight;
-                break;
-            case 'bottom-center':
-                $x = ($imageWidth - $rotatedWidth) / 2;
-                $y = $imageHeight - $rotatedHeight;
-                break;
-            case 'bottom-right':
-            default:
-                $x = $imageWidth - $rotatedWidth - $offsetX;
-                $y = $imageHeight - $rotatedHeight;
-                break;
-        }
-        
-        // Ensure text stays within bounds
-        $x = max(0, min($x, $imageWidth - $rotatedWidth));
-        $y = max(0, min($y, $imageHeight - $rotatedHeight));
-        
-        // Composite rotated text onto main image (cast to int to avoid deprecation warning)
-        $image->compositeImage($tempImage, \Imagick::COMPOSITE_OVER, (int)$x, (int)$y);
-        
-        // Clean up
+
+        $position = $this->calculatePosition(
+            $watermarkData,
+            $image->getImageWidth(),
+            $image->getImageHeight(),
+            $rotatedWidth,
+            $rotatedHeight
+        );
+
+        $image->compositeImage($tempImage, \Imagick::COMPOSITE_OVER, $position['x'], $position['y']);
+
+        $tempImage->clear();
         $tempImage->destroy();
-        $tempDraw->destroy();
     }
-    
-    /**
-     * Apply image watermark
-     */
-    private function applyImageWatermark(\Imagick $image, array $watermarkData): void
-    {
-        
-        $watermarkPath = $watermarkData['watermark_image_path'] ?? '';
-        
-        if (empty($watermarkPath) || !file_exists($watermarkPath)) {
-            return;
-        }
-        
-        $watermarkImage = new \Imagick($watermarkPath);
-        if (!$watermarkImage) {
-            return;
-        }
-        
-        $rotation = $watermarkData['watermark_rotation'] ?? 0;
-        $opacity = $watermarkData['watermark_opacity'] ?? 50;
-        
-        
-        
-        // Apply rotation and positioning (opacity will be handled in the rotation method)
-        $this->applyImageWatermarkWithRotation($image, $watermarkImage, $rotation, $opacity, $watermarkData);
-        
-        $watermarkImage->destroy();
-    }
-    
-    /**
-     * Apply image watermark with rotation
-     */
-    private function applyImageWatermarkWithRotation(\Imagick $image, \Imagick $watermarkImage, int $rotation, int $opacity, array $watermarkData): void
-    {
-        $watermarkPosition = $watermarkData['watermark_position'] ?? 'bottom-right';
-        $offsetX = $watermarkData['watermark_offset_x'] ?? 10;
-        $offsetY = $watermarkData['watermark_offset_y'] ?? 10;
-        $imageWidth = $image->getImageWidth();
-        $imageHeight = $image->getImageHeight();
-        
-        // Apply size scaling to watermark
-        $watermarkImage = $this->applyWatermarkSizeScaling($watermarkImage, $watermarkData, $imageWidth, $imageHeight);
-        
-        
-        // If no rotation, use simple positioning
-        if ($rotation == 0) {
-            $watermarkWidth = $watermarkImage->getImageWidth();
-            $watermarkHeight = $watermarkImage->getImageHeight();
-            $position = $this->calculatePosition($watermarkData, $imageWidth, $imageHeight, $watermarkWidth, $watermarkHeight);
-            
-            
-            // Apply opacity using composite with alpha
-            if ($opacity < 100) {
-                $watermarkImage->setImageAlphaChannel(\Imagick::ALPHACHANNEL_ACTIVATE);
-                $watermarkImage->evaluateImage(\Imagick::EVALUATE_MULTIPLY, $opacity / 100, \Imagick::CHANNEL_ALPHA);
-            }
-            
-            
-            // Check if position is within bounds
-            if ($position['x'] < 0 || $position['y'] < 0 || 
-                $position['x'] + $watermarkWidth > $imageWidth || 
-                $position['y'] + $watermarkHeight > $imageHeight) {
-            }
-            
-            // Check watermark image properties before compositing
-            
-            $compositeResult = $image->compositeImage($watermarkImage, \Imagick::COMPOSITE_OVER, $position['x'], $position['y']);
-            return;
-        }
-        
-        // For rotated image, we need to rotate the watermark first
-        $rotatedWatermark = clone $watermarkImage;
-        $rotatedWatermark->rotateImage('transparent', $rotation);
-        
-        // Apply opacity to rotated watermark
-        if ($opacity < 100) {
-            $rotatedWatermark->setImageAlphaChannel(\Imagick::ALPHACHANNEL_ACTIVATE);
-            $rotatedWatermark->evaluateImage(\Imagick::EVALUATE_MULTIPLY, $opacity / 100, \Imagick::CHANNEL_ALPHA);
-        }
-        
-        // Get rotated watermark dimensions
-        $rotatedWidth = $rotatedWatermark->getImageWidth();
-        $rotatedHeight = $rotatedWatermark->getImageHeight();
-        
-        
-        // Calculate position based on watermark position and rotated dimensions
-        $x = 0;
-        $y = 0;
-        
-        switch ($watermarkPosition) {
-            case 'top-left':
-                $x = $offsetX;
-                $y = $offsetY;
-                break;
-            case 'top-center':
-                $x = ($imageWidth - $rotatedWidth) / 2;
-                $y = $offsetY;
-                break;
-            case 'top-right':
-                $x = $imageWidth - $rotatedWidth - $offsetX;
-                $y = $offsetY;
-                break;
-            case 'center-left':
-                $x = $offsetX;
-                $y = ($imageHeight - $rotatedHeight) / 2;
-                break;
-            case 'center':
-                $x = ($imageWidth - $rotatedWidth) / 2;
-                $y = ($imageHeight - $rotatedHeight) / 2;
-                break;
-            case 'center-right':
-                $x = $imageWidth - $rotatedWidth - $offsetX;
-                $y = ($imageHeight - $rotatedHeight) / 2;
-                break;
-            case 'bottom-left':
-                $x = $offsetX;
-                $y = $imageHeight - $rotatedHeight;
-                break;
-            case 'bottom-center':
-                $x = ($imageWidth - $rotatedWidth) / 2;
-                $y = $imageHeight - $rotatedHeight;
-                break;
-            case 'bottom-right':
-            default:
-                $x = $imageWidth - $rotatedWidth - $offsetX;
-                $y = $imageHeight - $rotatedHeight;
-                break;
-        }
-        
-        // Ensure watermark stays within bounds
-        $x = max(0, min($x, $imageWidth - $rotatedWidth));
-        $y = max(0, min($y, $imageHeight - $rotatedHeight));
-        
-        
-        // Composite rotated watermark onto main image (cast to int to avoid deprecation warning)
-        $image->compositeImage($rotatedWatermark, \Imagick::COMPOSITE_OVER, (int)$x, (int)$y);
-        
-        // Clean up rotated watermark
-        $rotatedWatermark->destroy();
-    }
-    
-    /**
-     * Apply watermark size scaling
-     */
-    private function applyWatermarkSizeScaling(\Imagick $watermarkImage, array $watermarkData, int $imageWidth, int $imageHeight): \Imagick
-    {
-        $sizeType = $watermarkData['watermark_size_type'] ?? 'original';
-        $originalWidth = $watermarkImage->getImageWidth();
-        $originalHeight = $watermarkImage->getImageHeight();
-        
-        
-        $newWidth = $originalWidth;
-        $newHeight = $originalHeight;
-        
-        switch ($sizeType) {
-            case 'scaled':
-                $scalePercentage = $watermarkData['watermark_scale_percentage'] ?? 80;
-                $newWidth = (int) ($imageWidth * $scalePercentage / 100);
-                $newHeight = (int) ($originalHeight * $newWidth / $originalWidth); // Maintain aspect ratio
-                
-                // Ensure watermark fits within image bounds
-                if ($newHeight > $imageHeight) {
-                    $newHeight = $imageHeight;
-                    $newWidth = (int) ($originalWidth * $newHeight / $originalHeight);
-                }
-                break;
-                
-            case 'custom':
-                $newWidth = $watermarkData['watermark_custom_width'] ?? 100;
-                $newHeight = $watermarkData['watermark_custom_height'] ?? 100;
-                
-                // Ensure watermark fits within image bounds
-                if ($newWidth > $imageWidth) {
-                    $newWidth = $imageWidth;
-                }
-                if ($newHeight > $imageHeight) {
-                    $newHeight = $imageHeight;
-                }
-                break;
-                
-            case 'original':
-            default:
-                // Even for original size, ensure it fits within image bounds
-                if ($originalWidth > $imageWidth || $originalHeight > $imageHeight) {
-                    $scaleX = $imageWidth / $originalWidth;
-                    $scaleY = $imageHeight / $originalHeight;
-                    $scale = min($scaleX, $scaleY); // Use the smaller scale to fit both dimensions
-                    
-                    $newWidth = (int) ($originalWidth * $scale);
-                    $newHeight = (int) ($originalHeight * $scale);
-                } else {
-                    return $watermarkImage; // No scaling needed
-                }
-                break;
-        }
-        
-        // Create scaled watermark image
-        $scaledWatermark = clone $watermarkImage;
-        
-        // Scale the watermark
-        $scaledWatermark->resizeImage($newWidth, $newHeight, \Imagick::FILTER_LANCZOS, 1);
-        
-        // Destroy original watermark image
-        $watermarkImage->destroy();
-        
-        return $scaledWatermark;
-    }
-    
-    /**
-     * Calculate watermark position
-     */
-    private function calculatePosition(array $watermarkData, int $imageWidth, int $imageHeight, int $watermarkWidth, int $watermarkHeight): array
-    {
-        $position = $watermarkData['watermark_position'] ?? 'bottom-right';
-        $offsetX = $watermarkData['watermark_offset_x'] ?? 10;
-        $offsetY = $watermarkData['watermark_offset_y'] ?? 10;
-        
-        $x = 0;
-        $y = 0;
-        
-        switch ($position) {
-            case 'top-left':
-                $x = $offsetX;
-                $y = $offsetY;
-                break;
-            case 'top-center':
-                $x = ($imageWidth - $watermarkWidth) / 2;
-                $y = $offsetY;
-                break;
-            case 'top-right':
-                $x = $imageWidth - $watermarkWidth - $offsetX;
-                $y = $offsetY;
-                break;
-            case 'center-left':
-                $x = $offsetX;
-                $y = ($imageHeight - $watermarkHeight) / 2;
-                break;
-            case 'center':
-                $x = ($imageWidth - $watermarkWidth) / 2;
-                $y = ($imageHeight - $watermarkHeight) / 2;
-                break;
-            case 'center-right':
-                $x = $imageWidth - $watermarkWidth - $offsetX;
-                $y = ($imageHeight - $watermarkHeight) / 2;
-                break;
-            case 'bottom-left':
-                $x = $offsetX;
-                $y = $imageHeight - $watermarkHeight;
-                break;
-            case 'bottom-center':
-                $x = ($imageWidth - $watermarkWidth) / 2;
-                $y = $imageHeight - $watermarkHeight;
-                break;
-            case 'bottom-right':
-            default:
-                $x = $imageWidth - $watermarkWidth - $offsetX;
-                $y = $imageHeight - $watermarkHeight;
-                break;
-        }
-        
-        return ['x' => (int)$x, 'y' => (int)$y];
-    }
-    
-    /**
-     * Apply text decoration to ImagickDraw object (underline, overline, line-through)
-     */
+
     private function applyTextDecoration(\ImagickDraw $draw, array $watermarkData): void
     {
-        $textDecoration = $watermarkData['watermark_text_decoration'] ?? 'none';
-        
-        
-        if ($textDecoration === 'none') {
-            return;
-        }
-        
-        // Use Imagick's native text decoration support
-        switch ($textDecoration) {
+        $decoration = $watermarkData['watermark_text_decoration'] ?? 'none';
+
+        switch ($decoration) {
             case 'underline':
                 $draw->setTextDecoration(\Imagick::DECORATION_UNDERLINE);
                 break;
@@ -749,174 +385,412 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
                 $draw->setTextDecoration(\Imagick::DECORATION_LINETHROUGH);
                 break;
         }
-        
     }
-    
-    
+
     /**
-     * Get system font name for Imagick with weight and style
+     * Resolve the font path for a watermark configuration.
+     *
+     * Mirrors what createTextDrawObject() resolves so that the same path can be
+     * applied to both ImagickDraw (via setFont) and Imagick (via setFont) — the
+     * latter is needed on macOS Homebrew builds where MVG drops draw-level
+     * setFont calls when the path contains spaces.
      */
-    private function getSystemFontName(string $fontFamily, string $fontWeight = 'normal', string $fontStyle = 'normal'): string
+    private function resolvedFontPathFor(array $watermarkData): ?string
     {
-        // Map font family names to system font names that Imagick can use
-        $fontMap = [
+        $family = (string) ($watermarkData['watermark_font_family'] ?? 'Arial');
+        $weight = (string) ($watermarkData['watermark_font_weight'] ?? 'normal');
+        $style  = (string) ($watermarkData['watermark_font_style']  ?? 'normal');
+
+        return $this->resolveFontPath($family, $weight, $style);
+    }
+
+    /**
+     * Resolve a TTF font path that ImageMagick can definitely load.
+     *
+     * Imagick's `setFont('Arial')` only works when the font is registered with
+     * the system font config. On many hosts that lookup fails silently and the
+     * subsequent annotateImage() throws. Resolving an actual file path avoids
+     * that failure mode entirely.
+     */
+    private function resolveFontPath(string $family, string $weight, string $style): ?string
+    {
+        /**
+         * Filter the resolved font path before falling back to system defaults.
+         * Pro plugins (e.g. Google Fonts integration) hook in here to provide
+         * a downloaded TTF/OTF for non-system fonts.
+         *
+         * @param string|null $path   File path. Return non-null to short-circuit lookup.
+         * @param string      $family Font family name as the user selected.
+         * @param string      $weight 'normal' | 'bold' | 'lighter'
+         * @param string      $style  'normal' | 'italic' | 'oblique'
+         */
+        $external = apply_filters('ultimate_watermark_resolve_font_path', null, $family, $weight, $style);
+        if (is_string($external) && $external !== '' && file_exists($external) && is_readable($external)) {
+            return $external;
+        }
+
+        // Common cross-platform font candidates by family name (descending preference).
+        $candidates = $this->fontCandidatesFor($family, $weight, $style);
+
+        foreach ($candidates as $candidate) {
+            if (file_exists($candidate) && is_readable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        // Final fallback — any TTF/OTF we can find on disk.
+        return $this->getFallbackFontPath();
+    }
+
+    private function fontCandidatesFor(string $family, string $weight, string $style): array
+    {
+        $isBold   = $weight === 'bold';
+        $isItalic = in_array($style, ['italic', 'oblique'], true);
+
+        $variant = '';
+        if ($isBold && $isItalic) {
+            $variant = 'BoldItalic';
+        } elseif ($isBold) {
+            $variant = 'Bold';
+        } elseif ($isItalic) {
+            $variant = 'Italic';
+        }
+
+        $base = [
             'Arial' => [
-                'normal' => [
-                    'normal' => 'Arial',
-                    'italic' => 'Arial-Italic',
-                    'oblique' => 'Arial-Italic'  // Fallback to Italic since Oblique is not available
-                ],
-                'bold' => [
-                    'normal' => 'Arial-Bold',
-                    'italic' => 'Arial-BoldItalic',
-                    'oblique' => 'Arial-BoldItalic'  // Fallback to BoldItalic since BoldOblique is not available
-                ],
-                'lighter' => [
-                    'normal' => 'Arial', // Fallback to regular Arial for lighter
-                    'italic' => 'Arial-Italic',
-                    'oblique' => 'Arial-Italic'  // Fallback to Italic since Oblique is not available
-                ]
+                '/System/Library/Fonts/Supplemental/Arial.ttf',
+                '/Library/Fonts/Arial.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                'C:\\Windows\\Fonts\\arial.ttf',
             ],
             'Helvetica' => [
-                'normal' => [
-                    'normal' => 'Helvetica',
-                    'italic' => 'Helvetica-Oblique'
-                ],
-                'bold' => [
-                    'normal' => 'Helvetica-Bold',
-                    'italic' => 'Helvetica-BoldOblique'
-                ]
+                '/System/Library/Fonts/Helvetica.ttc',
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
             ],
             'Times New Roman' => [
-                'normal' => [
-                    'normal' => 'Times-Roman',
-                    'italic' => 'Times-Italic'
-                ],
-                'bold' => [
-                    'normal' => 'Times-Bold',
-                    'italic' => 'Times-BoldItalic'
-                ]
+                '/System/Library/Fonts/Supplemental/Times New Roman.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf',
+                '/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf',
+                'C:\\Windows\\Fonts\\times.ttf',
             ],
             'Georgia' => [
-                'normal' => [
-                    'normal' => 'Georgia',
-                    'italic' => 'Georgia-Italic'
-                ],
-                'bold' => [
-                    'normal' => 'Georgia-Bold',
-                    'italic' => 'Georgia-BoldItalic'
-                ]
+                '/System/Library/Fonts/Supplemental/Georgia.ttf',
+                '/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf',
+                'C:\\Windows\\Fonts\\georgia.ttf',
             ],
             'Verdana' => [
-                'normal' => [
-                    'normal' => 'Verdana',
-                    'italic' => 'Verdana-Italic'
-                ],
-                'bold' => [
-                    'normal' => 'Verdana-Bold',
-                    'italic' => 'Verdana-BoldItalic'
-                ]
+                '/System/Library/Fonts/Supplemental/Verdana.ttf',
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                'C:\\Windows\\Fonts\\verdana.ttf',
             ],
             'Courier New' => [
-                'normal' => [
-                    'normal' => 'Courier',
-                    'italic' => 'Courier-Oblique'
-                ],
-                'bold' => [
-                    'normal' => 'Courier-Bold',
-                    'italic' => 'Courier-BoldOblique'
-                ]
-            ]
+                '/System/Library/Fonts/Supplemental/Courier New.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf',
+                '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf',
+                'C:\\Windows\\Fonts\\cour.ttf',
+            ],
         ];
-        
-        $systemFontName = $fontMap[$fontFamily][$fontWeight][$fontStyle] ?? 
-                         $fontMap[$fontFamily]['normal']['normal'] ?? 
-                         'Arial'; // Ultimate fallback
-        
-        
-        return $systemFontName;
+
+        $list = $base[$family] ?? $base['Arial'];
+
+        if ($variant === '') {
+            return $list;
+        }
+
+        // Try the styled variant first by tweaking the filename, then fall back.
+        $styled = [];
+        foreach ($list as $path) {
+            $info = pathinfo($path);
+            $stem = $info['filename'] ?? '';
+            $ext  = $info['extension'] ?? 'ttf';
+            $dir  = $info['dirname']   ?? '.';
+
+            // e.g. "Arial.ttf" → "Arial Bold.ttf" or "Arial-Bold.ttf"
+            $styled[] = $dir . '/' . $stem . ' ' . $variant . '.' . $ext;
+            $styled[] = $dir . '/' . $stem . '-' . $variant . '.' . $ext;
+        }
+
+        return array_merge($styled, $list);
     }
-    
-    /**
-     * Convert hex color to RGB
-     */
+
+    private function getFallbackFontPath(): ?string
+    {
+        if (self::$fallbackFontPath !== null) {
+            return self::$fallbackFontPath ?: null;
+        }
+
+        $candidates = [
+            '/System/Library/Fonts/Supplemental/Arial.ttf',
+            '/System/Library/Fonts/Helvetica.ttc',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+            '/usr/share/fonts/TTF/DejaVuSans.ttf',
+            'C:\\Windows\\Fonts\\arial.ttf',
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (file_exists($candidate)) {
+                self::$fallbackFontPath = $candidate;
+                return $candidate;
+            }
+        }
+
+        self::$fallbackFontPath = '';
+        return null;
+    }
+
+    // ---------------------------------------------------------------------
+    // Image watermark
+    // ---------------------------------------------------------------------
+
+    private function applyImageWatermark(\Imagick $image, array $watermarkData): void
+    {
+        $watermarkPath = (string) ($watermarkData['watermark_image_path'] ?? '');
+        if ($watermarkPath === '' || !file_exists($watermarkPath)) {
+            return;
+        }
+
+        $watermark = new \Imagick($watermarkPath);
+
+        try {
+            $watermark = $this->resizeWatermarkImage(
+                $watermark,
+                $watermarkData,
+                $image->getImageWidth(),
+                $image->getImageHeight()
+            );
+
+            $opacity  = max(0, min(100, (int) ($watermarkData['watermark_opacity'] ?? 50)));
+            $rotation = (int) ($watermarkData['watermark_rotation'] ?? 0);
+
+            if ($opacity < 100) {
+                $watermark->setImageAlphaChannel(\Imagick::ALPHACHANNEL_ACTIVATE);
+                $watermark->evaluateImage(\Imagick::EVALUATE_MULTIPLY, $opacity / 100, \Imagick::CHANNEL_ALPHA);
+            }
+
+            if ($rotation !== 0) {
+                $watermark->rotateImage(new \ImagickPixel('transparent'), $rotation);
+            }
+
+            $position = $this->calculatePosition(
+                $watermarkData,
+                $image->getImageWidth(),
+                $image->getImageHeight(),
+                $watermark->getImageWidth(),
+                $watermark->getImageHeight()
+            );
+
+            $image->compositeImage($watermark, \Imagick::COMPOSITE_OVER, $position['x'], $position['y']);
+        } finally {
+            $watermark->clear();
+            $watermark->destroy();
+        }
+    }
+
+    private function resizeWatermarkImage(\Imagick $watermark, array $watermarkData, int $imageWidth, int $imageHeight): \Imagick
+    {
+        $sizeType  = $watermarkData['watermark_size_type'] ?? 'original';
+        $origW     = $watermark->getImageWidth();
+        $origH     = $watermark->getImageHeight();
+        $newWidth  = $origW;
+        $newHeight = $origH;
+
+        switch ($sizeType) {
+            case 'scaled':
+                $percentage = max(1, min(100, (int) ($watermarkData['watermark_scale_percentage'] ?? 80)));
+                $newWidth   = (int) ($imageWidth * $percentage / 100);
+                $newHeight  = (int) ($origH * $newWidth / max(1, $origW));
+                break;
+
+            case 'custom':
+                $newWidth  = (int) ($watermarkData['watermark_custom_width']  ?? $origW);
+                $newHeight = (int) ($watermarkData['watermark_custom_height'] ?? $origH);
+                break;
+
+            case 'original':
+            default:
+                if ($origW > $imageWidth || $origH > $imageHeight) {
+                    $scale     = min($imageWidth / $origW, $imageHeight / $origH);
+                    $newWidth  = (int) ($origW * $scale);
+                    $newHeight = (int) ($origH * $scale);
+                } else {
+                    return $watermark;
+                }
+                break;
+        }
+
+        // Final clamp to image bounds.
+        if ($newWidth > $imageWidth) {
+            $newHeight = (int) ($newHeight * $imageWidth / max(1, $newWidth));
+            $newWidth  = $imageWidth;
+        }
+        if ($newHeight > $imageHeight) {
+            $newWidth  = (int) ($newWidth * $imageHeight / max(1, $newHeight));
+            $newHeight = $imageHeight;
+        }
+
+        $watermark->resizeImage(max(1, $newWidth), max(1, $newHeight), \Imagick::FILTER_LANCZOS, 1);
+        return $watermark;
+    }
+
+    // ---------------------------------------------------------------------
+    // Positioning
+    // ---------------------------------------------------------------------
+
+    private function calculatePosition(array $watermarkData, int $imageWidth, int $imageHeight, int $itemWidth, int $itemHeight): array
+    {
+        $position = $watermarkData['watermark_position'] ?? 'bottom-right';
+        $offsetX  = (int) ($watermarkData['watermark_offset_x'] ?? 0);
+        $offsetY  = (int) ($watermarkData['watermark_offset_y'] ?? 0);
+
+        switch ($position) {
+            case 'top-left':
+                $x = $offsetX;
+                $y = $offsetY;
+                break;
+            case 'top-center':
+                $x = (int) (($imageWidth - $itemWidth) / 2);
+                $y = $offsetY;
+                break;
+            case 'top-right':
+                $x = $imageWidth - $itemWidth - $offsetX;
+                $y = $offsetY;
+                break;
+            case 'center-left':
+                $x = $offsetX;
+                $y = (int) (($imageHeight - $itemHeight) / 2);
+                break;
+            case 'center':
+                $x = (int) (($imageWidth - $itemWidth) / 2);
+                $y = (int) (($imageHeight - $itemHeight) / 2);
+                break;
+            case 'center-right':
+                $x = $imageWidth - $itemWidth - $offsetX;
+                $y = (int) (($imageHeight - $itemHeight) / 2);
+                break;
+            case 'bottom-left':
+                $x = $offsetX;
+                $y = $imageHeight - $itemHeight - $offsetY;
+                break;
+            case 'bottom-center':
+                $x = (int) (($imageWidth - $itemWidth) / 2);
+                $y = $imageHeight - $itemHeight - $offsetY;
+                break;
+            case 'bottom-right':
+            default:
+                $x = $imageWidth - $itemWidth - $offsetX;
+                $y = $imageHeight - $itemHeight - $offsetY;
+                break;
+        }
+
+        // Clamp into image bounds so we never draw outside the canvas.
+        $x = max(0, min($x, max(0, $imageWidth - $itemWidth)));
+        $y = max(0, min($y, max(0, $imageHeight - $itemHeight)));
+
+        return ['x' => (int) $x, 'y' => (int) $y];
+    }
+
     private function hexToRgb(string $hex): string
     {
         $hex = ltrim($hex, '#');
-        if (strlen($hex) == 3) {
+        if (strlen($hex) === 3) {
             $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
         }
-        
-        $r = hexdec(substr($hex, 0, 2));
-        $g = hexdec(substr($hex, 2, 2));
-        $b = hexdec(substr($hex, 4, 2));
-        
-        return "rgb($r,$g,$b)";
+        if (!preg_match('/^[0-9a-fA-F]{6}$/', $hex)) {
+            $hex = '000000';
+        }
+        return sprintf('rgb(%d,%d,%d)', hexdec(substr($hex, 0, 2)), hexdec(substr($hex, 2, 2)), hexdec(substr($hex, 4, 2)));
     }
-    
-    /**
-     * Save image to file
-     */
+
+    // ---------------------------------------------------------------------
+    // Saving
+    // ---------------------------------------------------------------------
+
     public function saveImage(\Imagick $image, string $outputPath, array $watermarkData = []): bool
     {
-        
-        $extension = strtolower(pathinfo($outputPath, PATHINFO_EXTENSION));
-        $quality = $watermarkData['watermark_quality'] ?? 90;
+        $extension   = strtolower(pathinfo($outputPath, PATHINFO_EXTENSION));
+        $quality     = max(1, min(100, (int) ($watermarkData['watermark_quality'] ?? 90)));
         $imageFormat = $watermarkData['image_format'] ?? 'baseline';
-        
-        
-        
+
         switch ($extension) {
             case 'jpg':
             case 'jpeg':
                 $image->setImageFormat('jpeg');
                 $image->setImageCompressionQuality($quality);
-                
-                // Set progressive JPEG if requested
-                if ($imageFormat === 'progressive') {
-                    $image->setInterlaceScheme(\Imagick::INTERLACE_JPEG);
-                } else {
-                    $image->setInterlaceScheme(\Imagick::INTERLACE_NO);
-                }
+                $image->setInterlaceScheme($imageFormat === 'progressive' ? \Imagick::INTERLACE_JPEG : \Imagick::INTERLACE_NO);
                 break;
-                
+
             case 'png':
                 $image->setImageFormat('png');
-                // PNG compression level (0-9, where 9 is maximum compression)
-                $compression = (int) ((100 - $quality) / 10);
-                $compression = max(0, min(9, $compression));
-                $image->setImageCompressionQuality($compression * 10); // Convert to 0-100 scale
+                $image->setImageCompressionQuality($quality);
                 break;
-                
+
             case 'gif':
                 $image->setImageFormat('gif');
                 break;
-                
+
             case 'webp':
                 $image->setImageFormat('webp');
                 $image->setImageCompressionQuality($quality);
                 break;
-                
+
             default:
                 return false;
         }
-        
-        $result = $image->writeImage($outputPath);
-        
-        if ($result) {
-            if (file_exists($outputPath)) {
-            } else {
-            }
+
+        $dir = dirname($outputPath);
+        if (!is_dir($dir)) {
+            wp_mkdir_p($dir);
         }
-        
-        return $result;
+
+        return $image->writeImage($outputPath);
     }
-    
-    /**
-     * Check if processor is available
-     */
-    public function isAvailable(): bool
+
+    private function preparePreviewPath(array $watermarkData): string
     {
-        return extension_loaded('imagick');
+        $uploadDir = wp_upload_dir();
+        $previewDir = trailingslashit($uploadDir['basedir']) . 'ultimate-watermark';
+
+        if (!is_dir($previewDir)) {
+            wp_mkdir_p($previewDir);
+        }
+
+        // Index the directory so listing it doesn't expose previews.
+        $indexFile = $previewDir . '/index.html';
+        if (!file_exists($indexFile)) {
+            @file_put_contents($indexFile, '<!-- Silence is golden. -->');
+        }
+
+        // Determinstic name based on watermark fingerprint to avoid filesystem churn.
+        $fingerprint = md5(wp_json_encode($watermarkData) ?: serialize($watermarkData));
+        return $previewDir . '/watermark_preview_' . $fingerprint . '.png';
+    }
+
+    private function pathToUrl(string $path): string
+    {
+        $uploadDir = wp_upload_dir();
+        $base      = wp_normalize_path($uploadDir['basedir']);
+        $normPath  = wp_normalize_path($path);
+
+        if (strpos($normPath, $base) === 0) {
+            return $uploadDir['baseurl'] . substr($normPath, strlen($base));
+        }
+
+        return $uploadDir['baseurl'] . '/' . basename($path);
+    }
+
+    private function logError(string $context, \Throwable $e): void
+    {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log(sprintf(
+                'Ultimate Watermark Imagick %s error: %s in %s:%d',
+                $context,
+                $e->getMessage(),
+                $e->getFile(),
+                $e->getLine()
+            ));
+        }
     }
 }

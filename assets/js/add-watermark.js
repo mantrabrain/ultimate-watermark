@@ -780,7 +780,7 @@
                         </div>
                         <div class="modal-footer">
                             <button class="button" onclick="jQuery('#watermark-limit-modal').remove()">Maybe Later</button>
-                            <a href="${data.upgrade_url || 'https://mantrabrain.com/plugins/ultimate-watermark#pricing'}" target="_blank" class="button button-primary button-hero">
+                            <a href="${data.upgrade_url || 'https://mantrabrain.com/plugins/ultimate-watermark#pricing'}" target="_blank" class="button button-primary button-hero uw-pro-cta">
                                 <span class="dashicons dashicons-unlock"></span> Upgrade to Pro
                             </a>
                         </div>
@@ -892,17 +892,49 @@
         },
 
         /**
-         * Show loading state
+         * Detect whether we're editing an existing watermark or creating a
+         * new one. Reads the hidden #watermark_id field that AddWatermarkPage
+         * always emits — non-empty + > 0 means edit mode.
          */
-        showLoadingState: function() {
-            $('button[type="submit"]').prop('disabled', true).html('<span class="dashicons dashicons-update"></span> Creating...');
+        isEditMode: function() {
+            var idVal = parseInt($('#watermark_id').val(), 10);
+            return !isNaN(idVal) && idVal > 0;
         },
 
         /**
-         * Hide loading state
+         * Show loading state — preserves the current submit-button label so
+         * "Updating…" shows on edit and "Creating…" on create.
+         */
+        showLoadingState: function() {
+            var $btn = $('button[type="submit"][form="ultimate-watermark-form"], #ultimate-watermark-form button[type="submit"]').first();
+            if (!$btn.length) {
+                $btn = $('button[type="submit"]').first();
+            }
+            // Cache the original markup once so we can restore it verbatim.
+            if (typeof $btn.data('uw-original-html') === 'undefined') {
+                $btn.data('uw-original-html', $btn.html());
+            }
+            var label = this.isEditMode() ? 'Updating…' : 'Creating…';
+            $btn.prop('disabled', true).html('<span class="dashicons dashicons-update"></span> ' + label);
+        },
+
+        /**
+         * Hide loading state — restores the cached "Create" / "Update"
+         * label from when the page rendered.
          */
         hideLoadingState: function() {
-            $('button[type="submit"]').prop('disabled', false).html('<span class="dashicons dashicons-saved"></span> Create Watermark');
+            var $btn = $('button[type="submit"][form="ultimate-watermark-form"], #ultimate-watermark-form button[type="submit"]').first();
+            if (!$btn.length) {
+                $btn = $('button[type="submit"]').first();
+            }
+            var original = $btn.data('uw-original-html');
+            if (typeof original === 'string' && original.length) {
+                $btn.prop('disabled', false).html(original);
+                return;
+            }
+            // Fallback: rebuild the right label from edit-mode detection.
+            var label = this.isEditMode() ? 'Update Watermark' : 'Create Watermark';
+            $btn.prop('disabled', false).html('<span class="dashicons dashicons-saved"></span> ' + label);
         },
 
 
@@ -996,18 +1028,18 @@
                 type: 'POST',
                 data: ajaxData,
                 success: (response) => {
-                    this.generatingInitialPreview = false; // Clear flag
-                    if (response.success) {
+                    this.generatingInitialPreview = false;
+                    if (response && response.success) {
                         this.updatePreviewImage(response.data.preview_url);
                         this.updatePreviewStats(formData);
                         this.hidePreviewLoading();
                     } else {
-                        this.showPreviewError(response.data || 'Initial preview generation failed');
+                        this.showPreviewError(this.extractErrorMessage(response));
                     }
                 },
-                error: (xhr, status, error) => {
-                    this.generatingInitialPreview = false; // Clear flag
-                    this.showPreviewError('Initial preview generation failed. Please try again.');
+                error: (xhr) => {
+                    this.generatingInitialPreview = false;
+                    this.showPreviewError(this.extractErrorMessage(xhr));
                 }
             });
         },
@@ -1103,18 +1135,69 @@
                 type: 'POST',
                 data: ajaxData,
                 success: (response) => {
-                    if (response.success) {
+                    if (response && response.success) {
                         this.updatePreviewImage(response.data.preview_url);
                         this.updatePreviewStats(formData);
                         this.hidePreviewLoading();
                     } else {
-                        this.showPreviewError(response.data || 'Preview generation failed');
+                        this.showPreviewError(this.extractErrorMessage(response));
                     }
                 },
-                error: (xhr, status, error) => {
-                    this.showPreviewError('Preview generation failed. Please try again.');
+                error: (xhr) => {
+                    this.showPreviewError(this.extractErrorMessage(xhr));
                 }
             });
+        },
+
+        /**
+         * Pull a human-readable message out of whatever shape the response/xhr
+         * actually has — wp_send_json_error returns {data: {message, code}},
+         * jQuery hands us xhr objects on transport failure, etc.
+         */
+        extractErrorMessage: function(payload) {
+            const fallback = (typeof ultimate_watermark_ajax !== 'undefined'
+                && ultimate_watermark_ajax.strings
+                && ultimate_watermark_ajax.strings.preview_error) || 'Preview could not be generated. Please try again.';
+
+            if (!payload) {
+                return fallback;
+            }
+
+            if (typeof payload === 'string') {
+                return payload;
+            }
+
+            // jQuery xhr — try to parse the JSON body.
+            if (payload.responseJSON) {
+                return this.extractErrorMessage(payload.responseJSON);
+            }
+
+            if (payload.responseText) {
+                try {
+                    return this.extractErrorMessage(JSON.parse(payload.responseText));
+                } catch (e) {
+                    // ignore — fall through to other strategies
+                }
+            }
+
+            if (payload.data) {
+                if (typeof payload.data === 'string') {
+                    return payload.data;
+                }
+                if (payload.data.message) {
+                    return payload.data.message;
+                }
+            }
+
+            if (payload.message) {
+                return payload.message;
+            }
+
+            if (payload.statusText && payload.statusText !== 'error') {
+                return payload.statusText;
+            }
+
+            return fallback;
         },
 
         /**
@@ -1197,19 +1280,24 @@
          * Update preview image
          */
         updatePreviewImage: function(previewUrl) {
-            
+            if (!previewUrl) {
+                return;
+            }
+
             const $previewImage = $('#ultimate-watermark-preview-image');
-            
-            const newSrc = previewUrl + '?t=' + Date.now();
-            
+            const newSrc = previewUrl + (previewUrl.indexOf('?') > -1 ? '&' : '?') + 'v=' + Date.now();
+
+            $previewImage.off('load.uw error.uw');
+            $previewImage.on('load.uw', () => {
+                $previewImage.removeClass('preview-image-loading preview-image-error');
+            });
+            $previewImage.on('error.uw', () => {
+                $previewImage.addClass('preview-image-error');
+                this.showPreviewError(this.extractErrorMessage(null));
+            });
+
+            $previewImage.addClass('preview-image-loading');
             $previewImage.attr('src', newSrc);
-            
-            // Check if image loaded successfully
-            $previewImage.on('load', function() {
-            });
-            
-            $previewImage.on('error', function() {
-            });
         },
 
         /**
@@ -1220,8 +1308,9 @@
                 return;
             }
             $('#preview-position').text(this.formatPosition(formData.watermark_position));
-            $('#preview-opacity').text(formData.watermark_opacity + '%');
+            $('#preview-opacity').text((formData.watermark_opacity || 0) + '%');
             $('#preview-size').text(this.formatSize(formData));
+            $('#preview-rotation').text((formData.watermark_rotation || 0) + '°');
         },
 
         /**
@@ -1230,12 +1319,16 @@
         formatPosition: function(position) {
             const positions = {
                 'top-left': 'Top Left',
+                'top-center': 'Top Center',
                 'top-right': 'Top Right',
+                'center-left': 'Center Left',
+                'center': 'Center',
+                'center-right': 'Center Right',
                 'bottom-left': 'Bottom Left',
-                'bottom-right': 'Bottom Right',
-                'center': 'Center'
+                'bottom-center': 'Bottom Center',
+                'bottom-right': 'Bottom Right'
             };
-            return positions[position] || position;
+            return positions[position] || position || '—';
         },
 
         /**
@@ -1274,7 +1367,16 @@
          */
         showPreviewError: function(message) {
             this.hidePreviewLoading();
-            UWNotifications.error('Preview Error', message);
+
+            const finalMessage = (typeof message === 'string' && message.length)
+                ? message
+                : this.extractErrorMessage(message);
+
+            if (typeof UWNotifications !== 'undefined' && UWNotifications.error) {
+                UWNotifications.error('Preview Error', finalMessage);
+            } else if (typeof console !== 'undefined' && console.error) {
+                console.error('[Ultimate Watermark] Preview Error:', finalMessage);
+            }
         },
 
 

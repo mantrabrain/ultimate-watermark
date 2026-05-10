@@ -282,8 +282,9 @@
                 confirmText: confirmText,
                 cancelText: 'Cancel',
                 confirmButtonType: confirmClass
-            }).then(confirmed => {
-                if (confirmed) {
+            }).then(action_result => {
+                // confirm() resolves with the action string, not a boolean
+                if (action_result === 'confirm') {
                     this.confirmWatermarkAction(action, selectedItems);
                 }
             });

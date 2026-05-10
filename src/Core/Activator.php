@@ -19,18 +19,38 @@ class Activator
     {
         // Create database tables if needed
         self::createTables();
-        
+
         // Set default options
         self::setDefaultOptions();
-        
+
         // Create required directories
         self::createDirectories();
-        
+
+        // Stamp the install time so onboarding/marketing notices have a baseline
+        // even before the user opens any admin page.
+        self::seedNoticeBaseline();
+
         // Migration runs automatically on init hook (see Plugin.php)
         // No need to run here to avoid duplicate execution
-        
+
         // Flush rewrite rules
         flush_rewrite_rules();
+    }
+
+    /**
+     * Seed the notice manager state with the current timestamp on first
+     * activation. No-op on re-activation (preserves existing baseline).
+     */
+    private static function seedNoticeBaseline(): void
+    {
+        $existing = get_option('ultimate_watermark_notices', []);
+        if (!is_array($existing)) {
+            $existing = [];
+        }
+        if (empty($existing['install_time'])) {
+            $existing['install_time'] = time();
+            update_option('ultimate_watermark_notices', $existing, false);
+        }
     }
 
     /**

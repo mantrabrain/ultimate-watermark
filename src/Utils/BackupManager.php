@@ -346,90 +346,93 @@ class BackupManager
             // Regenerate attachment metadata to update WordPress about the restored files
             $original_path = get_attached_file($attachment_id);
             if ($original_path && file_exists($original_path)) {
-                // Delete ALL existing size files first (to ensure clean regeneration from restored full size)
-                // This is especially important when backup strategy is "full size only"
+                // Delete previously generated size files BEFORE regenerating, so that
+                // wp_generate_attachment_metadata() recreates them clean from the
+                // freshly restored original.
+                //
+                // We drive deletion from the saved attachment metadata rather than
+                // from a glob of the upload dir — globbing on the file's basename
+                // (e.g. "image-2*.*") was matching unrelated attachments such as
+                // "image-22.webp", which led to those getting deleted and to the
+                // confusing "image-2.webp does not exist" PHP warnings the user
+                // was seeing during restore.
                 $metadata = wp_get_attachment_metadata($attachment_id);
                 $base_dir = dirname($original_path);
                 $original_filename = basename($original_path);
-                $original_basename = pathinfo($original_filename, PATHINFO_FILENAME);
-                $original_ext = pathinfo($original_filename, PATHINFO_EXTENSION);
-                
-                // Get all files in the directory that match the image base name patterns
-                // This will catch all sizes, scaled versions, and variants dynamically
-                $all_files = glob($base_dir . '/' . $original_basename . '*.*');
-                
-                if ($all_files) {
-                    foreach ($all_files as $file) {
-                        $basename = basename($file);
-                        
-                        // Skip the original full size file (we just restored it, don't delete it!)
-                        if ($basename === $original_filename) {
+
+                $size_files_to_delete = [];
+
+                if (is_array($metadata) && !empty($metadata['sizes']) && is_array($metadata['sizes'])) {
+                    foreach ($metadata['sizes'] as $size_data) {
+                        if (empty($size_data['file'])) {
                             continue;
                         }
-                        
-                        // Skip backup files (they're in a different directory, but just in case)
-                        if (strpos($basename, '_original') !== false || strpos(dirname($file), 'ulwm-backup') !== false) {
+                        $size_files_to_delete[] = $base_dir . '/' . $size_data['file'];
+                    }
+                }
+
+                // Also queue the unscaled "original_image" if WP scaled this attachment.
+                // (Only set when the upload exceeded big_image_size_threshold.)
+                if (is_array($metadata) && !empty($metadata['original_image'])) {
+                    $size_files_to_delete[] = $base_dir . '/' . $metadata['original_image'];
+                }
+
+                // De-dupe and remove the freshly restored original from the delete list.
+                $size_files_to_delete = array_unique($size_files_to_delete);
+
+                foreach ($size_files_to_delete as $size_file) {
+                    if (!is_file($size_file)) {
+                        continue;
+                    }
+                    if (basename($size_file) === $original_filename) {
+                        continue; // never delete the file we just restored
+                    }
+                    // Safety: only delete inside the uploads dir.
+                    if (strpos(wp_normalize_path($size_file), wp_normalize_path($base_dir)) !== 0) {
+                        continue;
+                    }
+
+                    @unlink($size_file);
+
+                    // Best-effort cleanup of co-located webp/avif siblings created
+                    // by performance plugins (e.g. Cache Enabler, Optimole) that
+                    // mirror sizes as <name>.webp / <name>.avif. We only target
+                    // siblings keyed on this exact size's filename (no glob), so
+                    // unrelated attachments cannot be touched.
+                    $size_info = pathinfo($size_file);
+                    $size_dir  = $size_info['dirname']  ?? $base_dir;
+                    $size_stem = $size_info['filename'] ?? '';
+                    $size_ext  = strtolower($size_info['extension'] ?? '');
+
+                    foreach (['webp', 'avif'] as $variant_ext) {
+                        if ($size_ext === $variant_ext) {
                             continue;
                         }
-                        
-                        // Delete any file that matches our patterns (sizes, scaled, variants)
-                        // This includes: -150x150.jpg, -scaled.jpg, -scaled-2048x1366.jpg, etc.
-                        if (is_file($file)) {
-                            // Delete the file itself
-                            if (!unlink($file)) {
-                                if (defined('WP_DEBUG') && WP_DEBUG) {
-                                    error_log('Ultimate Watermark: Failed to delete file: ' . $file);
-                                }
-                            }
-                            
-                            // Also delete WebP/AVIF variants if they exist (dynamic check)
-                            $file_info = pathinfo($file);
-                            $file_ext = strtolower($file_info['extension'] ?? '');
-                            
-                            // If current file is not WebP/AVIF, check for those variants
-                            if (!in_array($file_ext, ['webp', 'avif'])) {
-                                $variant_extensions = ['webp', 'avif'];
-                                foreach ($variant_extensions as $variant_ext) {
-                                    $variant_path = $file_info['dirname'] . '/' . $file_info['filename'] . '.' . $variant_ext;
-                                    if (file_exists($variant_path) && is_file($variant_path)) {
-                                        if (!unlink($variant_path)) {
-                                            if (defined('WP_DEBUG') && WP_DEBUG) {
-                                                error_log('Ultimate Watermark: Failed to delete variant: ' . $variant_path);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            // If current file is WebP/AVIF, also check for original format variants
-                            if (in_array($file_ext, ['webp', 'avif'])) {
-                                $original_format_extensions = ['jpg', 'jpeg', 'png'];
-                                foreach ($original_format_extensions as $orig_ext) {
-                                    $orig_format_path = $file_info['dirname'] . '/' . $file_info['filename'] . '.' . $orig_ext;
-                                    if (file_exists($orig_format_path) && is_file($orig_format_path)) {
-                                        // Only delete if it matches the pattern (not the original full size)
-                                        if (basename($orig_format_path) !== $original_filename) {
-                                            if (!unlink($orig_format_path)) {
-                                                if (defined('WP_DEBUG') && WP_DEBUG) {
-                                                    error_log('Ultimate Watermark: Failed to delete original format variant: ' . $orig_format_path);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                        $variant_path = $size_dir . '/' . $size_stem . '.' . $variant_ext;
+                        if ($variant_path !== $size_file
+                            && basename($variant_path) !== $original_filename
+                            && is_file($variant_path)
+                        ) {
+                            @unlink($variant_path);
                         }
                     }
                 }
-                
+
                 // CRITICAL: Prevent watermarking during restore by setting a flag
                 // wp_generate_attachment_metadata triggers hooks that would apply watermarks again
                 update_post_meta($attachment_id, '_ulwm_skip_watermarking', true);
-                
-                // Now regenerate all sizes from the restored full size image
-                // This will create clean, unwatermarked versions of all sizes
-                wp_generate_attachment_metadata($attachment_id, $original_path);
-                
+
+                // Re-verify the original is still on disk before asking WP to
+                // generate metadata from it — the deletion loop above is
+                // metadata-driven now, but if a future change re-introduces a
+                // glob, this guard prevents the getimagesize/exif_imagetype/
+                // file_get_contents warnings the user previously hit.
+                if (file_exists($original_path)) {
+                    // Now regenerate all sizes from the restored full size image
+                    // This will create clean, unwatermarked versions of all sizes
+                    wp_generate_attachment_metadata($attachment_id, $original_path);
+                }
+
                 // Remove the skip flag after regeneration
                 delete_post_meta($attachment_id, '_ulwm_skip_watermarking');
             }

@@ -146,150 +146,197 @@ class NotificationSystem {
             style.id = 'uw-notification-styles';
             style.textContent = `
                 .uw-modal-container {
-                    position: fixed !important;
-                    top: 0 !important;
-                    left: 0 !important;
-                    right: 0 !important;
-                    bottom: 0 !important;
-                    background: rgba(0, 0, 0, 0.5) !important;
-                    z-index: 999999 !important;
-                    display: none !important;
-                    align-items: center !important;
-                    justify-content: center !important;
-                    padding: 20px !important;
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(15, 23, 42, 0.55);
+                    backdrop-filter: blur(2px);
+                    -webkit-backdrop-filter: blur(2px);
+                    z-index: 999999;
+                    display: none;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 20px;
+                    opacity: 0;
+                    transition: opacity 0.18s ease;
                 }
-                
                 .uw-modal-container.show {
-                    display: flex !important;
+                    display: flex;
+                    opacity: 1;
                 }
-                
+
                 .uw-modal {
-                    background: #fff !important;
-                    border-radius: 12px !important;
-                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
-                    max-width: 500px !important;
-                    width: 100% !important;
-                    max-height: 90vh !important;
-                    overflow-y: auto !important;
-                    transform: scale(0.95) !important;
-                    transition: transform 0.2s ease !important;
+                    background: #ffffff;
+                    border-radius: 14px;
+                    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.22);
+                    width: 100%;
+                    max-width: 460px;
+                    max-height: 90vh;
+                    overflow: hidden;
+                    display: flex;
+                    flex-direction: column;
+                    transform: translateY(8px) scale(0.98);
+                    opacity: 0;
+                    transition: transform 0.2s ease, opacity 0.2s ease;
                 }
-                
                 .uw-modal-container.show .uw-modal {
-                    transform: scale(1) !important;
+                    transform: translateY(0) scale(1);
+                    opacity: 1;
                 }
-                
+
                 .uw-modal-header {
-                    padding: 24px 24px 10px 24px !important;
-                    display: flex !important;
-                    align-items: center !important;
-                    gap: 12px !important;
-                    border-bottom:1px solid #ddd;
+                    padding: 20px 24px;
+                    display: flex;
+                    align-items: center;
+                    gap: 14px;
+                    border-bottom: 1px solid #e5e7eb;
+                    background: #ffffff;
                 }
-                
+
                 .uw-modal-icon {
-                    width: 40px !important;
-                    height: 40px !important;
-                    border-radius: 8px !important;
-                    display: flex !important;
-                    align-items: center !important;
-                    justify-content: center !important;
-                    flex-shrink: 0 !important;
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 10px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
                 }
-                
-                .uw-modal-icon.success {
-                    background: #d1fae5 !important;
-                    color: #065f46 !important;
-                }
-                
-                .uw-modal-icon.error {
-                    background: #fee2e2 !important;
-                    color: #dc2626 !important;
-                }
-                
-                .uw-modal-icon.warning {
-                    background: #fef3c7 !important;
-                    color: #d97706 !important;
-                }
-                
-                .uw-modal-icon.info {
-                    background: #dbeafe !important;
-                    color: #1d4ed8 !important;
-                }
-                
+                .uw-modal-icon.success { background: #d1fae5; color: #047857; }
+                .uw-modal-icon.error   { background: #fee2e2; color: #b91c1c; }
+                .uw-modal-icon.warning { background: #fef3c7; color: #b45309; }
+                .uw-modal-icon.info    { background: #dbeafe; color: #1d4ed8; }
                 .uw-modal-icon .dashicons {
-                    font-size: 20px !important;
-                    width: 20px !important;
-                    height: 20px !important;
+                    font-size: 20px;
+                    width: 20px;
+                    height: 20px;
                 }
-                
+
                 .uw-modal-title {
-                    font-size: 18px !important;
-                    font-weight: 600 !important;
-                    color: #1f2937 !important;
-                    margin: 0 !important;
+                    flex: 1;
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: #111827;
+                    margin: 0;
+                    line-height: 1.3;
+                    letter-spacing: -0.005em;
                 }
-                
+
                 .uw-modal-body {
-                    padding: 16px 24px 24px 24px !important;
+                    padding: 20px 24px;
+                    overflow-y: auto;
+                    flex: 1;
                 }
-                
+
                 .uw-modal-message {
-                    color: #6b7280 !important;
-                    line-height: 1.5 !important;
-                    margin: 0 0 20px 0 !important;
+                    color: #4b5563;
+                    font-size: 14px;
+                    line-height: 1.55;
+                    margin: 0;
                 }
-                
+
+                /* Action row pinned to a footer with a soft separator. */
                 .uw-modal-actions {
-                    display: flex !important;
-                    gap: 12px !important;
-                
+                    padding: 14px 20px;
+                    background: #f9fafb;
+                    border-top: 1px solid #e5e7eb;
+                    display: flex;
+                    align-items: center;
+                    justify-content: flex-end;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                    margin: 16px -24px -20px;
                 }
-                
+
                 .uw-modal-btn {
-                    padding: 10px 20px !important;
-                    border-radius: 6px !important;
-                    font-size: 14px !important;
-                    font-weight: 500 !important;
-                    border: none !important;
-                    cursor: pointer !important;
-                    transition: all 0.2s ease !important;
-                    display: flex !important;
-                    align-items: center !important;
-                    gap: 8px !important;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                    height: 36px;
+                    padding: 0 16px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    line-height: 1;
+                    border: 1px solid transparent;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+                    text-decoration: none;
+                    white-space: nowrap;
                 }
-                
+
+                .uw-modal-btn:focus-visible {
+                    outline: none;
+                    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+                }
+
+                /* Cancel / secondary — sits on the LEFT visually because of order:0 */
                 .uw-modal-btn-secondary {
-                    background: #f3f4f6 !important;
-                    color: #374151 !important;
+                    order: 0;
+                    background: #ffffff;
+                    color: #374151;
+                    border-color: #d1d5db;
                 }
-                
                 .uw-modal-btn-secondary:hover {
-                    background: #e5e7eb !important;
+                    background: #f3f4f6;
+                    border-color: #9ca3af;
+                    color: #111827;
                 }
-                
+
+                /* Optional third action — sits between cancel and confirm */
+                .uw-modal-btn[data-action="third"] {
+                    order: 1;
+                    background: #ffffff;
+                    color: #b91c1c;
+                    border-color: #fecaca;
+                }
+                .uw-modal-btn[data-action="third"]:hover {
+                    background: #fef2f2;
+                    border-color: #fca5a5;
+                }
+
+                /* Primary / confirm — sits on the FAR RIGHT */
                 .uw-modal-btn-primary {
-                    background: #3b82f6 !important;
-                    color: #fff !important;
+                    order: 2;
+                    background: #2563eb;
+                    color: #ffffff;
+                    border-color: #2563eb;
+                    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
                 }
-                
                 .uw-modal-btn-primary:hover {
-                    background: #2563eb !important;
+                    background: #1d4ed8;
+                    border-color: #1d4ed8;
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.32);
                 }
-                
+
                 .uw-modal-btn-danger {
-                    background: #ef4444 !important;
-                    color: #fff !important;
+                    order: 2;
+                    background: #dc2626;
+                    color: #ffffff;
+                    border-color: #dc2626;
+                    box-shadow: 0 1px 3px rgba(220, 38, 38, 0.28);
                 }
-                
                 .uw-modal-btn-danger:hover {
-                    background: #dc2626 !important;
+                    background: #b91c1c;
+                    border-color: #b91c1c;
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.32);
                 }
-                
+
                 .uw-modal-btn .dashicons {
-                    font-size: 16px !important;
-                    width: 16px !important;
-                    height: 16px !important;
+                    font-size: 14px;
+                    width: 14px;
+                    height: 14px;
+                    line-height: 1;
+                }
+
+                @media (max-width: 480px) {
+                    .uw-modal-actions {
+                        flex-direction: column-reverse;
+                        align-items: stretch;
+                    }
+                    .uw-modal-btn { width: 100%; }
                 }
             `;
             document.head.appendChild(style);

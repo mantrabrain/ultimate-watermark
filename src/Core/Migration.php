@@ -57,62 +57,43 @@ class Migration
      */
     public static function run(): void
     {
-        // Use static variable to prevent multiple runs in same request
+        // Use static variable to prevent multiple runs in same request.
         static $migration_checked = false;
-
         if ($migration_checked) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark Migration: Already checked in this request, skipping.');
-            }
             return;
         }
         $migration_checked = true;
 
         $current_migration = get_option(self::MIGRATION_VERSION_KEY, '0.0.0');
-        
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark Migration: Current version: ' . $current_migration . ', Target: ' . self::CURRENT_MIGRATION_VERSION);
-        }
 
-        // Check if migration is needed
+        // Already migrated — exit silently. There's nothing to log on every
+        // request just because the migration version is up to date.
         if (version_compare($current_migration, self::CURRENT_MIGRATION_VERSION, '>=')) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark Migration: Already migrated, skipping.');
-            }
-            return; // Already migrated
-        }
-        
-        // Check if old plugin data exists
-        $has_old_data = self::hasOldPluginData();
-        
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark Migration: Has old data: ' . ($has_old_data ? 'yes' : 'no'));
-        }
-
-        if (!$has_old_data) {
-            // No old data to migrate, mark as migrated
-            update_option(self::MIGRATION_VERSION_KEY, self::CURRENT_MIGRATION_VERSION);
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark Migration: No old data found, marking as migrated.');
-            }
             return;
         }
 
-        // Set migration version IMMEDIATELY to prevent duplicate runs
-        update_option(self::MIGRATION_VERSION_KEY, self::CURRENT_MIGRATION_VERSION);
-        
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark Migration: Starting migration process...');
+        // From here on we're actually doing work, so logging the steps is
+        // useful for debugging a real one-time migration.
+        $has_old_data = self::hasOldPluginData();
+
+        if (!$has_old_data) {
+            update_option(self::MIGRATION_VERSION_KEY, self::CURRENT_MIGRATION_VERSION);
+            return;
         }
 
-        // Run migration
-        self::migrateFromV1ToV2();
+        // Set the version IMMEDIATELY so a second concurrent request can't
+        // duplicate the migration work.
+        update_option(self::MIGRATION_VERSION_KEY, self::CURRENT_MIGRATION_VERSION);
 
-        // Set flag to show admin notice
-        set_transient('ultimate_watermark_migration_complete', true, 60);
-        
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark Migration: Migration completed successfully.');
+            error_log('Ultimate Watermark Migration: ' . $current_migration . ' → ' . self::CURRENT_MIGRATION_VERSION . ' starting…');
+        }
+
+        self::migrateFromV1ToV2();
+        set_transient('ultimate_watermark_migration_complete', true, 60);
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Ultimate Watermark Migration: completed.');
         }
     }
 
@@ -223,7 +204,7 @@ class Migration
 
         if (empty($old_settings)) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark Migration: No old settings found.');
+                // No old settings to migrate — silent return is fine.
             }
             return;
         }

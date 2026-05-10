@@ -3,233 +3,351 @@
 namespace MantraBrain\UltimateWatermark\Ajax;
 
 use MantraBrain\UltimateWatermark\Watermark\WatermarkService;
-use MantraBrain\UltimateWatermark\Watermark\LibraryDetector;
+use MantraBrain\UltimateWatermark\Watermark\WatermarkProcessorFactory;
 
 /**
  * Watermark Preview AJAX Handler
- * 
- * Handles AJAX requests for watermark preview generation
+ *
+ * Handles AJAX requests for watermark preview generation and library status.
+ * All endpoints require manage_options capability.
+ *
+ * @package UltimateWatermark
+ * @since   2.0.0
  */
 class WatermarkPreviewHandler
 {
     public function __construct()
     {
-        // Admin-only endpoints - removed wp_ajax_nopriv for security
-        // These endpoints require manage_options capability, so they should only be accessible to logged-in admins
         add_action('wp_ajax_ultimate_watermark_generate_preview', [$this, 'handleGeneratePreview']);
         add_action('wp_ajax_ultimate_watermark_get_library_status', [$this, 'handleGetLibraryStatus']);
     }
 
     /**
-     * Handle preview generation AJAX request
+     * Generate a live preview from posted form data.
      */
     public function handleGeneratePreview(): void
     {
-        // Check if nonce exists
-        if (empty($_POST['nonce'])) {
-            wp_send_json_error(['message' => __('No nonce provided.', 'ultimate-watermark')]);
-            return;
-        }
-        
-        // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'ultimate_watermark_ajax')) {
-            wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
-            return;
-        }
+        $this->verifyAuthorization();
 
-        // Check capabilities
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')]);
-            return;
-        }
-
-        // Check if watermarking is available
         if (!WatermarkService::isAvailable()) {
-            wp_send_json_error(['message' => __('No image processing library available. Please install GD or Imagick extension.', 'ultimate-watermark')]);
+            wp_send_json_error([
+                'code'    => 'no_image_library',
+                'message' => __('No image processing library available. Please install the GD or Imagick PHP extension.', 'ultimate-watermark'),
+            ]);
             return;
         }
 
-        // Get and sanitize watermark data from POST
-        $watermarkData = [];
-        foreach ($_POST as $key => $value) {
-            if ($key !== 'nonce' && $key !== 'action') {
-                if (is_array($value)) {
-                    $watermarkData[$key] = array_map('sanitize_text_field', $value);
-                } else {
-                    $watermarkData[$key] = sanitize_text_field($value);
-                }
-            }
-        }
-        
-        // Get source image path
-        $sourceImagePath = $this->getSourceImagePath();
+        $watermarkData    = $this->extractWatermarkData($_POST);
+        $sourceImagePath  = $this->getSourceImagePath();
+
         if (!$sourceImagePath) {
-            wp_send_json_error(['message' => __('Source image not found.', 'ultimate-watermark')]);
+            wp_send_json_error([
+                'code'    => 'source_missing',
+                'message' => __('Preview source image is missing or unreadable.', 'ultimate-watermark'),
+            ]);
             return;
         }
-        
 
         try {
-            // Clean up any existing preview images before generating new one
             $this->cleanupExistingPreviews();
-            
-            // Generate preview using WatermarkService
-            $previewResult = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::generatePreview($sourceImagePath, $watermarkData);
-            
-            if ($previewResult) {
-                // Check if result is a URL (new format) or file path (old format)
-                if (filter_var($previewResult, FILTER_VALIDATE_URL)) {
-                    // New format: result is already a URL
-                    $previewUrl = $previewResult;
-                    $previewPath = $this->getPreviewPathFromUrl($previewUrl);
-                } else {
-                    // Old format: result is a file path
-                    $previewPath = $previewResult;
-                    $previewUrl = $this->getPreviewUrl($previewPath);
-                }
-                
-                // Verify the file exists
-                if ($previewPath && file_exists($previewPath)) {
-                    wp_send_json_success([
-                        'preview_url' => $previewUrl,
-                        'preview_path' => $previewPath,
-                        'library_used' => \MantraBrain\UltimateWatermark\Watermark\WatermarkService::getCurrentLibrary(),
-                        'message' => __('Preview generated successfully.', 'ultimate-watermark')
-                    ]);
-                } else {
-                    wp_send_json_error(['message' => __('Preview file not found.', 'ultimate-watermark')]);
-                }
-            } else {
-                wp_send_json_error(['message' => __('Failed to generate preview.', 'ultimate-watermark')]);
+
+            // Provide an attachment context to the preview pipeline so Pro
+            // placeholder substitution ({user_display_name}, {camera_model},
+            // {post_title}, etc.) can resolve to real values rather than
+            // returning the literal token. We use a "phantom" attachment ID
+            // — most-recent image in the library — when the user is editing
+            // a watermark template that hasn't been bound to a real upload.
+            $context_attachment_id = $this->resolvePreviewAttachmentId($watermarkData);
+            if ($context_attachment_id > 0) {
+                WatermarkService::setAttachmentContext([
+                    'attachment_id' => $context_attachment_id,
+                    'is_preview'    => true,
+                ]);
             }
-        } catch (\Exception $e) {
+
+            try {
+                $previewResult = WatermarkService::generatePreview($sourceImagePath, $watermarkData);
+            } finally {
+                // Always clear so the preview context can't leak into a real
+                // watermark application later in the request lifecycle.
+                WatermarkService::setAttachmentContext([]);
+            }
+
+            if ($previewResult === false) {
+                wp_send_json_error([
+                    'code'    => 'preview_failed',
+                    'message' => __('Could not generate preview. Check the server log for details.', 'ultimate-watermark'),
+                ]);
+                return;
+            }
+
+            $previewUrl  = $this->normalizePreviewUrl($previewResult);
+            $previewPath = $this->urlToPath($previewUrl);
+
+            if (!$previewPath || !file_exists($previewPath)) {
+                wp_send_json_error([
+                    'code'    => 'preview_missing',
+                    'message' => __('Preview was generated but the resulting file could not be located.', 'ultimate-watermark'),
+                ]);
+                return;
+            }
+
+            wp_send_json_success([
+                'preview_url'  => $previewUrl,
+                'library_used' => WatermarkService::getCurrentLibrary(),
+                'generated_at' => current_time('timestamp'),
+                'message'      => __('Preview generated successfully.', 'ultimate-watermark'),
+            ]);
+        } catch (\Throwable $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark Preview Error: ' . $e->getMessage());
+                error_log('Ultimate Watermark Preview Error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
             }
-            wp_send_json_error(['message' => __('Preview generation failed.', 'ultimate-watermark')]);
+            wp_send_json_error([
+                'code'    => 'exception',
+                'message' => sprintf(
+                    /* translators: %s: short error message */
+                    __('Preview generation failed: %s', 'ultimate-watermark'),
+                    $e->getMessage()
+                ),
+            ]);
         }
     }
 
-
     /**
-     * Handle library status AJAX request
+     * Report which image library is in use and what formats it supports.
      */
     public function handleGetLibraryStatus(): void
     {
-        // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_ajax')) {
-            wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
-            return;
-        }
-
-        // Check capabilities
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')]);
-            return;
-        }
-
-        $status = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::getLibraryStatus();
-        $isAvailable = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::isAvailable();
-        $currentLibrary = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::getCurrentLibrary();
-        $supportedFormats = \MantraBrain\UltimateWatermark\Watermark\WatermarkProcessorFactory::getSupportedFormats();
+        $this->verifyAuthorization();
 
         wp_send_json_success([
-            'libraries' => $status,
-            'is_available' => $isAvailable,
-            'current_library' => $currentLibrary,
-            'supported_formats' => $supportedFormats
+            'libraries'         => WatermarkService::getLibraryStatus(),
+            'is_available'      => WatermarkService::isAvailable(),
+            'current_library'   => WatermarkService::getCurrentLibrary(),
+            'supported_formats' => WatermarkProcessorFactory::getSupportedFormats(),
         ]);
     }
 
+    // ---------------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------------
 
     /**
-     * Get source image path for preview
+     * Verify nonce + capabilities. Sends an error response and exits on failure.
      */
-    private function getSourceImagePath(): string
+    private function verifyAuthorization(): void
     {
-        // Always use the original preview image from assets (never modify it)
-        $pluginDir = plugin_dir_path(dirname(__DIR__));
-        $originalPreviewPath = $pluginDir . 'assets/images/preview-image.jpg';
-        
-        if (!file_exists($originalPreviewPath)) {
-            // Create default preview image if it doesn't exist
-            $originalPreviewPath = $this->createDefaultPreviewImage();
+        $nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
+
+        if ($nonce === '' || !wp_verify_nonce($nonce, 'ultimate_watermark_ajax')) {
+            wp_send_json_error([
+                'code'    => 'invalid_nonce',
+                'message' => __('Security check failed. Please reload the page and try again.', 'ultimate-watermark'),
+            ]);
+            exit;
         }
-        
-        // Always return the original image path (never create copies)
-        return $originalPreviewPath;
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error([
+                'code'    => 'forbidden',
+                'message' => __('You do not have permission to perform this action.', 'ultimate-watermark'),
+            ]);
+            exit;
+        }
     }
 
     /**
-     * Create default preview image if none exists
+     * Pull the watermark fields out of the POST payload, sanitizing as we go.
      */
-    private function createDefaultPreviewImage(): string
+    private function extractWatermarkData(array $postData): array
     {
-        $pluginDir = plugin_dir_path(dirname(__DIR__));
-        $previewImagePath = $pluginDir . 'assets/images/preview-image.jpg';
-        
-        // Create a simple preview image using GD
-        if (extension_loaded('gd')) {
-            $image = imagecreate(400, 300);
-            $bgColor = imagecolorallocate($image, 240, 240, 240);
-            $textColor = imagecolorallocate($image, 100, 100, 100);
-            
-            imagefill($image, 0, 0, $bgColor);
-            imagestring($image, 5, 150, 140, 'Preview Image', $textColor);
-            
-            imagejpeg($image, $previewImagePath, 90);
-            imagedestroy($image);
+        $reserved = ['nonce', 'action', 'ultimate_watermark_nonce', '_wp_http_referer'];
+        $data     = [];
+
+        foreach ($postData as $key => $value) {
+            if (in_array($key, $reserved, true)) {
+                continue;
+            }
+
+            if (is_array($value)) {
+                $data[$key] = array_map('sanitize_text_field', wp_unslash($value));
+            } else {
+                $data[$key] = sanitize_text_field(wp_unslash((string) $value));
+            }
         }
-        
-        return $previewImagePath;
+
+        return $data;
     }
 
     /**
-     * Get preview URL from path
+     * Pick an attachment ID to use as the preview's resolution context.
+     *
+     * Order of preference:
+     *   1. An explicit attachment_id field in the form data (used by the
+     *      "preview against this image" button if the watermark page ever
+     *      offers it).
+     *   2. The most recently uploaded image in the media library — gives
+     *      EXIF / camera placeholders a real source to read from.
+     *   3. Zero — the placeholder substitution will leave the literal
+     *      token in place, which is at least visible feedback to the user
+     *      that the placeholder will resolve at apply time.
      */
-    private function getPreviewUrl(string $previewPath): string
+    private function resolvePreviewAttachmentId(array $watermarkData): int
+    {
+        if (!empty($watermarkData['attachment_id'])) {
+            $candidate = (int) $watermarkData['attachment_id'];
+            if ($candidate > 0 && get_post_type($candidate) === 'attachment') {
+                return $candidate;
+            }
+        }
+
+        $recent = get_posts([
+            'post_type'      => 'attachment',
+            'post_mime_type' => 'image',
+            'post_status'    => 'inherit',
+            'numberposts'    => 1,
+            'orderby'        => 'date',
+            'order'          => 'DESC',
+            'fields'         => 'ids',
+        ]);
+        return !empty($recent) ? (int) $recent[0] : 0;
+    }
+
+    /**
+     * Resolve the source image path used for preview rendering.
+     *
+     * If the bundled preview image is missing we attempt to regenerate it via
+     * GD; that should never normally happen, but we guard against it.
+     */
+    private function getSourceImagePath(): ?string
+    {
+        $pluginDir   = plugin_dir_path(dirname(__DIR__));
+        $previewPath = $pluginDir . 'assets/images/preview-image.jpg';
+
+        if (file_exists($previewPath) && is_readable($previewPath)) {
+            return $previewPath;
+        }
+
+        $regenerated = $this->createDefaultPreviewImage($previewPath);
+        return $regenerated && file_exists($regenerated) ? $regenerated : null;
+    }
+
+    /**
+     * Generate a placeholder source image if the bundled one is missing.
+     */
+    private function createDefaultPreviewImage(string $previewImagePath): ?string
+    {
+        if (!extension_loaded('gd')) {
+            return null;
+        }
+
+        $dir = dirname($previewImagePath);
+        if (!is_dir($dir)) {
+            wp_mkdir_p($dir);
+        }
+
+        $image = imagecreatetruecolor(800, 533);
+        if (!$image) {
+            return null;
+        }
+
+        $bg     = imagecolorallocate($image, 232, 240, 255);
+        $stripe = imagecolorallocate($image, 217, 226, 247);
+        $text   = imagecolorallocate($image, 99, 102, 241);
+
+        imagefill($image, 0, 0, $bg);
+        for ($y = 0; $y < 533; $y += 24) {
+            imagefilledrectangle($image, 0, $y, 800, $y + 1, $stripe);
+        }
+        imagestring($image, 5, 320, 260, 'Sample preview image', $text);
+
+        $saved = imagejpeg($image, $previewImagePath, 90);
+        imagedestroy($image);
+
+        return $saved ? $previewImagePath : null;
+    }
+
+    /**
+     * Make sure the result we return is always a URL, not a server path.
+     */
+    private function normalizePreviewUrl(string $previewResult): string
+    {
+        if (filter_var($previewResult, FILTER_VALIDATE_URL)) {
+            return $previewResult;
+        }
+
+        $uploadDir = wp_upload_dir();
+        $base      = wp_normalize_path($uploadDir['basedir']);
+        $normPath  = wp_normalize_path($previewResult);
+
+        if (strpos($normPath, $base) === 0) {
+            return $uploadDir['baseurl'] . substr($normPath, strlen($base));
+        }
+
+        // Last resort: assume file lives in the watermark preview folder.
+        return trailingslashit($uploadDir['baseurl']) . 'ultimate-watermark/' . basename($previewResult);
+    }
+
+    /**
+     * Convert a preview URL back to its filesystem path so we can verify it.
+     */
+    private function urlToPath(string $previewUrl): ?string
     {
         $uploadDir = wp_upload_dir();
-        $previewDir = $uploadDir['baseurl'] . '/ultimate-watermark';
-        
-        $filename = basename($previewPath);
-        return $previewDir . '/' . $filename;
-    }
-    
-    private function getPreviewPathFromUrl(string $previewUrl): string
-    {
-        $uploadDir = wp_upload_dir();
-        $relativePath = str_replace($uploadDir['baseurl'], '', $previewUrl);
-        return $uploadDir['basedir'] . $relativePath;
+        $baseUrl   = trailingslashit($uploadDir['baseurl']);
+
+        if (strpos($previewUrl, $uploadDir['baseurl']) === 0) {
+            $relative = substr($previewUrl, strlen($uploadDir['baseurl']));
+            return $uploadDir['basedir'] . $relative;
+        }
+
+        $parsedHost = parse_url($previewUrl, PHP_URL_HOST);
+        $homeHost   = parse_url(home_url(), PHP_URL_HOST);
+        if ($parsedHost && $homeHost && $parsedHost === $homeHost) {
+            $relative = parse_url($previewUrl, PHP_URL_PATH);
+            $uploadsRel = parse_url($baseUrl, PHP_URL_PATH);
+            if ($relative && $uploadsRel && strpos($relative, $uploadsRel) === 0) {
+                return $uploadDir['basedir'] . substr($relative, strlen($uploadsRel) - 1);
+            }
+        }
+
+        return null;
     }
 
     /**
-     * Clean up existing preview images before generating new one
+     * Remove old preview files inside the dedicated upload subfolder.
+     *
+     * Bound to the same allowed_base via wp_normalize_path to avoid traversal.
      */
     private function cleanupExistingPreviews(): void
     {
         $uploadDir = wp_upload_dir();
-        $previewDir = $uploadDir['basedir'] . '/ultimate-watermark';
-        
-        if (!file_exists($previewDir)) {
+        $previewDir = trailingslashit($uploadDir['basedir']) . 'ultimate-watermark';
+
+        if (!is_dir($previewDir)) {
             return;
         }
-        
-        // Remove all existing preview images
-        $previewFiles = glob($previewDir . '/preview-*.jpg');
-        $watermarkPreviewFiles = glob($previewDir . '/watermark_preview_*.png');
-        $previewSourceFiles = glob($previewDir . '/preview-source-*.jpg');
-        
-        $allFiles = array_merge($previewFiles, $watermarkPreviewFiles, $previewSourceFiles);
-        
-        $upload_dir = wp_upload_dir();
-        $allowed_base = $upload_dir['basedir'] . '/ultimate-watermark';
-        
-        foreach ($allFiles as $file) {
-            // Security: Validate path to prevent directory traversal
-            $normalized_file = wp_normalize_path($file);
-            if (strpos($normalized_file, $allowed_base) === 0 && file_exists($normalized_file) && is_file($normalized_file)) {
-                unlink($normalized_file);
+
+        $patterns = [
+            $previewDir . '/preview-*.jpg',
+            $previewDir . '/preview-*.png',
+            $previewDir . '/watermark_preview_*.jpg',
+            $previewDir . '/watermark_preview_*.png',
+            $previewDir . '/preview-source-*.jpg',
+        ];
+
+        $allowedBase = wp_normalize_path($previewDir);
+
+        foreach ($patterns as $pattern) {
+            $files = glob($pattern);
+            if (!is_array($files)) {
+                continue;
+            }
+            foreach ($files as $file) {
+                $normalized = wp_normalize_path($file);
+                if (strpos($normalized, $allowedBase) === 0 && is_file($normalized)) {
+                    @unlink($normalized);
+                }
             }
         }
     }

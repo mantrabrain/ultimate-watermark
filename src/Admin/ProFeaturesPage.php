@@ -61,8 +61,8 @@ class ProFeaturesPage
                         <?php foreach (self::getComparisonRows() as $row): ?>
                             <tr>
                                 <td><?php echo esc_html($row[0]); ?></td>
-                                <td><?php echo $row[1] ? '<span class="dashicons dashicons-yes-alt" style="color:#46b450;"></span>' : '<span class="dashicons dashicons-minus" style="color:#ddd;"></span>'; ?></td>
-                                <td><?php echo $row[2] ? '<span class="dashicons dashicons-yes-alt" style="color:#46b450;"></span>' : '<span class="dashicons dashicons-minus" style="color:#ddd;"></span>'; ?></td>
+                                <td><?php echo $row[1] ? '<span class="ulwm-check ulwm-check--yes dashicons dashicons-yes-alt" aria-label="' . esc_attr__('Included', 'ultimate-watermark') . '"></span>' : '<span class="ulwm-check ulwm-check--no dashicons dashicons-minus" aria-label="' . esc_attr__('Not included', 'ultimate-watermark') . '"></span>'; ?></td>
+                                <td><?php echo $row[2] ? '<span class="ulwm-check ulwm-check--yes dashicons dashicons-yes-alt" aria-label="' . esc_attr__('Included', 'ultimate-watermark') . '"></span>' : '<span class="ulwm-check ulwm-check--no dashicons dashicons-minus" aria-label="' . esc_attr__('Not included', 'ultimate-watermark') . '"></span>'; ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -70,97 +70,8 @@ class ProFeaturesPage
             </div>
         </div>
 
-        <style>
-            .ulwm-pro-features-page {
-                max-width: 1200px;
-                margin: 20px auto;
-            }
-            .ulwm-pro-hero {
-                text-align: center;
-                padding: 40px 20px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                border-radius: 8px;
-                margin-bottom: 40px;
-            }
-            .ulwm-pro-hero h1 {
-                color: white;
-                font-size: 32px;
-                margin-bottom: 10px;
-            }
-            .ulwm-pro-subtitle {
-                font-size: 18px;
-                opacity: 0.9;
-            }
-            .ulwm-pro-features-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-                gap: 20px;
-                margin-bottom: 40px;
-            }
-            .ulwm-pro-feature-card {
-                background: white;
-                padding: 30px;
-                border-radius: 8px;
-                border: 1px solid #ddd;
-                text-align: center;
-            }
-            .ulwm-pro-feature-icon {
-                width: 60px;
-                height: 60px;
-                margin: 0 auto 20px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .ulwm-pro-feature-icon .dashicons {
-                font-size: 30px;
-                width: 30px;
-                height: 30px;
-                color: white;
-            }
-            .ulwm-pro-feature-card h3 {
-                margin-bottom: 10px;
-                font-size: 18px;
-            }
-            .ulwm-pro-cta {
-                text-align: center;
-                padding: 60px 20px;
-                background: #f9f9f9;
-                border-radius: 8px;
-                margin-bottom: 40px;
-            }
-            .ulwm-pro-cta h2 {
-                margin-bottom: 10px;
-            }
-            .ulwm-pro-cta p {
-                font-size: 16px;
-                margin-bottom: 20px;
-            }
-            .ulwm-pro-comparison {
-                background: white;
-                padding: 30px;
-                border-radius: 8px;
-                border: 1px solid #ddd;
-            }
-            .ulwm-pro-comparison h2 {
-                text-align: center;
-                margin-bottom: 20px;
-            }
-            .ulwm-pro-comparison table {
-                margin-top: 20px;
-            }
-            .ulwm-pro-comparison th {
-                text-align: center;
-            }
-            .ulwm-pro-comparison td {
-                text-align: center;
-                padding: 12px;
-            }
-        </style>
         <?php
+        // All visual styling lives in assets/css/pro-features.css.
     }
 
     /**

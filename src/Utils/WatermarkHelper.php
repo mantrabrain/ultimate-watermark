@@ -251,9 +251,25 @@ class WatermarkHelper
             case 'watermark_color':
                 return preg_match('/^#[0-9A-Fa-f]{6}$/', $value) ? $value : $default;
             
+            case 'watermark_font_family':
+                // Font family validation must defer to the same allowlist the
+                // save-time AJAX validator uses, otherwise non-system fonts
+                // contributed by Pro (Google Fonts) would silently fall back
+                // to "Arial" on the load path — preview would render the
+                // chosen font (form data) but the actual applied watermark
+                // would render in Arial (DB data round-tripped through here).
+                $value_str = is_string($value) ? $value : (string) $value;
+                $allowed = apply_filters(
+                    'ultimate_watermark_allowed_fonts',
+                    self::getValidOptions('watermark_font_family')
+                );
+                if (!is_array($allowed) || empty($allowed)) {
+                    $allowed = self::getValidOptions('watermark_font_family');
+                }
+                return in_array($value_str, $allowed, true) ? $value_str : $default;
+
             case 'watermark_type':
             case 'watermark_position':
-            case 'watermark_font_family':
             case 'watermark_font_weight':
             case 'watermark_font_style':
             case 'watermark_text_decoration':

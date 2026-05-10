@@ -37,59 +37,31 @@ class MediaEditIntegration
     }
     
     /**
-     * Alternative method using current_screen hook
+     * Alternative method using current_screen hook.
+     *
+     * Bails out silently for any screen that isn't an attachment image-edit
+     * page. The previous version of this method spammed wp-content/debug.log
+     * with three or four `error_log()` lines on every admin request — enough
+     * noise that genuine warnings were getting buried.
      */
     public function maybeAddMetaBoxOnScreen($screen): void
     {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark: maybeAddMetaBoxOnScreen called');
-            error_log('Screen: ' . ($screen ? $screen->base : 'null'));
-        }
-        
-        // Only on post.php screen
-        if (!$screen || $screen->base !== 'post') {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark: Not post screen, base: ' . ($screen ? $screen->base : 'null'));
-            }
+        // Only on post.php screen, edit action, attachment image — bail
+        // silently otherwise.
+        if (!$screen || $screen->base !== 'post' || $screen->action !== 'edit') {
             return;
         }
-        
-        // Only when editing
-        if ($screen->action !== 'edit') {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark: Not edit action, action: ' . ($screen->action ?? 'null'));
-            }
-            return;
-        }
-        
-        // Get post ID
+
         $post_id = isset($_GET['post']) ? absint($_GET['post']) : 0;
         if (!$post_id) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark: No post ID in GET');
-            }
             return;
         }
-        
+
         $post = get_post($post_id);
-        if (!$post || $post->post_type !== 'attachment') {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark: Not attachment, post_type: ' . ($post ? $post->post_type : 'null'));
-            }
+        if (!$post || $post->post_type !== 'attachment' || !wp_attachment_is_image($post_id)) {
             return;
         }
-        
-        if (!wp_attachment_is_image($post_id)) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark: Not an image attachment');
-            }
-            return;
-        }
-        
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark: Adding meta box via current_screen hook for attachment ' . $post_id);
-        }
-        
+
         // Add meta box directly with core priority
         add_meta_box(
             'ultimate-watermark-info',
@@ -130,83 +102,38 @@ class MediaEditIntegration
      */
     public function addWatermarkMetaBox($post_type_or_post = null, $post = null): void
     {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark: addWatermarkMetaBox called');
-            error_log('First param type: ' . gettype($post_type_or_post) . ', Second param type: ' . gettype($post));
-        }
-        
         $current_post = null;
-        
-        // Handle different hook signatures
+
+        // Resolve the post argument across the two hook signatures we support:
+        //   add_meta_boxes              passes ($post_type_string, $post)
+        //   add_meta_boxes_attachment   passes ($post)
         if ($post_type_or_post instanceof \WP_Post) {
-            // Called from add_meta_boxes_attachment - first param is the post
             $current_post = $post_type_or_post;
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark: Called from add_meta_boxes_attachment hook');
-            }
         } elseif (is_string($post_type_or_post)) {
-            // Called from add_meta_boxes - first param is post_type
-            // Only proceed if it's attachment
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark: Called from add_meta_boxes hook, post_type: ' . $post_type_or_post);
-            }
             if ($post_type_or_post !== 'attachment') {
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('Ultimate Watermark: Not attachment post type, skipping');
-                }
                 return;
             }
             if ($post instanceof \WP_Post) {
                 $current_post = $post;
             }
         }
-        
-        // If we still don't have a post, try to get it from globals
+
+        // Fall back to the global $post, then the URL's ?post= parameter.
         if (!$current_post) {
             global $post;
             if (isset($post) && $post instanceof \WP_Post) {
                 $current_post = $post;
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('Ultimate Watermark: Got post from global');
-                }
             }
         }
-        
-        // Try GET parameter as last fallback
         if (!$current_post && isset($_GET['post'])) {
-            $post_id = absint($_GET['post']);
-            $current_post = get_post($post_id);
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark: Got post from GET parameter: ' . $post_id);
-            }
-        }
-        
-        // Validate we have a post
-        if (!$current_post || !($current_post instanceof \WP_Post)) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark: No valid post found');
-            }
-            return;
-        }
-        
-        // Only add for attachment post type
-        if ($current_post->post_type !== 'attachment') {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark: Post is not attachment, type: ' . $current_post->post_type);
-            }
-            return;
+            $current_post = get_post(absint($_GET['post']));
         }
 
-        // Only add for images
+        if (!$current_post || $current_post->post_type !== 'attachment') {
+            return;
+        }
         if (!wp_attachment_is_image($current_post->ID)) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark: Post is not an image: ' . $current_post->ID);
-            }
             return;
-        }
-
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark: Adding meta box for attachment ' . $current_post->ID);
         }
 
         // Register the meta box with 'core' context to make it harder to hide
@@ -222,10 +149,6 @@ class MediaEditIntegration
                 '__block_editor_compatible_meta_box' => true
             ]
         );
-        
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark: Meta box registered successfully');
-        }
     }
 
     /**
@@ -779,20 +702,29 @@ class MediaEditIntegration
             return;
         }
 
-        // Enqueue styles
+        $version = defined('ULTIMATE_WATERMARK_VERSION') ? ULTIMATE_WATERMARK_VERSION : '2.0.9';
+
+        // Pull in the shared design tokens + base components so :root variables
+        // (--uw-primary, --uw-space-*, etc.) are available on the attachment edit screen.
+        wp_enqueue_style(
+            'ultimate-watermark-admin',
+            ULTIMATE_WATERMARK_URL . 'assets/css/admin.css',
+            [],
+            $version
+        );
+
         wp_enqueue_style(
             'ultimate-watermark-media-edit',
             ULTIMATE_WATERMARK_URL . 'assets/css/media-edit.css',
-            [],
-            '2.0.3'
+            ['ultimate-watermark-admin'],
+            $version
         );
 
-        // Enqueue scripts
         wp_enqueue_script(
             'ultimate-watermark-media-edit',
             ULTIMATE_WATERMARK_URL . 'assets/js/media-edit.js',
             ['jquery'],
-            '2.0.3',
+            $version,
             true
         );
 

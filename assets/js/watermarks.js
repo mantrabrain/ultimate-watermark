@@ -54,8 +54,9 @@
                     confirmText: 'Delete',
                     cancelText: 'Cancel',
                     confirmButtonType: 'danger'
-                }).then(function(confirmed) {
-                    if (confirmed) {
+                }).then(function(action) {
+                    // confirm() resolves with the action string, not a boolean
+                    if (action === 'confirm') {
                         this.confirmDelete(watermarkId);
                     }
                 }.bind(this));
@@ -307,8 +308,9 @@
                 confirmText: 'Delete',
                 cancelText: 'Cancel',
                 confirmButtonType: 'danger'
-            }).then(function(confirmed) {
-                if (confirmed) {
+            }).then(function(action) {
+                // confirm() resolves with the action string, not a boolean
+                if (action === 'confirm') {
                     this.confirmDelete(watermarkId);
                 }
             }.bind(this));
@@ -464,8 +466,9 @@
                 confirmText: 'Delete All',
                 cancelText: 'Cancel',
                 confirmButtonType: 'danger'
-            }).then(function(confirmed) {
-                if (confirmed) {
+            }).then(function(action) {
+                // confirm() resolves with the action string, not a boolean
+                if (action === 'confirm') {
                     this.confirmBulkDelete(selectedIds);
                 }
             }.bind(this));
@@ -540,8 +543,9 @@
                 confirmText: 'Delete All',
                 cancelText: 'Cancel',
                 confirmButtonType: 'danger'
-            }).then(function(confirmed) {
-                if (confirmed) {
+            }).then(function(action) {
+                // confirm() resolves with the action string, not a boolean
+                if (action === 'confirm') {
                     this.confirmBulkDelete(selectedIds);
                 }
             }.bind(this));
@@ -1001,7 +1005,7 @@
             const modalHtml = `
                 <div class="uw-upgrade-modal-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 999999; display: flex; align-items: center; justify-content: center;">
                     <div class="uw-upgrade-modal" style="background: #fff; border-radius: 12px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: slideIn 0.3s ease;">
-                        <div class="uw-upgrade-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+                        <div class="uw-upgrade-header" style="background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
                             <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: 15px;">
                                 <circle cx="32" cy="32" r="30" fill="rgba(255,255,255,0.2)"/>
                                 <path d="M32 16L36 28L48 32L36 36L32 48L28 36L16 32L28 28L32 16Z" fill="white"/>
@@ -1044,7 +1048,7 @@
                                 </ul>
                             </div>
                             <div style="display: flex; gap: 10px; justify-content: center;">
-                                <a href="${upgradeUrl}" target="_blank" class="uw-upgrade-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; transition: transform 0.2s;">
+                                <a href="${upgradeUrl}" target="_blank" class="uw-upgrade-btn uw-pro-cta" style="background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%); color: white; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; transition: transform 0.2s;">
                                     Upgrade Now - $79/year
                                 </a>
                                 <button class="uw-upgrade-close" style="background: #f3f4f6; color: #374151; padding: 12px 30px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: background 0.2s;">
@@ -1061,7 +1065,7 @@
                     }
                     .uw-upgrade-btn:hover {
                         transform: translateY(-2px);
-                        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+                        box-shadow: 0 10px 20px rgba(245, 158, 11, 0.45);
                     }
                     .uw-upgrade-close:hover {
                         background: #e5e7eb;

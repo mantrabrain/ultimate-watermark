@@ -192,6 +192,11 @@ class Plugin implements PluginInterface
     {
         $this->admin_manager = new AdminManager();
         $this->components['admin_manager'] = $this->admin_manager;
+
+        // Onboarding / marketing notices (review prompt, upgrade nudge).
+        $notices = new \MantraBrain\UltimateWatermark\Admin\Notices\NoticeManager();
+        $notices->init();
+        $this->components['notice_manager'] = $notices;
     }
 
     /**

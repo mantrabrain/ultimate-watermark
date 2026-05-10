@@ -52,9 +52,13 @@
                 confirmText: 'Remove All',
                 cancelText: 'Cancel',
                 confirmButtonType: 'danger'
-            }).then(confirmed => {
-                if (!confirmed) return;
-                
+            }).then(action => {
+                // UWNotifications.confirm() resolves with the data-action of
+                // the clicked button ('confirm' / 'cancel') — NOT a boolean.
+                // The previous truthy check (`if (!confirmed) return;`) treated
+                // the string 'cancel' as truthy and let the AJAX run on Cancel.
+                if (action !== 'confirm') return;
+
                 // Show loading state
                 this.showLoadingStateAll($button);
             

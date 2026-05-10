@@ -1,469 +1,245 @@
 /**
- * Upgrade Modal & Page Styles
- * Shown when free users hit watermark limit
+ * Ultimate Watermark — Upgrade Notice / Page
+ *
+ * Shown when free users hit the watermark limit. Built on top of
+ * the design tokens declared in admin.css.
+ *
+ * @package UltimateWatermark
+ * @since   2.0.9
  */
 
-/* Upgrade Notice Page */
 .ultimate-watermark-upgrade-notice {
-    max-width: 1200px;
+    background: var(--uw-surface);
+    border: 1px solid var(--uw-border);
+    border-radius: var(--uw-radius-lg);
+    box-shadow: var(--uw-shadow-sm);
+    padding: var(--uw-space-8);
+    max-width: 880px;
     margin: 0 auto;
-    padding: 40px 20px;
+    text-align: center;
 }
 
 .upgrade-notice-header {
-    text-align: center;
-    margin-bottom: 50px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--uw-space-3);
+    margin-bottom: var(--uw-space-6);
 }
 
-.upgrade-notice-header .upgrade-icon {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.upgrade-icon {
+    width: 72px;
+    height: 72px;
     border-radius: 50%;
-    display: flex;
+    background: var(--uw-pro-gradient, linear-gradient(135deg, #fbbf24 0%, #d97706 100%));
+    color: #ffffff;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 12px 28px rgba(var(--uw-pro-color-rgb, 245, 158, 11), 0.32);
 }
 
-.upgrade-notice-header .upgrade-icon .dashicons {
-    font-size: 40px;
-    width: 40px;
-    height: 40px;
-    color: #fff;
+.upgrade-icon .dashicons {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
 }
 
 .upgrade-notice-header h2 {
-    font-size: 32px;
+    font-size: 24px;
     font-weight: 700;
-    color: #111827;
-    margin: 0 0 15px 0;
-}
-
-.upgrade-notice-header .upgrade-subtitle {
-    font-size: 18px;
-    color: #6b7280;
+    color: var(--uw-text);
     margin: 0;
+    letter-spacing: -0.01em;
 }
 
+.upgrade-subtitle {
+    color: var(--uw-text-subtle);
+    font-size: var(--uw-font-body-size);
+    margin: 0;
+    line-height: var(--uw-line-snug);
+    max-width: 480px;
+}
+
+/* Stats comparison */
 .upgrade-stats {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 30px;
-    margin-bottom: 60px;
-    padding: 30px;
-    background: #f9fafb;
-    border-radius: 12px;
+    gap: var(--uw-space-4);
+    margin: var(--uw-space-6) auto;
+    flex-wrap: wrap;
 }
 
 .stat-box {
+    background: var(--uw-surface-soft);
+    border: 1px solid var(--uw-border);
+    border-radius: var(--uw-radius-md);
+    padding: var(--uw-space-4) var(--uw-space-5);
+    min-width: 140px;
     text-align: center;
-    padding: 20px 40px;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.stat-box .stat-value {
+    display: block;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--uw-text);
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-box .stat-label {
+    font-size: 11px;
+    color: var(--uw-text-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    margin-top: 4px;
+    display: block;
 }
 
 .stat-box.limit-box {
-    border: 2px solid #ef4444;
+    background: var(--uw-warning-soft);
+    border-color: rgba(217, 119, 6, 0.25);
 }
 
-.stat-value {
-    font-size: 48px;
-    font-weight: 700;
-    color: #667eea;
-    line-height: 1;
-    margin-bottom: 10px;
-}
-
-.stat-box.limit-box .stat-value {
-    color: #ef4444;
-}
-
-.stat-label {
-    font-size: 14px;
-    color: #6b7280;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
+.stat-box.limit-box .stat-value { color: var(--uw-warning); }
 
 .stat-divider {
-    color: #d1d5db;
+    color: var(--uw-text-faint);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .stat-divider .dashicons {
-    font-size: 32px;
-    width: 32px;
-    height: 32px;
-}
-
-.upgrade-features {
-    margin-bottom: 50px;
-}
-
-.upgrade-features h3 {
-    font-size: 24px;
-    font-weight: 600;
-    color: #111827;
-    text-align: center;
-    margin: 0 0 40px 0;
-}
-
-.features-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    gap: 30px;
-}
-
-.feature-item {
-    display: flex;
-    gap: 20px;
-    padding: 25px;
-    background: #fff;
-    border-radius: 8px;
-    border: 1px solid #e5e7eb;
-    transition: all 0.3s;
-}
-
-.feature-item:hover {
-    border-color: #667eea;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
-    transform: translateY(-2px);
-}
-
-.feature-item .dashicons {
-    font-size: 32px;
-    width: 32px;
-    height: 32px;
-    color: #667eea;
-    flex-shrink: 0;
-}
-
-.feature-content h4 {
-    font-size: 18px;
-    font-weight: 600;
-    color: #111827;
-    margin: 0 0 8px 0;
-}
-
-.feature-content p {
-    font-size: 14px;
-    color: #6b7280;
-    margin: 0;
-    line-height: 1.6;
-}
-
-.upgrade-cta {
-    text-align: center;
-    padding: 40px;
-    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-    border-radius: 12px;
-}
-
-.upgrade-cta .btn-large {
-    padding: 16px 40px;
-    font-size: 18px;
-    font-weight: 600;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    text-decoration: none;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    transition: all 0.3s;
-}
-
-.upgrade-cta .btn-large:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-}
-
-.upgrade-cta .btn-large .dashicons {
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
-}
-
-.upgrade-note {
-    margin: 20px 0 0 0;
-    font-size: 14px;
-    color: #6b7280;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .upgrade-stats {
-        flex-direction: column;
-        gap: 20px;
-    }
-    
-    .stat-divider {
-        transform: rotate(90deg);
-    }
-    
-    .features-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .upgrade-notice-header h2 {
-        font-size: 24px;
-    }
-}
-
-/* Modal Styles (for AJAX fallback) */
-
-.ultimate-watermark-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 999999;
-    animation: fadeIn 0.2s ease-in-out;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-
-.ultimate-watermark-modal.upgrade-modal {
-    background: #fff;
-    border-radius: 8px;
-    max-width: 600px;
-    width: 90%;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-    animation: slideUp 0.3s ease-out;
-}
-
-@keyframes slideUp {
-    from {
-        transform: translateY(50px);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-.ultimate-watermark-modal .modal-header {
-    padding: 24px 30px;
-    border-bottom: 1px solid #e5e7eb;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #fff;
-    border-radius: 8px 8px 0 0;
-}
-
-.ultimate-watermark-modal .modal-header h2 {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #fff;
-}
-
-.ultimate-watermark-modal .modal-header .dashicons {
     font-size: 24px;
     width: 24px;
     height: 24px;
 }
 
-.ultimate-watermark-modal .modal-close {
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    border-radius: 4px;
-    padding: 6px;
-    cursor: pointer;
-    color: #fff;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+/* Features grid */
+.upgrade-features {
+    margin: var(--uw-space-6) 0;
 }
 
-.ultimate-watermark-modal .modal-close:hover {
-    background: rgba(255, 255, 255, 0.3);
-}
-
-.ultimate-watermark-modal .modal-close .dashicons {
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
-}
-
-.ultimate-watermark-modal .modal-body {
-    padding: 30px;
-}
-
-.upgrade-notice-content .limit-info {
-    margin-bottom: 30px;
-}
-
-.upgrade-notice-content .limit-message {
-    font-size: 16px;
-    line-height: 1.6;
-    color: #374151;
-    margin: 0 0 20px 0;
-}
-
-.upgrade-notice-content .limit-stats {
-    display: flex;
-    gap: 20px;
-    padding: 15px;
-    background: #f9fafb;
-    border-radius: 6px;
-    border-left: 4px solid #667eea;
-}
-
-.upgrade-notice-content .stat-item {
-    font-size: 14px;
-    color: #6b7280;
-}
-
-.upgrade-notice-content .stat-item strong {
-    color: #111827;
+.upgrade-features h3 {
+    font-size: var(--uw-font-h3-size);
     font-weight: 600;
+    color: var(--uw-text);
+    margin: 0 0 var(--uw-space-4) 0;
+    letter-spacing: -0.005em;
 }
 
-.upgrade-notice-content .pro-features {
-    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-    padding: 25px;
-    border-radius: 8px;
-    border: 1px solid #e5e7eb;
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: var(--uw-space-3);
+    text-align: left;
 }
 
-.upgrade-notice-content .pro-features h3 {
-    margin: 0 0 20px 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: #111827;
-}
-
-.upgrade-notice-content .pro-features ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-.upgrade-notice-content .pro-features li {
-    padding: 12px 0;
+.feature-item {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    font-size: 15px;
-    line-height: 1.5;
-    color: #374151;
-    border-bottom: 1px solid #e5e7eb;
+    gap: var(--uw-space-3);
+    padding: var(--uw-space-3) var(--uw-space-4);
+    background: var(--uw-surface-soft);
+    border: 1px solid var(--uw-border);
+    border-radius: var(--uw-radius-md);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
 
-.upgrade-notice-content .pro-features li:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
+.feature-item:hover {
+    border-color: var(--uw-pro-color, #f59e0b);
+    background: var(--uw-pro-color-soft, #fef3c7);
+    box-shadow: var(--uw-shadow-sm);
 }
 
-.upgrade-notice-content .pro-features li .dashicons {
-    color: #10b981;
+.feature-item .dashicons {
     font-size: 20px;
     width: 20px;
     height: 20px;
+    color: var(--uw-pro-color, #f59e0b);
     flex-shrink: 0;
     margin-top: 2px;
 }
 
-.upgrade-notice-content .pro-features li strong {
-    color: #111827;
+.feature-content { min-width: 0; }
+
+.feature-content h4 {
+    font-size: var(--uw-font-body-size);
     font-weight: 600;
+    color: var(--uw-text);
+    margin: 0 0 2px 0;
+    letter-spacing: -0.005em;
 }
 
-.ultimate-watermark-modal .modal-footer {
-    padding: 20px 30px;
-    border-top: 1px solid #e5e7eb;
+.feature-content p {
+    font-size: var(--uw-font-small-size);
+    color: var(--uw-text-subtle);
+    margin: 0;
+    line-height: var(--uw-line-snug);
+}
+
+/* CTA */
+.upgrade-cta {
+    margin-top: var(--uw-space-6);
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: flex-end;
-    gap: 12px;
-    background: #f9fafb;
-    border-radius: 0 0 8px 8px;
+    gap: var(--uw-space-3);
 }
 
-.ultimate-watermark-modal .modal-footer .button {
-    padding: 10px 20px;
-    font-size: 14px;
-    font-weight: 500;
-    border-radius: 6px;
-    transition: all 0.2s;
-}
-
-.ultimate-watermark-modal .modal-footer .button-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: none;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    padding: 12px 24px;
+.upgrade-cta .btn-large,
+.upgrade-cta .btn-lg {
+    height: 48px;
+    padding: 12px 28px;
     font-size: 15px;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    font-weight: 700;
 }
 
-.ultimate-watermark-modal .modal-footer .button-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+.upgrade-note {
+    color: var(--uw-text-subtle);
+    font-size: var(--uw-font-small-size);
+    margin: 0;
 }
 
-.ultimate-watermark-modal .modal-footer .button-primary .dashicons {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
+/* =========================================================================
+   Modal variant (when shown as modal)
+   ========================================================================= */
+
+.uw-upgrade-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    z-index: var(--uw-z-modal);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: var(--uw-space-4);
 }
 
-/* Responsive */
-@media (max-width: 640px) {
-    .ultimate-watermark-modal.upgrade-modal {
-        width: 95%;
-        max-height: 95vh;
+.uw-upgrade-modal.show { display: flex; }
+
+.uw-upgrade-modal-content {
+    background: var(--uw-surface);
+    border-radius: var(--uw-radius-lg);
+    box-shadow: var(--uw-shadow-xl);
+    width: 100%;
+    max-width: 720px;
+    max-height: 92vh;
+    overflow-y: auto;
+}
+
+@media (max-width: 600px) {
+    .ultimate-watermark-upgrade-notice {
+        padding: var(--uw-space-5);
     }
-    
-    .ultimate-watermark-modal .modal-header,
-    .ultimate-watermark-modal .modal-body,
-    .ultimate-watermark-modal .modal-footer {
-        padding: 20px;
-    }
-    
-    .upgrade-notice-content .limit-stats {
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .ultimate-watermark-modal .modal-footer {
-        flex-direction: column-reverse;
-    }
-    
-    .ultimate-watermark-modal .modal-footer .button {
-        width: 100%;
-        justify-content: center;
-    }
+
+    .upgrade-notice-header h2 { font-size: 20px; }
+    .upgrade-icon { width: 56px; height: 56px; }
+    .upgrade-icon .dashicons { font-size: 26px; width: 26px; height: 26px; }
+    .upgrade-stats { flex-direction: column; }
+    .stat-divider { transform: rotate(90deg); }
 }

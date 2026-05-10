@@ -4,67 +4,51 @@ namespace MantraBrain\UltimateWatermark\Admin\Components;
 
 /**
  * Admin Layout Component
- * 
- * Shared layout wrapper for all Ultimate Watermark admin pages
+ *
+ * Shared wrapper for every Ultimate Watermark admin page. The plugin
+ * shows a single sticky header bar (brand + page title + nav) and a
+ * separate right-aligned action toolbar below it whenever the page
+ * needs primary actions (e.g. "Save", "Refresh", a timeframe select).
  *
  * @package UltimateWatermark
- * @since 2.0.0
+ * @since   2.0.9
  */
 class Layout
 {
     /**
-     * Render page with header and footer
+     * Render page with header, optional action toolbar, body, and footer.
      *
-     * @param string $page_title
-     * @param callable $content_callback
-     * @param array $args Additional arguments
+     * @param string   $page_title       Title for the current page.
+     * @param callable $content_callback Callable that prints the page body.
+     * @param array    $args             Optional: 'subtitle' string, 'actions' HTML.
      */
     public static function render(string $page_title, callable $content_callback, array $args = []): void
     {
-        // Enqueue upgrade modal CSS
         wp_enqueue_style(
             'ultimate-watermark-upgrade-modal',
             ULTIMATE_WATERMARK_URL . 'assets/css/upgrade-modal.css',
-            [],
+            ['ultimate-watermark-admin'],
             ULTIMATE_WATERMARK_VERSION
         );
-        
+
+        $subtitle = $args['subtitle'] ?? '';
+        $actions  = $args['actions']  ?? '';
         ?>
         <div class="ultimate-watermark-layout">
-            <?php Header::render(); ?>
-            
-            <div class="ultimate-watermark-content">
-                <div class="content-header">
-                    <div class="content-title">
-                        <div class="title-wrapper">
-                            <div class="title-icon">
-                                <?php if (strpos($page_title, 'Edit') !== false): ?>
-                                    <span class="dashicons dashicons-edit"></span>
-                                <?php else: ?>
-                                    <span class="dashicons dashicons-plus-alt2"></span>
-                                <?php endif; ?>
-                            </div>
-                            <div class="title-content">
-                                <h1><?php echo esc_html($page_title); ?></h1>
-                                <?php if (!empty($args['subtitle'])): ?>
-                                    <p class="content-subtitle"><?php echo esc_html($args['subtitle']); ?></p>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <?php if (!empty($args['actions'])): ?>
-                        <div class="content-actions">
-                            <?php echo $args['actions']; ?>
-                        </div>
-                    <?php endif; ?>
+            <?php Header::render($page_title, ['subtitle' => $subtitle]); ?>
+
+            <?php if ($actions !== ''): ?>
+                <div class="page-toolbar" role="toolbar" aria-label="<?php esc_attr_e('Page actions', 'ultimate-watermark'); ?>">
+                    <div class="page-actions"><?php echo $actions; ?></div>
                 </div>
-                
+            <?php endif; ?>
+
+            <div class="ultimate-watermark-content">
                 <div class="content-body">
                     <?php call_user_func($content_callback); ?>
                 </div>
             </div>
-            
+
             <?php Footer::render(); ?>
         </div>
         <?php

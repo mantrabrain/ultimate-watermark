@@ -285,9 +285,10 @@ class MediaLibraryIntegration
             return $result;
         }
         
-        // For bulk/manual actions, user explicitly selected the watermark
-        // So we skip post type rules (user's explicit choice overrides rules)
-        // But we still respect watermark_rules conditions (image_size, product_cat, etc.)
+        // CRITICAL: ALWAYS respect ALL watermark rules, even for manual/bulk actions.
+        // The user's explicit selection does NOT override the watermark's configured rules.
+        // This ensures consistency: a watermark configured for "product" post type only
+        // should not apply to images in the media library that have no parent post.
         
         // Get all registered image sizes
         $image_sizes = get_intermediate_image_sizes();
@@ -312,17 +313,15 @@ class MediaLibraryIntegration
         $success_count = 0;
         $rules_skipped_sizes = []; // Track sizes skipped due to rule conditions
         
-        // Apply watermarks to each size, evaluating rules per-size
+        // Apply watermarks to each size, evaluating ALL rules per-size
         foreach ($image_sizes as $size) {
-            // Check legacy size rules ONLY if no unified rules exist
-            // If watermark has unified rules with conditions, skip legacy filter
-            if (!$has_rule_conditions) {
-                if (!WatermarkHelper::shouldApplyWatermarkByImageSize($watermark_data, $size)) {
-                    continue;
-                }
+            // ALWAYS check legacy size rules (post type + image size)
+            // This is the baseline filtering that should always apply
+            if (!WatermarkHelper::shouldApplyWatermarkByImageSize($watermark_data, $size)) {
+                continue;
             }
             
-            // Check modern watermark_rules conditions (image_size, product_cat, etc.)
+            // If watermark has unified rules with conditions, evaluate those too
             // These are evaluated PER SIZE so image_size conditions work correctly
             if ($has_rule_conditions) {
                 $eval_context = RulesEvaluator::buildContext($attachment_id, $size, 0);

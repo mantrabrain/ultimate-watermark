@@ -28,31 +28,48 @@ class AssetManager
     private array $asset_cache = [];
 
     /**
-     * Registered admin pages with their specific assets
+     * Registered admin pages keyed by their menu slug.
      *
-     * @var array<string, array>
+     * We deliberately key on menu slug (not the full hook suffix) because
+     * WordPress builds the submenu hook prefix from sanitize_title($parent_menu_title) —
+     * for our plugin the parent title "Watermark" sanitizes to "watermark", so the
+     * actual hook suffix for "ultimate-watermark-watermarks" is
+     * "watermark_page_ultimate-watermark-watermarks", not
+     * "ultimate-watermark_page_ultimate-watermark-watermarks". Hard-coding the full
+     * hook suffix is fragile; matching on menu slug is robust.
+     *
+     * @var array<string, array{styles?: string[], scripts?: string[], dependencies?: string[]}>
      */
     private array $admin_page_assets = [
-        'toplevel_page_ultimate-watermark' => [
+        // Dashboard (top-level menu page).
+        'ultimate-watermark' => [
             'styles' => ['dashboard'],
             'scripts' => ['dashboard'],
         ],
-        'ultimate-watermark_page_ultimate-watermark-watermarks' => [
+        'ultimate-watermark-watermarks' => [
             'styles' => ['watermarks'],
             'scripts' => ['watermarks'],
         ],
-        'ultimate-watermark_page_ultimate-watermark-add-watermark' => [
+        'ultimate-watermark-add-watermark' => [
             'styles' => ['add-watermark'],
             'scripts' => ['add-watermark'],
             'dependencies' => ['media-upload', 'media-views', 'media-models'],
         ],
-        'ultimate-watermark_page_ultimate-watermark-analytics' => [
+        'ultimate-watermark-analytics' => [
             'styles' => ['analytics'],
             'scripts' => ['analytics'],
         ],
-        'ultimate-watermark_page_ultimate-watermark-settings' => [
+        'ultimate-watermark-backups' => [
+            'styles' => ['backup-page'],
+            'scripts' => ['backup-page'],
+        ],
+        'ultimate-watermark-settings' => [
             'styles' => ['settings'],
             'scripts' => ['settings'],
+        ],
+        'ultimate-watermark-get-pro' => [
+            'styles' => ['pro-features'],
+            'scripts' => [],
         ],
     ];
 
@@ -70,11 +87,24 @@ class AssetManager
     }
 
     /**
-     * Get plugin version
+     * Get plugin version (with cache-bust when SCRIPT_DEBUG is enabled)
      */
     private function getVersion(): string
     {
-        return defined('ULTIMATE_WATERMARK_VERSION') ? ULTIMATE_WATERMARK_VERSION : '2.0.8';
+        $base = defined('ULTIMATE_WATERMARK_VERSION') ? ULTIMATE_WATERMARK_VERSION : '2.1.0';
+
+        // When SCRIPT_DEBUG is on (or WP_DEBUG), append the plugin file mtime so
+        // every CSS/JS edit invalidates the browser cache immediately.
+        if ((defined('SCRIPT_DEBUG') && SCRIPT_DEBUG) || (defined('WP_DEBUG') && WP_DEBUG)) {
+            $marker = defined('ULTIMATE_WATERMARK_FILE') && file_exists(ULTIMATE_WATERMARK_FILE)
+                ? filemtime(ULTIMATE_WATERMARK_FILE)
+                : null;
+            if ($marker) {
+                return $base . '.' . $marker;
+            }
+        }
+
+        return $base;
     }
 
     /**
@@ -92,13 +122,16 @@ class AssetManager
     {
         // Frontend assets with lower priority to allow theme overrides
         add_action('wp_enqueue_scripts', [$this, 'enqueueFrontendAssets'], 15);
-        
+
         // Admin assets with proper priority
         add_action('admin_enqueue_scripts', [$this, 'enqueueAdminAssets'], 10);
-        
-        // Add asset optimization filters
-        add_filter('style_loader_tag', [$this, 'optimizeStyleLoading'], 10, 4);
-        add_filter('script_loader_tag', [$this, 'optimizeScriptLoading'], 10, 3);
+
+        // NOTE: Do not "optimize" admin stylesheets via preload tricks.
+        // admin.css holds the :root design tokens (--uw-primary, --uw-space-*, etc.)
+        // that every page-specific stylesheet relies on. If admin.css is converted
+        // to <link rel="preload"> and the JS onload handler doesn't fire (which it
+        // won't in many environments — caching plugins, CSP, slow hosts, etc.), the
+        // tokens stay undefined and the entire admin UI renders without styling.
     }
 
     /**
@@ -224,6 +257,14 @@ class AssetManager
             $this->enqueueCommonAdminAssets();
             $this->enqueuePageSpecificAssets($hook_suffix);
             $this->localizeAdminScript();
+
+            /**
+             * Fires after the plugin has finished enqueuing its admin assets.
+             * Pro plugins use this hook to enqueue their own admin CSS/JS.
+             *
+             * @param string $hook_suffix Current admin page hook suffix.
+             */
+            do_action('ultimate_watermark_admin_enqueue_scripts', $hook_suffix);
         } catch (\Exception $e) {
             error_log('Ultimate Watermark admin asset loading failed: ' . $e->getMessage());
         }
@@ -234,7 +275,40 @@ class AssetManager
      */
     private function shouldLoadAdminAssets(string $hook_suffix): bool
     {
-        return strpos($hook_suffix, 'ultimate-watermark') !== false;
+        return $this->resolveMenuSlugFromHookSuffix($hook_suffix) !== null;
+    }
+
+    /**
+     * Resolve our menu slug from any of the hook-suffix shapes WordPress emits.
+     *
+     * WP builds the suffix as "{page_type}_page_{plugin_page}":
+     *  - page_type = "toplevel"          for the top-level menu page itself
+     *  - page_type = sanitize_title($parent_title) for submenu pages
+     *
+     * Our parent menu title is "Watermark", which sanitizes to "watermark", so
+     * submenu pages come through as "watermark_page_ultimate-watermark-*". We
+     * also defensively support the historical "ultimate-watermark_page_*" form
+     * in case the parent title is changed in the future.
+     *
+     * @return string|null The menu slug (key into $admin_page_assets) or null
+     *                     if this hook doesn't belong to our plugin.
+     */
+    private function resolveMenuSlugFromHookSuffix(string $hook_suffix): ?string
+    {
+        if ($hook_suffix === '') {
+            return null;
+        }
+
+        // Strip the "{page_type}_page_" prefix in a prefix-agnostic way.
+        if (preg_match('/_page_(.+)$/', $hook_suffix, $m)) {
+            $candidate = $m[1];
+        } elseif (strpos($hook_suffix, 'toplevel_page_') === 0) {
+            $candidate = substr($hook_suffix, strlen('toplevel_page_'));
+        } else {
+            $candidate = $hook_suffix;
+        }
+
+        return isset($this->admin_page_assets[$candidate]) ? $candidate : null;
     }
 
     /**
@@ -279,11 +353,13 @@ class AssetManager
      */
     private function enqueuePageSpecificAssets(string $hook_suffix): void
     {
-        if (!isset($this->admin_page_assets[$hook_suffix])) {
+        $menu_slug = $this->resolveMenuSlugFromHookSuffix($hook_suffix);
+
+        if ($menu_slug === null || !isset($this->admin_page_assets[$menu_slug])) {
             return;
         }
 
-        $page_assets = $this->admin_page_assets[$hook_suffix];
+        $page_assets = $this->admin_page_assets[$menu_slug];
 
         // Enqueue page-specific styles
         if (!empty($page_assets['styles'])) {
@@ -403,40 +479,6 @@ class AssetManager
                 ],
             ]);
         }
-    }
-
-    /**
-     * Optimize style loading with async/preload
-     */
-    public function optimizeStyleLoading(string $tag, string $handle, string $href, string $media): string
-    {
-        if (strpos($handle, 'ultimate-watermark') === false) {
-            return $tag;
-        }
-
-        // Add preload for critical styles
-        if (in_array($handle, ['ultimate-watermark-admin', 'ultimate-watermark-layout'])) {
-            return "<link rel='preload' href='{$href}' as='style' onload=\"this.onload=null;this.rel='stylesheet'\" media='{$media}'>\n<noscript>{$tag}</noscript>";
-        }
-
-        return $tag;
-    }
-
-    /**
-     * Optimize script loading with async/defer
-     */
-    public function optimizeScriptLoading(string $tag, string $handle, string $src): string
-    {
-        if (strpos($handle, 'ultimate-watermark') === false) {
-            return $tag;
-        }
-
-        // Add defer to non-critical scripts
-        if (!in_array($handle, ['ultimate-watermark-admin'])) {
-            return str_replace(" src='", " defer src=", $tag);
-        }
-
-        return $tag;
     }
 
     /**

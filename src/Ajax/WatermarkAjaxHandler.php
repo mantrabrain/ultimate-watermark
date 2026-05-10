@@ -100,11 +100,7 @@ class WatermarkAjaxHandler
 
             // Process the watermark save operation
             $is_update = !empty($sanitized_data['watermark_id']) && $sanitized_data['watermark_id'] > 0;
-            
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark: Save request - watermark_id: ' . ($sanitized_data['watermark_id'] ?? 'not set') . ', is_update: ' . ($is_update ? 'yes' : 'no'));
-            }
-            
+
             // Check watermark limit for free version (only when creating new watermark)
             if (!$is_update) {
                 $this->checkWatermarkLimit();
@@ -234,10 +230,18 @@ class WatermarkAjaxHandler
         // Validate color
         $validated['watermark_color'] = $this->validateColor($data['watermark_color'] ?? '#ffffff');
 
-        // Font family
-        $allowed_fonts = ['Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New'];
-        $validated['watermark_font_family'] = in_array($data['watermark_font_family'] ?? '', $allowed_fonts)
-            ? $data['watermark_font_family']
+        // Font family — whitelist is filterable so Pro (Google Fonts) and
+        // third-party plugins can register additional families. Falls back
+        // to Arial if the submitted family isn't on the whitelist.
+        $allowed_fonts = apply_filters(
+            'ultimate_watermark_allowed_fonts',
+            ['Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New']
+        );
+        $submitted_font = isset($data['watermark_font_family'])
+            ? sanitize_text_field((string) $data['watermark_font_family'])
+            : '';
+        $validated['watermark_font_family'] = in_array($submitted_font, $allowed_fonts, true)
+            ? $submitted_font
             : 'Arial';
 
         // Font weight
@@ -466,7 +470,19 @@ class WatermarkAjaxHandler
     private function sanitizeWatermarkRules(array $rules): array
     {
         $sanitized = [];
-        $allowed_operators = ['is', 'is_not', 'greater_than', 'less_than', 'equals'];
+
+        // Whitelist must stay in sync with RulesEvaluator::compareValues().
+        // Pro plugins (or filters) can extend the list via uwm_rule_operators.
+        $allowed_operators = apply_filters('uwm_rule_operators', [
+            'is', 'is_not', 'equals', 'not_equals',
+            'greater_than', 'less_than',
+            'greater_equal', 'less_equal',
+            'gte', 'lte',
+            'contains', 'not_contains',
+            'starts_with', 'ends_with',
+            'in', 'not_in',
+            'between', 'not_between',
+        ]);
 
         foreach ($rules as $rule_id => $rule) {
             if (!is_array($rule) || empty($rule['name'])) {
@@ -484,12 +500,15 @@ class WatermarkAjaxHandler
                 foreach ($rule['conditions'] as $condition) {
                     if (!is_array($condition)) continue;
 
-                    $type = sanitize_text_field($condition['type'] ?? '');
+                    $type     = sanitize_text_field($condition['type'] ?? '');
                     $operator = sanitize_text_field($condition['operator'] ?? '');
-                    $value = sanitize_text_field($condition['value'] ?? '');
+                    // Comma/semicolon-separated values are valid input for `in` /
+                    // `between` etc., so don't aggressively strip — sanitize_text_field
+                    // is enough (strips tags / control chars but preserves separators).
+                    $value    = isset($condition['value']) ? sanitize_text_field((string) $condition['value']) : '';
 
-                    if (empty($type) || empty($operator) || $value === '') continue;
-                    if (!in_array($operator, $allowed_operators)) continue;
+                    if ($type === '' || $operator === '' || $value === '') continue;
+                    if (!in_array($operator, $allowed_operators, true)) continue;
 
                     $sanitized_rule['conditions'][] = [
                         'type' => $type,
@@ -580,37 +599,22 @@ class WatermarkAjaxHandler
      */
     private function checkWatermarkLimit(): void
     {
-        // Check if Pro version is active
-        $is_pro_active = defined('ULTIMATE_WATERMARK_PRO_VERSION');
-        
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark: Checking watermark limit. Pro active: ' . ($is_pro_active ? 'yes' : 'no'));
+        // Pro version has no limit.
+        if (defined('ULTIMATE_WATERMARK_PRO_VERSION')) {
+            return;
         }
-        
-        if ($is_pro_active) {
-            return; // Pro version has no limit
-        }
-        
-        // Count existing watermarks
+
         $existing_watermarks = get_posts([
-            'post_type' => WatermarkPostType::POST_TYPE,
+            'post_type'   => WatermarkPostType::POST_TYPE,
             'post_status' => 'publish',
             'numberposts' => -1,
-            'fields' => 'ids'
+            'fields'      => 'ids',
         ]);
-        
+
         $watermark_count = is_array($existing_watermarks) ? count($existing_watermarks) : 0;
-        
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Ultimate Watermark: Current watermark count: ' . $watermark_count);
-        }
-        
+
         // Free version limit: 1 watermark
         if ($watermark_count >= 1) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark: Limit reached! Blocking creation.');
-            }
-            
             wp_send_json_error([
                 'message' => __('Watermark limit reached', 'ultimate-watermark'),
                 'upgrade_required' => true,

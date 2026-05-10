@@ -134,8 +134,8 @@ class AdminManager
     {
         // Main menu page
         add_menu_page(
-            __('Ultimate Watermark', 'ultimate-watermark'),
-            __('Ultimate Watermark', 'ultimate-watermark'),
+            __('Watermark', 'ultimate-watermark'),
+            __('Watermark', 'ultimate-watermark'),
             'manage_options',
             'ultimate-watermark',
             [$this, 'renderDashboardPage'],
@@ -205,7 +205,7 @@ class AdminManager
                     add_submenu_page(
                         'ultimate-watermark',
                         __('Get Pro', 'ultimate-watermark'),
-                        '<span style="color:#f18500;">' . __('Get Pro', 'ultimate-watermark') . '</span>',
+                        '<span class="uwm-sidebar-pro-label">' . __('Get Pro', 'ultimate-watermark') . '</span>',
                         'manage_options',
                         'ultimate-watermark-get-pro',
                         [$this, 'renderGetProPage']
@@ -1077,7 +1077,7 @@ class AdminManager
         
         // Add Get Pro link only if Pro is not active
         if (!defined('ULTIMATE_WATERMARK_PRO_VERSION')) {
-            $pro_link = '<a href="' . esc_url('https://mantrabrain.com/plugins/ultimate-watermark#pricing') . '" target="_blank" rel="noopener noreferrer" style="color: #f18500; font-weight: 700;">' . __('Get Pro', 'ultimate-watermark') . '</a>';
+            $pro_link = '<a href="' . esc_url('https://mantrabrain.com/plugins/ultimate-watermark#pricing') . '" target="_blank" rel="noopener noreferrer" class="uwm-plugins-row-pro-link">' . __('Get Pro', 'ultimate-watermark') . '</a>';
             array_unshift($links, $pro_link);
         }
         

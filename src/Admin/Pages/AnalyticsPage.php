@@ -255,24 +255,34 @@ class AnalyticsPage
     }
 
     /**
-     * Get watermarked images count
+     * Get watermarked images count.
+     *
+     * Matches any of the meta flags the watermark pipeline writes:
+     *   - `_ulwm_watermarked`           — current flag set by RestApiIntegration / MediaLibraryIntegration
+     *   - `ulwm-is-watermarked`         — legacy v1 flag (still found on migrated installs)
+     *   - `watermark_count` > 0         — usage tracker counter
+     *   - `applied_watermarks`          — historical per-attachment list (kept for back-compat)
      */
     private function getWatermarkedImages(): int
     {
-        $watermarked = get_posts([
-            'post_type' => 'attachment',
-            'post_mime_type' => 'image',
-            'numberposts' => -1,
-            'post_status' => 'inherit',
-            'meta_query' => [
-                [
-                    'key' => 'applied_watermarks',
-                    'compare' => 'EXISTS'
-                ]
-            ]
-        ]);
+        global $wpdb;
 
-        return count($watermarked);
+        $count = (int) $wpdb->get_var(
+            "SELECT COUNT(DISTINCT p.ID)
+               FROM {$wpdb->posts} p
+               INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID
+              WHERE p.post_type = 'attachment'
+                AND p.post_status = 'inherit'
+                AND p.post_mime_type LIKE 'image/%'
+                AND (
+                    (m.meta_key = '_ulwm_watermarked' AND m.meta_value IN ('1', 'true', 'b:1;'))
+                    OR (m.meta_key = 'ulwm-is-watermarked' AND m.meta_value = '1')
+                    OR (m.meta_key = 'watermark_count' AND CAST(m.meta_value AS UNSIGNED) > 0)
+                    OR (m.meta_key = 'applied_watermarks' AND m.meta_value != '' AND m.meta_value != 'a:0:{}')
+                )"
+        );
+
+        return $count;
     }
 
     /**
