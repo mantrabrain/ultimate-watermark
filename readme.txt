@@ -4,7 +4,7 @@ Donate link: https://mantrabrain.com/plugins/ultimate-watermark
 Tags: watermark, image-watermark, image-protection, watermarking, images
 Requires at least: 5.0
 Tested up to: 6.9
-Stable tag: 2.1.1
+Stable tag: 2.1.2
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Requires PHP: 7.4
@@ -233,6 +233,11 @@ Deactivate the plugin from *Plugins → Installed Plugins*. Watermarked images a
 [View all Pro features and pricing →](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)
 
 == Changelog ==
+
+= 2.1.2 - 2026/05/11 =
+* **Fixed** - Optimized plugin title for maximum SEO visibility with comprehensive keywords
+* **Fixed** - Added Quick Links section with emojis for better user navigation
+* **Fixed** - Updated YouTube video link to proper demo content
 
 = 2.1.1 - 2026/05/11 =
 * **Fixed** - Updated plugin title to comply with WordPress.org guidelines (removed WordPress from title)
