@@ -24,7 +24,7 @@ Built for photographers, content creators, bloggers, and e-commerce stores who n
 * 💎 [View Pro](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)
 * 📚 [View Documentation](https://ultimate-watermark.mantrabrain.com/docs/)
 
-[youtube https://www.youtube.com/watch?v=dQw4w9WgXcQ]
+[youtube https://youtu.be/6QcDWgtaJRU]
 
 = Why choose Ultimate Watermark =
 
