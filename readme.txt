@@ -1,4 +1,4 @@
-=== Ultimate Watermark - Image Protection, Branding & Bulk Watermarking ===
+=== Ultimate Watermark - Image Watermark, Image Protection & Bulk Watermarking ===
 Contributors: mantrabrain
 Donate link: https://mantrabrain.com/plugins/ultimate-watermark
 Tags: watermark, image-watermark, image-protection, watermarking, images
