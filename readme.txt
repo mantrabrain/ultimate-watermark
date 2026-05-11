@@ -1,10 +1,10 @@
-=== Image Watermark – Protect, Brand & Bulk Watermark WordPress Photos ===
+=== Ultimate Watermark - Image Protection, Branding & Bulk Watermarking ===
 Contributors: mantrabrain
 Donate link: https://mantrabrain.com/plugins/ultimate-watermark
-Tags: watermark, image-watermark, image-protection, copyright, woocommerce
+Tags: watermark, image-watermark, image-protection, watermarking, images
 Requires at least: 5.0
 Tested up to: 6.9
-Stable tag: 2.1.0
+Stable tag: 2.1.1
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Requires PHP: 7.4
@@ -16,6 +16,13 @@ Bulk watermark WordPress images. Add a copyright text or logo watermark to media
 **Ultimate Watermark** is a powerful, photographer-grade image watermark plugin for WordPress. Add a copyright text or logo to every image you upload, batch-watermark thousands of existing photos, protect WooCommerce product galleries, and restore the originals anytime — all without leaving wp-admin.
 
 Built for photographers, content creators, bloggers, and e-commerce stores who need real protection without bloated dependencies, watermarking server services, or destructive edits.
+
+== Quick Links ==
+
+* 🔗 [View Plugin Page](https://mantrabrain.com/plugins/ultimate-watermark)
+* 🚀 [Try Ultimate Watermark Free](https://try.new/plugins/ultimate-watermark)
+* 💎 [View Pro](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)
+* 📚 [View Documentation](https://ultimate-watermark.mantrabrain.com/docs/)
 
 [youtube https://www.youtube.com/watch?v=dQw4w9WgXcQ]
 
@@ -33,21 +40,21 @@ Unlike basic watermark plugins, Ultimate Watermark gives you:
 
 = Core features (Free version) =
 
-**Watermark types**
+**[Watermark types](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)**
 
 * Text watermark — your copyright string, brand name, URL, or any custom text
 * Image watermark — upload a PNG/JPG/SVG logo, signature, or stamp
 * Per-template font, weight, style, decoration, color, and opacity
 * Rotation, scale, and pixel-level positioning
 
-**Application modes**
+**[Application modes](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)**
 
 * Automatic — watermark every image as it's uploaded to the media library
 * Bulk — watermark hundreds of existing images from the Media Library at once
 * Manual — watermark a specific image from its attachment screen
 * Frontend uploads — watermark images submitted from frontend forms
 
-**Conditional rules**
+**[Conditional rules](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)**
 
 Choose exactly which images get a watermark with rules built in plain English. Combine conditions with AND/OR logic:
 
@@ -61,7 +68,7 @@ Choose exactly which images get a watermark with rules built in plain English. C
 * Post category
 * Product category & product tag (when WooCommerce is active)
 
-**Backup & restore**
+**[Backup & restore](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)**
 
 Every original image is preserved before the watermark is burned in:
 
@@ -70,14 +77,14 @@ Every original image is preserved before the watermark is burned in:
 * Storage controls — choose to keep all sizes or just the original
 * Path-traversal protected and stored under your uploads folder
 
-**Image library compatibility**
+**[Image library compatibility](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)**
 
 * Imagick (preferred — sharper text rendering and better color fidelity)
 * GD fallback when Imagick is not installed
 * Live preview while you edit a watermark template
 * WebP, JPEG (baseline & progressive), PNG, and GIF output
 
-**Designed for production**
+**[Designed for production](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)**
 
 * PSR-4 namespaced source, Composer-loaded
 * Full i18n support (`ultimate-watermark` text domain)
@@ -95,23 +102,23 @@ Every original image is preserved before the watermark is burned in:
 
 = Pro features =
 
-[Upgrade to Ultimate Watermark Pro](https://mantrabrain.com/plugins/ultimate-watermark#pricing) when you outgrow the free version. The Pro extension stays in lockstep with the free plugin and adds:
+[Upgrade to Ultimate Watermark Pro](https://mantrabrain.com/plugins/ultimate-watermark/#pricing) when you outgrow the free version. The Pro extension stays in lockstep with the free plugin and adds:
 
-* **Unlimited watermark templates** — free version is limited to 1
-* **Dynamic content placeholders** — `{site_url}`, `{date_long}`, `{user_display_name}`, `{post_title}`, `{custom_field:key}` and more
-* **EXIF placeholders** — `{camera_model}`, `{aperture}`, `{shutter_speed}`, `{iso}`, `{focal_length}` for camera-info credits
-* **Google Fonts library** — 30+ curated typefaces (Roboto, Open Sans, Montserrat, Pacifico, Bebas Neue, Playfair Display, …) auto-cached on disk
-* **Searchable font picker** — every option rendered in its own typeface
-* **WooCommerce per-product watermarks** — override the global watermark on a single product
-* **WooCommerce per-category watermarks** — assign a default watermark per product category, with a Product → Category → Global cascade
-* **WooCommerce variation image support** — watermark every variation, not just the parent
-* **On-the-fly display watermarking** — show watermarks to visitors without modifying source files; admins/editors bypass automatically
-* **Batch operations** — apply, replace, or remove watermarks from large image sets via a tracked queue
-* **Advanced conditional rules** — date ranges, custom fields, and 14+ operators (`contains`, `in`, `between`, `greater_equal`, etc.)
-* **Priority support** — direct help from the team that built it
-* **Automatic updates** — receive Pro releases through the WordPress updates UI
+* **[Unlimited watermark templates](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — free version is limited to 1
+* **[Dynamic content placeholders](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — `{site_url}`, `{date_long}`, `{user_display_name}`, `{post_title}`, `{custom_field:key}` and more
+* **[EXIF placeholders](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — `{camera_model}`, `{aperture}`, `{shutter_speed}`, `{iso}`, `{focal_length}` for camera-info credits
+* **[Google Fonts library](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — 30+ curated typefaces (Roboto, Open Sans, Montserrat, Pacifico, Bebas Neue, Playfair Display, …) auto-cached on disk
+* **[Searchable font picker](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — every option rendered in its own typeface
+* **[WooCommerce per-product watermarks](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — override the global watermark on a single product
+* **[WooCommerce per-category watermarks](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — assign a default watermark per product category, with a Product → Category → Global cascade
+* **[WooCommerce variation image support](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — watermark every variation, not just the parent
+* **[On-the-fly display watermarking](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — show watermarks to visitors without modifying source files; admins/editors bypass automatically
+* **[Batch operations](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — apply, replace, or remove watermarks from large image sets via a tracked queue
+* **[Advanced conditional rules](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — date ranges, custom fields, and 14+ operators (`contains`, `in`, `between`, `greater_equal`, etc.)
+* **[Priority support](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — direct help from the team that built it
+* **[Automatic updates](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — receive Pro releases through the WordPress updates UI
 
-[Compare features and view pricing →](https://mantrabrain.com/plugins/ultimate-watermark#pricing)
+[Compare features and view pricing →](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)
 
 = Trusted by =
 
@@ -223,7 +230,13 @@ Deactivate the plugin from *Plugins → Installed Plugins*. Watermarked images a
 8. Searchable Google Fonts picker (Pro) — every typeface rendered in its own font, with instant search.
 9. Pro Features comparison page — see what's in free vs. Pro.
 
+[View all Pro features and pricing →](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)
+
 == Changelog ==
+
+= 2.1.1 - 2026/05/11 =
+* **Fixed** - Updated plugin title to comply with WordPress.org guidelines (removed WordPress from title)
+* **Fixed** - Improved title for better SEO optimization
 
 = 2.1.0 - 2026/05/10 =
 * New: Google Fonts integration in Pro — 30+ curated typefaces with on-disk caching and a searchable font picker that renders each option in its own typeface.
