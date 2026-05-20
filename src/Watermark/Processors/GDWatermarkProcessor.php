@@ -688,9 +688,11 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
      *
      * Resolution order:
      *   1. ultimate_watermark_resolve_font_path filter (Pro Google Fonts hook)
-     *   2. System fonts matching the requested family
-     *   3. Generic system fallbacks
-     *   4. Empty string (GD then uses built-in font; imagettftext will fail)
+     *   2. System fonts matching the requested family (best fidelity)
+     *   3. Bundled TTF mapped to the family's category (sans / serif / mono)
+     *   4. Bundled neutral sans default (UltimateWatermarkDefault.ttf)
+     *   5. Empty string — should be unreachable unless the bundled font is
+     *      manually deleted from the plugin's assets/fonts/ directory.
      *
      * @param array $watermarkData Optional watermark data so the requested
      *                             family / weight / style can be passed to
@@ -711,15 +713,37 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             return $external;
         }
 
-        $fontPaths = [
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-            '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
-            '/Library/Fonts/Arial.ttf',
-            '/System/Library/Fonts/Supplemental/Arial.ttf',
-            '/System/Library/Fonts/Helvetica.ttc',
-            'C:\\Windows\\Fonts\\arial.ttf',
-            plugin_dir_path(ULTIMATE_WATERMARK_FILE) . 'assets/fonts/default.ttf',
+        $bundledDir   = plugin_dir_path(ULTIMATE_WATERMARK_FILE) . 'assets/fonts/';
+        $bundledSans  = $bundledDir . 'UltimateWatermarkDefault.ttf';
+        $bundledSerif = $bundledDir . 'UltimateWatermarkSerif.ttf';
+        $bundledMono  = $bundledDir . 'UltimateWatermarkMono.ttf';
+
+        // Map each system family to its bundled stand-in so the picker
+        // honours the user's serif/sans/mono intent even when no system
+        // fonts exist on the host.
+        $familyMap = [
+            'Arial'           => [$bundledSans],
+            'Helvetica'       => [$bundledSans],
+            'Verdana'         => [$bundledSans],
+            'Times New Roman' => [$bundledSerif],
+            'Georgia'         => [$bundledSerif],
+            'Courier New'     => [$bundledMono],
         ];
+
+        // Try system fonts first (better fidelity if installed), then the
+        // family-specific bundled fallback, then the neutral bundled sans.
+        $fontPaths = array_merge(
+            [
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+                '/Library/Fonts/Arial.ttf',
+                '/System/Library/Fonts/Supplemental/Arial.ttf',
+                '/System/Library/Fonts/Helvetica.ttc',
+                'C:\\Windows\\Fonts\\arial.ttf',
+            ],
+            $familyMap[$family] ?? [],
+            [$bundledSans]
+        );
 
         foreach ($fontPaths as $fontPath) {
             if (file_exists($fontPath) && is_readable($fontPath)) {

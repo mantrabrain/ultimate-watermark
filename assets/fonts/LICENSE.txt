@@ -1,0 +1,40 @@
+Bundled Fonts — License Information
+====================================
+
+The Ultimate Watermark plugin ships three TrueType fonts so that text
+watermarks render reliably on hosts whose system font directories are
+empty (shared/minimal Linux hosts, stripped Docker images, etc.).
+
+All three fonts are licensed under the SIL Open Font License v1.1,
+which permits redistribution as part of any software bundle.
+
+1. UltimateWatermarkDefault.ttf
+   Family:    Nunito (weight 400, normal)
+   Source:    Google Fonts / Fontsource
+   License:   SIL Open Font License v1.1
+   Copyright: Copyright 2014 The Nunito Project Authors
+              (https://github.com/googlefonts/nunito)
+
+2. UltimateWatermarkSerif.ttf
+   Family:    Merriweather (weight 400, normal)
+   Source:    Google Fonts / Fontsource
+   License:   SIL Open Font License v1.1
+   Copyright: Copyright 2016 The Merriweather Project Authors
+              (https://github.com/SorkinType/Merriweather)
+
+3. UltimateWatermarkMono.ttf
+   Family:    JetBrains Mono (weight 400, normal)
+   Source:    Google Fonts
+   License:   SIL Open Font License v1.1
+   Copyright: Copyright 2020 The JetBrains Mono Project Authors
+              (https://github.com/JetBrains/JetBrainsMono)
+
+SIL Open Font License v1.1
+--------------------------
+This license can be obtained from: https://scripts.sil.org/OFL
+
+The full license text applies. In particular:
+- The fonts may be embedded in any software, including commercial software.
+- The fonts must retain their reserved names (Nunito, Merriweather,
+  JetBrains Mono) and the copyright notices above.
+- The fonts cannot be sold by themselves.

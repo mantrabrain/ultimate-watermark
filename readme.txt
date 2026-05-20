@@ -4,7 +4,7 @@ Donate link: https://mantrabrain.com/plugins/ultimate-watermark
 Tags: watermark, image-watermark, image-protection, watermarking, images
 Requires at least: 5.0
 Tested up to: 6.9
-Stable tag: 2.1.2
+Stable tag: 2.1.3
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Requires PHP: 7.4
@@ -234,6 +234,15 @@ Deactivate the plugin from *Plugins → Installed Plugins*. Watermarked images a
 
 == Changelog ==
 
+= 2.1.3 - 2026/05/20 =
+* **Fixed** - Text watermarks failed to render on minimal/shared hosts (e.g. IONOS) with the cryptic FreeType error "unable to read font \`'". The plugin now ships three SIL OFL-licensed TTFs in `assets/fonts/` (Nunito sans, Merriweather serif, JetBrains Mono) so text rendering works regardless of host environment, with the family picker mapped to its closest bundled stand-in.
+* **Fixed** - Selected Google Fonts (Pro) didn't render on the actually-applied watermark even though the preview showed them correctly. Load-time font validator was rejecting non-system families and silently reverting to Arial; now consults the `ultimate_watermark_allowed_fonts` filter so Pro typefaces survive the save → load round trip.
+* **Fixed** - Imagick text watermarks on macOS Homebrew silently fell back to Helvetica when the plugin path contained a space (e.g. Local-by-Flywheel's "Local Sites/" folder). MVG was dropping the path; we now mirror the resolved font onto the Imagick image as well as the draw object.
+* **Fixed** - "Remove All Watermarks" on the media edit screen could delete files belonging to unrelated attachments because the cleanup loop globbed `imagename-*.*` and matched siblings like `imagename-2.webp`, then produced confusing "image does not exist" warnings during regen. Cleanup is now driven entirely from `wp_get_attachment_metadata()['sizes']` so only this attachment's size files are touched.
+* **Fixed** - Cancel button on every confirmation modal (Remove All, Delete Watermark, Bulk Delete, Media Library bulk action) was running the destructive action because `UWNotifications.confirm()` resolves with the action string and the callers were doing `if (confirmed)` — truthy for the string `'cancel'`. All five call sites now check `action === 'confirm'` explicitly.
+* **Improved** - Fail-fast `RuntimeException` with a clear message if the bundled font is somehow missing, instead of letting FreeType emit its cryptic error.
+* **Improved** - Removed verbose per-render `error_log()` traces ("Imagick: family=… → using font…", etc.) — debug.log stays quiet in production while `WP_DEBUG` is off.
+
 = 2.1.2 - 2026/05/11 =
 * **Fixed** - Optimized plugin title for maximum SEO visibility with comprehensive keywords
 * **Fixed** - Added Quick Links section with emojis for better user navigation
@@ -299,6 +308,9 @@ Deactivate the plugin from *Plugins → Installed Plugins*. Watermarked images a
 * Pro version adds unlimited templates, dynamic placeholders, on-the-fly display, batch operations, WooCommerce per-product / per-category overrides.
 
 == Upgrade Notice ==
+
+= 2.1.3 =
+Critical fix for text watermarks on minimal/shared hosts (IONOS and similar) where missing system fonts produced FreeType errors — the plugin now ships its own bundled TTFs. Also fixes the Cancel button on confirmation modals running the action, Pro Google Fonts not rendering on the actually-applied watermark, and a "Remove All" cleanup bug that could affect unrelated attachments. Recommended for everyone.
 
 = 2.1.0 =
 Major reliability release: rules engine fixed (empty rules now apply everywhere, all 14+ operators implemented, multi-value taxonomies), Pro WooCommerce per-product/per-category watermarks fire on save with variation support, Pro placeholders resolve to the attachment uploader and use locale-aware dates, Live Preview fixed, dashboard stats fixed, full design overhaul, new onboarding notice system. Recommended for everyone.

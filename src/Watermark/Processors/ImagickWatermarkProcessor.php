@@ -257,7 +257,20 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         $opacity  = max(0, min(100, (int) ($watermarkData['watermark_opacity'] ?? 50)));
         $rotation = (int) ($watermarkData['watermark_rotation'] ?? 0);
 
-        $draw = $this->createTextDrawObject($watermarkData, $fontSize, $opacity);
+        // Resolve the font path BEFORE creating the draw object so we can
+        // bail out cleanly if no usable font exists on this host. Otherwise
+        // queryFontMetrics()/annotateImage() throw a cryptic FreeType error
+        // ("unable to read font `'") on hosts with no system fonts.
+        $imageFontPath = $this->resolvedFontPathFor($watermarkData);
+        if ($imageFontPath === null || !file_exists($imageFontPath) || !is_readable($imageFontPath)) {
+            throw new \RuntimeException(
+                'Ultimate Watermark: no readable TTF/OTF font available for text rendering. '
+                . 'The bundled fallback at assets/fonts/UltimateWatermarkDefault.ttf appears to be '
+                . 'missing or unreadable — re-upload the plugin to restore it.'
+            );
+        }
+
+        $draw = $this->createTextDrawObject($watermarkData, $fontSize, $opacity, $imageFontPath);
 
         // Mirror the resolved font onto the Imagick image as well — this
         // works around a long-standing macOS Homebrew ImageMagick bug where
@@ -265,13 +278,10 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         // Local Sites/ folder on a Local-by-Flywheel install) is silently
         // dropped by the MVG parser. Setting on the image is a separate
         // code path and accepts the same path verbatim.
-        $imageFontPath = $this->resolvedFontPathFor($watermarkData);
-        if ($imageFontPath !== null) {
-            try {
-                $image->setFont($imageFontPath);
-            } catch (\Throwable $e) {
-                // Non-fatal — annotateImage will use the draw's font instead.
-            }
+        try {
+            $image->setFont($imageFontPath);
+        } catch (\Throwable $e) {
+            // Non-fatal — annotateImage will use the draw's font instead.
         }
 
         if ($rotation === 0) {
@@ -296,7 +306,7 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         $this->drawRotatedText($image, $draw, $text, $rotation, $watermarkData);
     }
 
-    private function createTextDrawObject(array $watermarkData, int $fontSize, int $opacity): \ImagickDraw
+    private function createTextDrawObject(array $watermarkData, int $fontSize, int $opacity, ?string $fontPath = null): \ImagickDraw
     {
         $color = $this->hexToRgb((string) ($watermarkData['watermark_color'] ?? '#000000'));
 
@@ -306,11 +316,13 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         $draw->setFillOpacity($opacity / 100);
         $draw->setTextAntialias(true);
 
-        $family = (string) ($watermarkData['watermark_font_family'] ?? 'Arial');
-        $weight = (string) ($watermarkData['watermark_font_weight'] ?? 'normal');
-        $style  = (string) ($watermarkData['watermark_font_style']  ?? 'normal');
-
-        $fontPath = $this->resolveFontPath($family, $weight, $style);
+        // Caller may pass a pre-resolved font path (the common case from
+        // applyTextWatermark, which needs the same path for $image->setFont).
+        // If absent, resolve from the watermark data here for callers that
+        // didn't pre-resolve.
+        if ($fontPath === null) {
+            $fontPath = $this->resolvedFontPathFor($watermarkData);
+        }
 
         if ($fontPath !== null) {
             try {
@@ -442,6 +454,19 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         return $this->getFallbackFontPath();
     }
 
+    /**
+     * Build the ordered list of TTF paths to try for a given system family.
+     *
+     * Each family maps to a *bundled* TTF that we ship inside the plugin
+     * (assets/fonts/UltimateWatermark*.ttf, SIL OFL licensed). The bundled
+     * file is always last in the list so that if the host happens to have
+     * the user's actually-requested font (real Arial, real Georgia, etc.)
+     * we prefer that for fidelity — but on hosts with empty font dirs we
+     * still get a guaranteed render via the bundled file.
+     *
+     * Each system entry pairs the family with its closest bundled cousin
+     * (sans → Nunito, serif → Merriweather, mono → JetBrains Mono).
+     */
     private function fontCandidatesFor(string $family, string $weight, string $style): array
     {
         $isBold   = $weight === 'bold';
@@ -456,6 +481,10 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
             $variant = 'Italic';
         }
 
+        $bundled    = $this->bundledFontPath('UltimateWatermarkDefault.ttf'); // sans
+        $bundledSerif = $this->bundledFontPath('UltimateWatermarkSerif.ttf');
+        $bundledMono  = $this->bundledFontPath('UltimateWatermarkMono.ttf');
+
         $base = [
             'Arial' => [
                 '/System/Library/Fonts/Supplemental/Arial.ttf',
@@ -463,33 +492,39 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
                 '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
                 '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
                 'C:\\Windows\\Fonts\\arial.ttf',
+                $bundled,
             ],
             'Helvetica' => [
                 '/System/Library/Fonts/Helvetica.ttc',
                 '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
                 '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                $bundled,
             ],
             'Times New Roman' => [
                 '/System/Library/Fonts/Supplemental/Times New Roman.ttf',
                 '/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf',
                 '/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf',
                 'C:\\Windows\\Fonts\\times.ttf',
+                $bundledSerif,
             ],
             'Georgia' => [
                 '/System/Library/Fonts/Supplemental/Georgia.ttf',
                 '/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf',
                 'C:\\Windows\\Fonts\\georgia.ttf',
+                $bundledSerif,
             ],
             'Verdana' => [
                 '/System/Library/Fonts/Supplemental/Verdana.ttf',
                 '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
                 'C:\\Windows\\Fonts\\verdana.ttf',
+                $bundled,
             ],
             'Courier New' => [
                 '/System/Library/Fonts/Supplemental/Courier New.ttf',
                 '/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf',
                 '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf',
                 'C:\\Windows\\Fonts\\cour.ttf',
+                $bundledMono,
             ],
         ];
 
@@ -515,6 +550,14 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         return array_merge($styled, $list);
     }
 
+    /**
+     * Absolute path to a TTF file inside the plugin's assets/fonts/ dir.
+     */
+    private function bundledFontPath(string $filename): string
+    {
+        return plugin_dir_path(ULTIMATE_WATERMARK_FILE) . 'assets/fonts/' . $filename;
+    }
+
     private function getFallbackFontPath(): ?string
     {
         if (self::$fallbackFontPath !== null) {
@@ -535,6 +578,18 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
                 self::$fallbackFontPath = $candidate;
                 return $candidate;
             }
+        }
+
+        // Plugin ships its own neutral TTF (Nunito 400, SIL OFL) so that text
+        // watermarks render even on minimal/shared hosts where /usr/share/fonts
+        // is empty and Windows/macOS fonts are obviously absent. Without this
+        // guarantee, ImagickDraw::annotateImage() falls through to FreeType
+        // with no font path and throws "unable to read font `'" (the exact
+        // error reported on IONOS shared hosting).
+        $bundled = plugin_dir_path(ULTIMATE_WATERMARK_FILE) . 'assets/fonts/UltimateWatermarkDefault.ttf';
+        if (file_exists($bundled) && is_readable($bundled)) {
+            self::$fallbackFontPath = $bundled;
+            return $bundled;
         }
 
         self::$fallbackFontPath = '';
