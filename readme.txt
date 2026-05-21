@@ -3,8 +3,8 @@ Contributors: mantrabrain
 Donate link: https://mantrabrain.com/plugins/ultimate-watermark
 Tags: watermark, image-watermark, image-protection, watermarking, images
 Requires at least: 5.0
-Tested up to: 6.9
-Stable tag: 2.1.3
+Tested up to: 7.0
+Stable tag: 2.1.4
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Requires PHP: 7.4
@@ -234,6 +234,9 @@ Deactivate the plugin from *Plugins → Installed Plugins*. Watermarked images a
 
 == Changelog ==
 
+= 2.1.4 - 2026/05/21 =
+* **Compatibility** - Tested and verified against WordPress 7.0. The "Tested up to" header is bumped so the WordPress.org installer no longer warns site owners running 7.0 that the plugin is untested on their version.
+
 = 2.1.3 - 2026/05/20 =
 * **Fixed** - Text watermarks failed to render on minimal/shared hosts (e.g. IONOS) with the cryptic FreeType error "unable to read font \`'". The plugin now ships three SIL OFL-licensed TTFs in `assets/fonts/` (Nunito sans, Merriweather serif, JetBrains Mono) so text rendering works regardless of host environment, with the family picker mapped to its closest bundled stand-in.
 * **Fixed** - Selected Google Fonts (Pro) didn't render on the actually-applied watermark even though the preview showed them correctly. Load-time font validator was rejecting non-system families and silently reverting to Arial; now consults the `ultimate_watermark_allowed_fonts` filter so Pro typefaces survive the save → load round trip.
@@ -308,6 +311,9 @@ Deactivate the plugin from *Plugins → Installed Plugins*. Watermarked images a
 * Pro version adds unlimited templates, dynamic placeholders, on-the-fly display, batch operations, WooCommerce per-product / per-category overrides.
 
 == Upgrade Notice ==
+
+= 2.1.4 =
+Compatibility bump for WordPress 7.0 — clears the "untested on this version" warning in the installer. No code changes; safe to upgrade.
 
 = 2.1.3 =
 Critical fix for text watermarks on minimal/shared hosts (IONOS and similar) where missing system fonts produced FreeType errors — the plugin now ships its own bundled TTFs. Also fixes the Cancel button on confirmation modals running the action, Pro Google Fonts not rendering on the actually-applied watermark, and a "Remove All" cleanup bug that could affect unrelated attachments. Recommended for everyone.
