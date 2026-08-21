@@ -2,9 +2,9 @@
 Contributors: mantrabrain
 Donate link: https://mantrabrain.com/plugins/ultimate-watermark
 Tags: watermark, image-watermark, image-protection, watermarking, images
-Requires at least: 5.0
-Tested up to: 7.0
-Stable tag: 2.1.4
+Requires at least: 5.9
+Tested up to: 7.1
+Stable tag: 2.1.5
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Requires PHP: 7.4
@@ -234,6 +234,13 @@ Deactivate the plugin from *Plugins → Installed Plugins*. Watermarked images a
 
 == Changelog ==
 
+= 2.1.5 - 2026/08/21 =
+* **Compatibility** - Tested and verified against WordPress 7.1. Every WordPress function the plugin calls was cross-checked against the 7.1 codebase: none are deprecated or removed in this release.
+* **Security** - The settings AJAX endpoint verified the nonce but never checked capabilities, so it did not require an administrator. It now requires `manage_options`.
+* **Security** - The media-library endpoint that stores the pending watermark selection wrote an option after checking only the nonce. It now requires `upload_files`.
+* **Fixed** - The plugin advertised support for PHP 7.4 but could not run on it. Five methods in the backup manager and the GD processor used PHP 8.0 union return types (`bool|string|array`, `\GdImage|false`), which are a parse error on 7.4 - so watermarking and backups fatally errored the moment those classes loaded. The return types moved to docblocks and the whole plugin now parses cleanly on PHP 7.4.
+* **Fixed** - "Requires at least" advertised WordPress 5.0, but the backup manager calls `str_ends_with()`, which WordPress only polyfills from 5.9 onward. On WordPress 5.0-5.8 running PHP 7.4 that was a fatal error on the backup screen. The header now states the version the plugin actually needs.
+
 = 2.1.4 - 2026/05/21 =
 * **Compatibility** - Tested and verified against WordPress 7.0. The "Tested up to" header is bumped so the WordPress.org installer no longer warns site owners running 7.0 that the plugin is untested on their version.
 
@@ -311,6 +318,9 @@ Deactivate the plugin from *Plugins → Installed Plugins*. Watermarked images a
 * Pro version adds unlimited templates, dynamic placeholders, on-the-fly display, batch operations, WooCommerce per-product / per-category overrides.
 
 == Upgrade Notice ==
+
+= 2.1.5 =
+Tested up to WordPress 7.1. Fixes a fatal parse error on PHP 7.4, adds missing capability checks on two AJAX endpoints, and corrects the minimum WordPress version, which was advertised as 5.0 but is actually 5.9.
 
 = 2.1.4 =
 Compatibility bump for WordPress 7.0 — clears the "untested on this version" warning in the installer. No code changes; safe to upgrade.

@@ -101,8 +101,10 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
 
     /**
      * Generate preview image
+     *
+     * @return string|false Preview URL on success, false on failure.
      */
-    public function generatePreview(string $sourceImagePath, array $watermarkData): string|false
+    public function generatePreview(string $sourceImagePath, array $watermarkData)
     {
         try {
             $this->validateInputs($sourceImagePath, '', $watermarkData);
@@ -211,8 +213,10 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
 
     /**
      * Load image with comprehensive error handling
+     *
+     * @return \GdImage|resource|false GD image on success, false on failure.
      */
-    private function loadImage(string $imagePath): \GdImage|false
+    private function loadImage(string $imagePath)
     {
         if (!file_exists($imagePath)) {
             return false;

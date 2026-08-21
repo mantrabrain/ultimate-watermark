@@ -51,7 +51,7 @@ class BackupManager
      * @param int $watermark_id Watermark ID to get settings from
      * @return bool|string|array Backup path(s) on success, false on failure
      */
-    public static function createBackup(string $file_path, int $attachment_id = 0, int $watermark_id = 0, array $additional_paths = []): bool|string|array
+    public static function createBackup(string $file_path, int $attachment_id = 0, int $watermark_id = 0, array $additional_paths = [])
     {
         
         if (!self::isBackupEnabled()) {
@@ -129,7 +129,7 @@ class BackupManager
      * @param array $settings Backup settings
      * @return bool|string Backup path on success, false on failure
      */
-    private static function createSingleBackup(string $file_path, int $attachment_id, string $backup_dir, array $settings): bool|string
+    private static function createSingleBackup(string $file_path, int $attachment_id, string $backup_dir, array $settings)
     {
         $file_info = pathinfo($file_path);
         $backup_filename = $attachment_id . '_' . $file_info['filename'] . '_original.' . $file_info['extension'];
@@ -161,7 +161,7 @@ class BackupManager
      * @param array $settings Backup settings
      * @return bool|array Backup paths on success, false on failure
      */
-    private static function createMultiSizeBackup(string $file_path, int $attachment_id, array $watermarked_sizes, string $backup_dir, array $settings, array $additional_paths = []): bool|array
+    private static function createMultiSizeBackup(string $file_path, int $attachment_id, array $watermarked_sizes, string $backup_dir, array $settings, array $additional_paths = [])
     {
         $file_info = pathinfo($file_path);
         $backup_paths = [];

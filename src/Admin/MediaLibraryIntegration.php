@@ -1423,6 +1423,15 @@ class MediaLibraryIntegration
      */
     public function handleSetTempSelectedIds(): void
     {
+        // This endpoint writes an option, so it needs an authorisation check as
+        // well as the nonce. It runs as part of the media upload flow, where
+        // authors and editors are legitimate callers - hence upload_files
+        // rather than manage_options.
+        if (!current_user_can('upload_files')) {
+            wp_send_json_error(['message' => __('You do not have permission to upload files.', 'ultimate-watermark')], 403);
+            return;
+        }
+
         // Verify nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'ultimate_watermark_temp_ids')) {
             wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);

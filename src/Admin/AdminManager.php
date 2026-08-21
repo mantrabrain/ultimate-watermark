@@ -585,8 +585,16 @@ class AdminManager
     public function handleSaveSettings(): void
     {
         try {
+            // A nonce only proves the request came from our form, not that the
+            // sender is allowed to change settings. Every settings screen is
+            // gated on manage_options, so this endpoint must be too.
+            if (!current_user_can('manage_options')) {
+                wp_send_json_error(['message' => __('You do not have permission to change these settings.', 'ultimate-watermark')], 403);
+                return;
+            }
+
             // Verify nonce
-            if (!wp_verify_nonce($_POST['nonce'], 'ultimate_watermark_settings')) {
+            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'ultimate_watermark_settings')) {
                 wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
                 return;
             }

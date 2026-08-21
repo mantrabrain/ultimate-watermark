@@ -1,0 +1,30 @@
+name: Lint
+
+on:
+  push:
+    branches: [master, main, development]
+  pull_request:
+
+jobs:
+  php-syntax:
+    name: PHP ${{ matrix.php }} syntax
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Lowest supported version and a current one.
+        php: ['7.4', '8.4']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - name: Check syntax
+        run: |
+          find . -path ./node_modules -prune -o -name '*.php' -print0 \
+            | xargs -0 -n1 -P4 php -l
