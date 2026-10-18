@@ -111,12 +111,13 @@ class Migration
 
         ?>
         <div class="notice notice-success is-dismissible">
-            <h3><?php _e('Ultimate Watermark Migration Complete', 'ultimate-watermark'); ?></h3>
+            <h3><?php esc_html_e('Ultimate Watermark Migration Complete', 'ultimate-watermark'); ?></h3>
             <p>
                 <?php
                 printf(
-                        __('Successfully migrated from v1.x to v2.x! %d watermark(s) migrated.', 'ultimate-watermark'),
-                        $status['migrated_watermarks_count']
+                        /* translators: %d: number of migrated watermarks */
+                        esc_html__('Successfully migrated from v1.x to v2.x! %d watermark(s) migrated.', 'ultimate-watermark'),
+                        (int) $status['migrated_watermarks_count']
                 );
                 ?>
             </p>
@@ -124,9 +125,10 @@ class Migration
                 <p>
                     <?php
                     printf(
-                            __('Backup files migrated: %d successful, %d failed.', 'ultimate-watermark'),
-                            $backup_stats['migrated'],
-                            $backup_stats['failed']
+                            /* translators: 1: number of migrated backup files, 2: number of failed backup files */
+                            esc_html__('Backup files migrated: %1$d successful, %2$d failed.', 'ultimate-watermark'),
+                            (int) $backup_stats['migrated'],
+                            (int) $backup_stats['failed']
                     );
                     ?>
                 </p>
@@ -169,7 +171,9 @@ class Migration
             // Look for any files that aren't in YYYY/MM format directories
             if ($handle = @opendir($old_backup_dir)) {
                 while (false !== ($entry = readdir($handle))) {
-                    if ($entry != "." && $entry != ".." && $entry != "index.html" && $entry != ".htaccess") {
+                    // Skip the protection files written into the folder (index.php,
+                    // web.config, .htaccess): they are not v1 backups.
+                    if (!in_array($entry, ['.', '..', 'index.html', 'index.php', '.htaccess', 'web.config', '.thumbs'], true)) {
                         // Check if this is NOT a year directory (4 digits)
                         if (!preg_match('/^\d{4}$/', $entry)) {
                             // This is old structure (has files/folders that aren't year directories)

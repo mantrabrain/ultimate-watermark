@@ -55,6 +55,35 @@ class WatermarkProcessorFactory
     }
 
     /**
+     * Processors able to handle a given file, best first: Imagick when its
+     * ImageMagick build has a delegate for the format, then GD.
+     *
+     * @param string $filePath Image path (only the extension is used).
+     * @return WatermarkProcessorInterface[]
+     */
+    public static function createChainForFile(string $filePath): array
+    {
+        static $instances = [];
+
+        $extension = strtolower((string) pathinfo($filePath, PATHINFO_EXTENSION));
+        $chain = [];
+
+        if (LibraryDetector::imagickSupportsFormat($extension)) {
+            $chain[] = $instances['imagick'] ?? ($instances['imagick'] = new Processors\ImagickWatermarkProcessor());
+        }
+        if (LibraryDetector::gdSupportsFormat($extension)) {
+            $chain[] = $instances['gd'] ?? ($instances['gd'] = new Processors\GDWatermarkProcessor());
+        }
+
+        // Unknown extension: fall back to the default processor.
+        if (empty($chain)) {
+            $chain[] = self::create();
+        }
+
+        return $chain;
+    }
+
+    /**
      * Get current library being used
      * 
      * @return string|null

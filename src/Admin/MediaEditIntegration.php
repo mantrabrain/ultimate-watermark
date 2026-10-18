@@ -83,10 +83,46 @@ class MediaEditIntegration
      */
     public function addWatermarkFields(array $form_fields, \WP_Post $post): array
     {
-        // Only show for images
-        if (!wp_attachment_is_image($post->ID)) {
+        // Images only, and only for users who may change this image.
+        if (!wp_attachment_is_image($post->ID) || !current_user_can('edit_post', $post->ID)) {
             return $form_fields;
         }
+
+        $edit_url = admin_url('post.php?post=' . (int) $post->ID . '&action=edit#ultimate-watermark-info');
+
+        if (\MantraBrain\UltimateWatermark\Utils\AttachmentGuard::shouldSkip((int) $post->ID)) {
+            $html = '<p class="uw-attachment-status">' . esc_html__('Protected download file: never watermarked.', 'ultimate-watermark') . '</p>';
+        } else {
+            $applied = array_map('intval', (array) (get_post_meta($post->ID, 'applied_watermarks', true) ?: []));
+            $names = [];
+            foreach ($applied as $watermark_id) {
+                $title = get_the_title($watermark_id);
+                $names[] = $title !== '' ? $title : '#' . $watermark_id;
+            }
+
+            $html = '<div class="uw-attachment-watermark" data-attachment-id="' . esc_attr((string) $post->ID) . '">';
+            $html .= '<p class="uw-attachment-status">' . ($names
+                ? esc_html(sprintf(
+                    /* translators: %s: comma-separated watermark names */
+                    __('Watermarked with: %s', 'ultimate-watermark'),
+                    implode(', ', $names)
+                ))
+                : esc_html__('Not watermarked.', 'ultimate-watermark')) . '</p>';
+            // Filled and shown by media-grid.js where the Media Library scripts are loaded.
+            $html .= '<p class="uw-attachment-actions" hidden></p>';
+            // Vendors / authors may not have wp-admin access (Dokan, WooCommerce redirect them).
+            if (current_user_can('edit_others_posts')) {
+                $html .= '<p><a href="' . esc_url($edit_url) . '">' . esc_html__('All watermark options', 'ultimate-watermark') . '</a></p>';
+            }
+            $html .= '</div>';
+        }
+
+        $form_fields['ultimate_watermark'] = [
+            'label' => __('Watermark', 'ultimate-watermark'),
+            'input' => 'html',
+            'html'  => $html,
+        ];
+
         return $form_fields;
     }
 
@@ -156,6 +192,15 @@ class MediaEditIntegration
      */
     public function renderWatermarkMetaBox(\WP_Post $post): void
     {
+        // Downloadable product files are protected: no previews (their URLs are
+        // blocked on purpose) and never watermarked.
+        if (\MantraBrain\UltimateWatermark\Utils\AttachmentGuard::shouldSkip((int) $post->ID)) {
+            echo '<div class="watermark-status no-watermarks"><span class="dashicons dashicons-lock"></span><span class="status-text">'
+                . esc_html__('Protected download file: Ultimate Watermark never modifies or previews this file.', 'ultimate-watermark')
+                . '</span></div>';
+            return;
+        }
+
         // Get applied watermarks for this image
         $applied_watermarks = WatermarkUsageTracker::getAppliedWatermarks($post->ID);
         
@@ -298,7 +343,7 @@ class MediaEditIntegration
             return '';
         }
 
-        $type_icon = $watermark_data['watermark_type'] === 'text' ? 'dashicons-format-text' : 'dashicons-format-image';
+        $type_icon = $watermark_data['watermark_type'] === 'text' ? 'dashicons-editor-textcolor' : 'dashicons-format-image';
         $type_text = ucfirst($watermark_data['watermark_type']);
         
         // Create edit link
@@ -556,6 +601,9 @@ class MediaEditIntegration
         }
 
         $attachment_id = absint($_POST['attachment_id'] ?? 0);
+        if ($attachment_id && !current_user_can('edit_post', $attachment_id)) {
+            wp_send_json_error(['message' => __('You are not allowed to edit this image.', 'ultimate-watermark')], 403);
+        }
         $watermark_id = absint($_POST['watermark_id'] ?? 0);
 
         if (!$attachment_id || !$watermark_id) {
@@ -647,6 +695,10 @@ class MediaEditIntegration
             return;
         }
 
+        if (!current_user_can('edit_post', $attachment_id)) {
+            wp_send_json_error(['message' => __('You are not allowed to edit this image.', 'ultimate-watermark')], 403);
+        }
+
         // Check if attachment is an image
         if (!wp_attachment_is_image($attachment_id)) {
             wp_send_json_error(['message' => __('Attachment is not an image.', 'ultimate-watermark')]);
@@ -723,10 +775,11 @@ class MediaEditIntegration
         wp_enqueue_script(
             'ultimate-watermark-media-edit',
             ULTIMATE_WATERMARK_URL . 'assets/js/media-edit.js',
-            ['jquery'],
+            ['jquery', 'wp-i18n', 'ultimate-watermark-notification-system'],
             $version,
             true
         );
+        wp_set_script_translations('ultimate-watermark-media-edit', 'ultimate-watermark', ULTIMATE_WATERMARK_DIR . 'languages');
 
         // Localize script
         wp_localize_script('ultimate-watermark-media-edit', 'ultimate_watermark_media_edit', [
@@ -743,48 +796,7 @@ class MediaEditIntegration
                 'error' => __('Failed to remove watermark', 'ultimate-watermark')
             ]
         ]);
-        
-        // Add inline script to ensure meta box is always visible and cannot be hidden
-        wp_add_inline_script('ultimate-watermark-media-edit', '
-            (function() {
-                function ensureMetaBoxVisible() {
-                    var metaBox = document.getElementById("ultimate-watermark-info");
-                    if (metaBox) {
-                        // Force meta box to be visible
-                        metaBox.style.display = "";
-                        metaBox.classList.remove("hide-if-js");
-                        var parent = metaBox.closest(".postbox");
-                        if (parent) {
-                            parent.style.display = "";
-                            parent.classList.remove("closed");
-                        }
-                        
-                        // Check the Screen Options checkbox to ensure it stays visible
-                        var checkbox = document.querySelector(\'input[value="ultimate-watermark-info"]\');
-                        if (checkbox) {
-                            checkbox.checked = true;
-                            checkbox.disabled = true; // Prevent unchecking
-                        }
-                    }
-                }
-                
-                // Run on page load
-                if (document.readyState === "loading") {
-                    document.addEventListener("DOMContentLoaded", ensureMetaBoxVisible);
-                } else {
-                    ensureMetaBoxVisible();
-                }
-                
-                // Also run after WordPress meta box initialization
-                if (typeof jQuery !== "undefined") {
-                    jQuery(document).ready(function($) {
-                        ensureMetaBoxVisible();
-                        setTimeout(ensureMetaBoxVisible, 100);
-                        setTimeout(ensureMetaBoxVisible, 500);
-                        setTimeout(ensureMetaBoxVisible, 1000);
-                    });
-                }
-            })();
-        ');
+
+        // The meta box respects the user's Screen Options / collapsed state.
     }
 }

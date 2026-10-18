@@ -151,6 +151,10 @@ class WatermarkHelper
             'watermark_rotation' => $metadata['watermark_rotation'],
             'watermark_quality' => $metadata['watermark_quality'],
             'image_format' => $metadata['image_format'],
+
+            // Tiled layout
+            'watermark_tile' => $metadata['watermark_tile'],
+            'watermark_tile_spacing' => $metadata['watermark_tile_spacing'],
             
             // Behavior settings
             'automatic_watermarking' => $metadata['automatic_watermarking'],
@@ -200,6 +204,8 @@ class WatermarkHelper
             'watermark_rotation' => 0,
             'watermark_quality' => 90,
             'image_format' => 'baseline',
+            'watermark_tile' => '0',
+            'watermark_tile_spacing' => 50,
             'automatic_watermarking' => '0',
             'manual_watermarking' => '0',
             'frontend_watermarking' => '0',
@@ -242,11 +248,17 @@ class WatermarkHelper
             case 'watermark_width':
             case 'watermark_custom_height':
             case 'watermark_height':
+            case 'watermark_quality':
+            case 'watermark_tile_spacing':
+                return is_numeric($value) ? max(0, min(9999, intval($value))) : $default;
+
+            // Offsets and rotation may be negative.
             case 'watermark_offset_x':
             case 'watermark_offset_y':
+                return is_numeric($value) ? max(-9999, min(9999, intval($value))) : $default;
+
             case 'watermark_rotation':
-            case 'watermark_quality':
-                return is_numeric($value) ? max(0, min(9999, intval($value))) : $default;
+                return is_numeric($value) ? max(-360, min(360, intval($value))) : $default;
             
             case 'watermark_color':
                 return preg_match('/^#[0-9A-Fa-f]{6}$/', $value) ? $value : $default;
@@ -283,6 +295,7 @@ class WatermarkHelper
             case 'automatic_watermarking':
             case 'manual_watermarking':
             case 'frontend_watermarking':
+            case 'watermark_tile':
                 return $value === '1' || $value === 'true' || $value === true ? '1' : '0';
             
             case 'watermark_post_types':
@@ -479,6 +492,12 @@ class WatermarkHelper
                 return null;
             }
 
+            // Trashed or draft watermarks are never applied (checked before the
+            // cache, which may still hold the watermark from before it was trashed).
+            if (get_post_status($watermark_id) !== 'publish') {
+                return null;
+            }
+
             // Check cache first
             $cache_key = self::CACHE_PREFIX . 'watermark_' . $watermark_id;
             $cached = wp_cache_get($cache_key, 'ultimate-watermark');
@@ -487,7 +506,8 @@ class WatermarkHelper
             }
 
             $post = get_post($watermark_id);
-            if (!$post || $post->post_type !== WatermarkPostType::POST_TYPE) {
+            // Trashed or draft watermarks are never applied.
+            if (!$post || $post->post_type !== WatermarkPostType::POST_TYPE || $post->post_status !== 'publish') {
                 return null;
             }
 
@@ -816,12 +836,140 @@ class WatermarkHelper
     }
 
     /**
+     * Whether a file is the main file of an attachment other than $attachment_id
+     * (e.g. "photo.webp" uploaded on its own next to "photo.jpg").
+     */
+    public static function isFileOfAnotherAttachment(string $path, int $attachment_id): bool
+    {
+        $base = wp_normalize_path((string) wp_upload_dir()['basedir']);
+        $normalized = wp_normalize_path($path);
+        if ($base === '' || strpos($normalized, $base . '/') !== 0) {
+            return false;
+        }
+
+        global $wpdb;
+        $owner = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_wp_attached_file' AND meta_value = %s LIMIT 1",
+            substr($normalized, strlen($base) + 1)
+        ));
+
+        return $owner > 0 && $owner !== $attachment_id;
+    }
+
+    /**
+     * Find the post an image belongs to: where it was uploaded/assigned, its
+     * post_parent, or the product that uses it as featured or gallery image.
+     *
+     * @param int $attachment_id Attachment ID.
+     * @return int Parent post ID, or 0.
+     */
+    public static function resolveParentPostId(int $attachment_id): int
+    {
+        static $cache = [];
+
+        if ($attachment_id <= 0) {
+            return 0;
+        }
+        if (isset($cache[$attachment_id])) {
+            return $cache[$attachment_id];
+        }
+
+        $parent_id = (int) get_post_meta($attachment_id, '_ulwm_uploaded_to_post_id', true);
+
+        if ($parent_id <= 0) {
+            $parent_id = (int) wp_get_post_parent_id($attachment_id);
+        }
+
+        if ($parent_id <= 0) {
+            global $wpdb;
+
+            // Featured image of any post/product.
+            $parent_id = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_thumbnail_id' AND meta_value = %s LIMIT 1",
+                (string) $attachment_id
+            ));
+
+            // WooCommerce gallery image (comma-separated list).
+            if ($parent_id <= 0) {
+                $id = (string) $attachment_id;
+                $parent_id = (int) $wpdb->get_var($wpdb->prepare(
+                    "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_product_image_gallery'
+                     AND (meta_value = %s OR meta_value LIKE %s OR meta_value LIKE %s OR meta_value LIKE %s) LIMIT 1",
+                    $id,
+                    $wpdb->esc_like($id) . ',%',
+                    '%,' . $wpdb->esc_like($id),
+                    '%,' . $wpdb->esc_like($id) . ',%'
+                ));
+            }
+        }
+
+        // Variation images are evaluated against their parent product.
+        if ($parent_id > 0 && get_post_type($parent_id) === 'product_variation') {
+            $product_id = (int) wp_get_post_parent_id($parent_id);
+            if ($product_id > 0) {
+                $parent_id = $product_id;
+            }
+        }
+
+        return $cache[$attachment_id] = max(0, $parent_id);
+    }
+
+    /**
+     * Whether a watermark's rules (post types, image sizes and unified
+     * conditions such as product category) match an image.
+     *
+     * @param array  $watermark     Watermark data (from getActiveWatermarks()).
+     * @param int    $attachment_id Attachment ID.
+     * @param string $image_size    Size name ('full', 'thumbnail', …).
+     * @param int    $parent_id     Parent post; resolved automatically when 0.
+     */
+    public static function watermarkMatchesAttachment(array $watermark, int $attachment_id, string $image_size = 'full', int $parent_id = 0): bool
+    {
+        if ($parent_id <= 0) {
+            $parent_id = self::resolveParentPostId($attachment_id);
+        }
+
+        // Legacy "Watermark on" post type filter.
+        if (($watermark['watermark_on'] ?? 'everywhere') === 'selected_post_types') {
+            $allowed = $watermark['watermark_post_types'] ?? [];
+            if (!is_array($allowed)) {
+                $allowed = self::validateArrayMetadata($allowed);
+            }
+            $allowed = array_map('strval', array_values($allowed));
+            $post_type = $parent_id > 0 ? (string) get_post_type($parent_id) : 'attachment';
+            if (!in_array($post_type, $allowed, true)) {
+                return false;
+            }
+        }
+
+        $rules = $watermark['watermark_rules'] ?? [];
+        $has_conditions = false;
+        if (is_array($rules)) {
+            foreach ($rules as $rule) {
+                if (is_array($rule) && !empty($rule['conditions']) && is_array($rule['conditions'])) {
+                    $has_conditions = true;
+                    break;
+                }
+            }
+        }
+
+        if ($has_conditions) {
+            return RulesEvaluator::evaluate($rules, RulesEvaluator::buildContext($attachment_id, $image_size, $parent_id));
+        }
+
+        return self::shouldApplyWatermarkByImageSize($watermark, $image_size);
+    }
+
+    /**
      * Clear watermark cache
      */
-    public static function clearCache(): void
+    public static function clearCache(int $watermark_id = 0): void
     {
         try {
             wp_cache_delete(self::CACHE_PREFIX . 'active_watermarks', 'ultimate-watermark');
+            if ($watermark_id > 0) {
+                wp_cache_delete(self::CACHE_PREFIX . 'watermark_' . $watermark_id, 'ultimate-watermark');
+            }
             
             // Clear individual watermark caches
             $watermarks = self::getActiveWatermarks(false); // Don't use cache

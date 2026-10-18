@@ -56,19 +56,6 @@ class SettingsPage
                             'show_when' => '1'
                         ]
                     ],
-                    'backup_quality' => [
-                        'type' => 'range',
-                        'label' => __('Backup Image Quality', 'ultimate-watermark'),
-                        'default' => 90,
-                        'min' => 1,
-                        'max' => 100,
-                        'suffix' => '%',
-                        'sanitize_callback' => 'absint',
-                        'validate_callback' => function($value) {
-                            $value = absint($value);
-                            return ($value >= 1 && $value <= 100) ? $value : 90;
-                        }
-                    ]
                 ]
             ],
             'protection' => [
@@ -198,7 +185,7 @@ class SettingsPage
      */
     public function render(): void
     {
-        $actions = '<a href="' . esc_url(admin_url('admin.php?page=ultimate-watermark-dashboard')) . '" class="btn btn-secondary">
+        $actions = '<a href="' . esc_url(admin_url('admin.php?page=ultimate-watermark')) . '" class="btn btn-secondary">
             <span class="dashicons dashicons-arrow-left-alt"></span>
             ' . esc_html__('Back to Dashboard', 'ultimate-watermark') . '
         </a>';
@@ -326,7 +313,7 @@ class SettingsPage
             <!-- Form Actions -->
             <div class="form-actions">
                 <div class="actions-left">
-                    <a href="<?php echo esc_url(admin_url('admin.php?page=ultimate-watermark-dashboard')); ?>" class="btn btn-secondary">
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=ultimate-watermark')); ?>" class="btn btn-secondary">
                         <span class="dashicons dashicons-arrow-left-alt"></span>
                         <?php esc_html_e('Back to Dashboard', 'ultimate-watermark'); ?>
                     </a>
@@ -498,25 +485,26 @@ class SettingsPage
 
         if (!empty($conditional_fields)) {
             ?>
-            // Conditional field logic
-            <?php foreach ($conditional_fields as $conditional): ?>
-                const <?php echo esc_js($conditional['field']); ?>Field = document.getElementById('<?php echo esc_js($conditional['field']); ?>');
-                const <?php echo esc_js($conditional['target']); ?>Field = document.getElementById('<?php echo esc_js($conditional['target']); ?>');
-                
-                function toggle<?php echo esc_js(ucfirst($conditional['field'])); ?>() {
-                    if (<?php echo esc_js($conditional['target']); ?>Field.checked && <?php echo esc_js($conditional['target']); ?>Field.value === '<?php echo esc_js($conditional['show_when']); ?>') {
-                        <?php echo esc_js($conditional['field']); ?>Field.closest('.form-row').style.display = 'block';
-                    } else {
-                        <?php echo esc_js($conditional['field']); ?>Field.closest('.form-row').style.display = 'none';
+            // Conditional field logic (one generic loop; works for checkboxes, selects and radios)
+            (function () {
+                var rules = <?php echo wp_json_encode($conditional_fields); ?>;
+                rules.forEach(function (rule) {
+                    var field = document.getElementById(rule.field);
+                    var target = document.getElementById(rule.target);
+                    if (!field || !target) {
+                        return;
                     }
-                }
-                
-                // Initial state
-                toggle<?php echo esc_js(ucfirst($conditional['field'])); ?>();
-                
-                // Toggle on change
-                <?php echo esc_js($conditional['target']); ?>Field.addEventListener('change', toggle<?php echo esc_js(ucfirst($conditional['field'])); ?>);
-            <?php endforeach; ?>
+                    var row = field.closest('.form-row') || field.parentNode;
+                    var toggle = function () {
+                        var value = (target.type === 'checkbox' || target.type === 'radio')
+                            ? (target.checked ? target.value : '')
+                            : target.value;
+                        row.style.display = String(value) === String(rule.show_when) ? '' : 'none';
+                    };
+                    toggle();
+                    target.addEventListener('change', toggle);
+                });
+            })();
             <?php
         }
     }

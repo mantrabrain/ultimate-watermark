@@ -27,6 +27,59 @@ class LibraryDetector
     }
 
     /**
+     * Whether the installed ImageMagick can read AND write a file format.
+     * Some hosts ship Imagick without JPEG/WebP delegates.
+     *
+     * @param string $extension File extension (jpg, png, webp, …).
+     */
+    public static function imagickSupportsFormat(string $extension): bool
+    {
+        static $cache = [];
+
+        if (!self::hasImagick()) {
+            return false;
+        }
+
+        $map = ['jpg' => 'JPEG', 'jpeg' => 'JPEG', 'jpe' => 'JPEG', 'png' => 'PNG', 'gif' => 'GIF', 'webp' => 'WEBP', 'avif' => 'AVIF'];
+        $format = $map[strtolower($extension)] ?? strtoupper($extension);
+
+        if (!isset($cache[$format])) {
+            try {
+                $cache[$format] = !empty(\Imagick::queryFormats($format));
+            } catch (\Throwable $e) {
+                $cache[$format] = false;
+            }
+        }
+
+        return $cache[$format];
+    }
+
+    /**
+     * Whether GD can read and write a file format.
+     */
+    public static function gdSupportsFormat(string $extension): bool
+    {
+        if (!self::hasGD()) {
+            return false;
+        }
+
+        switch (strtolower($extension)) {
+            case 'jpg':
+            case 'jpeg':
+            case 'jpe':
+                return function_exists('imagecreatefromjpeg') && function_exists('imagejpeg');
+            case 'png':
+                return function_exists('imagecreatefrompng') && function_exists('imagepng');
+            case 'gif':
+                return function_exists('imagecreatefromgif') && function_exists('imagegif');
+            case 'webp':
+                return function_exists('imagecreatefromwebp') && function_exists('imagewebp');
+            default:
+                return false;
+        }
+    }
+
+    /**
      * Get available libraries
      */
     public static function getAvailableLibraries(): array

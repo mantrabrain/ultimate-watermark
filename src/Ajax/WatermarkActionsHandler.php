@@ -3,6 +3,7 @@
 namespace MantraBrain\UltimateWatermark\Ajax;
 
 use MantraBrain\UltimateWatermark\Core\Traits\SingletonTrait;
+use MantraBrain\UltimateWatermark\Utils\WatermarkHelper;
 
 /**
  * Watermark Actions AJAX Handler
@@ -91,18 +92,12 @@ class WatermarkActionsHandler
             return;
         }
 
-        // Define all metadata fields that need to be copied
-        $meta_fields = [
-            'watermark_type', 'watermark_position', 'watermark_opacity', 'watermark_image_id',
-            'watermark_text', 'watermark_color', 'watermark_font_size', 'watermark_font_family',
-            'watermark_font_weight', 'watermark_font_style', 'watermark_text_decoration',
-            'watermark_size_type', 'watermark_scale_mode', 'watermark_scale_percentage', 'watermark_scale',
-            'watermark_custom_width', 'watermark_width', 'watermark_custom_height', 'watermark_height',
-            'watermark_offset_x', 'watermark_offset_y', 'watermark_offset_unit', 'watermark_rotation',
-            'watermark_quality', 'image_format', 'automatic_watermarking', 'manual_watermarking',
-            'frontend_watermarking', 'watermark_on', 'watermark_post_types', 'watermark_sizes',
-            'watermark_rules', 'active'
-        ];
+        // Copy every setting, including ones added by Pro or later versions;
+        // skip private keys and usage statistics of the original.
+        $excluded_meta = ['watermark_usage_count', 'watermark_used_images', 'watermark_count', 'preview_url'];
+        $meta_fields = array_values(array_filter(array_keys((array) get_post_meta($watermark_id)), static function ($key) use ($excluded_meta) {
+            return is_string($key) && $key !== '' && $key[0] !== '_' && !in_array($key, $excluded_meta, true);
+        }));
 
         // Copy each metadata field properly
         foreach ($meta_fields as $meta_key) {
@@ -139,6 +134,8 @@ class WatermarkActionsHandler
             }
         }
 
+        WatermarkHelper::clearCache();
+
         wp_send_json_success([
             'message' => __('Watermark duplicated successfully', 'ultimate-watermark'),
             'duplicate_id' => $duplicate_id
@@ -169,9 +166,8 @@ class WatermarkActionsHandler
             return;
         }
 
-        // Check if post exists
-        $post = get_post($watermark_id);
-        if (!$post) {
+        // Only watermark posts may be deleted here.
+        if (!$this->isWatermarkPost($watermark_id)) {
             wp_send_json_error(['message' => __('Watermark not found.', 'ultimate-watermark')]);
             return;
         }
@@ -186,6 +182,9 @@ class WatermarkActionsHandler
             wp_send_json_error(['message' => __('Failed to delete watermark.', 'ultimate-watermark')]);
             return;
         }
+
+        WatermarkHelper::clearCache($watermark_id);
+
         wp_send_json_success([
             'message' => __('Watermark deleted successfully.', 'ultimate-watermark')
         ]);
@@ -224,56 +223,19 @@ class WatermarkActionsHandler
         // Update watermark status - always use update_post_meta
         $meta_value = $status === 'active' ? '1' : '0';
         
-        // Check if post exists and get its details
-        $post = get_post($watermark_id);
-        if (!$post) {
+        if (!$this->isWatermarkPost($watermark_id)) {
             wp_send_json_error(['message' => __('Watermark not found.', 'ultimate-watermark')]);
             return;
         }
-        
-        // Check existing meta value
-        $existing_meta = get_post_meta($watermark_id, 'active', true);
-        
-        // Try direct database update as last resort
-        global $wpdb;
-        $table_name = $wpdb->postmeta;
-        
-        // Check if meta exists
-        $existing = $wpdb->get_var($wpdb->prepare(
-            "SELECT meta_id FROM {$table_name} WHERE post_id = %d AND meta_key = %s",
-            $watermark_id,
-            'active'
-        ));
-        
-        if ($existing) {
-            // Update existing meta
-            $result = $wpdb->update(
-                $table_name,
-                array('meta_value' => $meta_value),
-                array('post_id' => $watermark_id, 'meta_key' => 'active'),
-                array('%s'),
-                array('%d', '%s')
-            );
-        } else {
-            // Insert new meta
-            $result = $wpdb->insert(
-                $table_name,
-                array(
-                    'post_id' => $watermark_id,
-                    'meta_key' => 'active',
-                    'meta_value' => $meta_value
-                ),
-                array('%d', '%s', '%s')
-            );
-        }
-        
-        // Convert to boolean for consistency
-        $result = ($result !== false);
-        
-        if ($result === false) {
+
+        update_post_meta($watermark_id, 'active', $meta_value);
+
+        if (get_post_meta($watermark_id, 'active', true) !== $meta_value) {
             wp_send_json_error(['message' => __('Failed to update watermark status.', 'ultimate-watermark')]);
             return;
         }
+
+        WatermarkHelper::clearCache($watermark_id);
 
         wp_send_json_success([
             'message' => __('Watermark status updated successfully.', 'ultimate-watermark'),
@@ -298,7 +260,7 @@ class WatermarkActionsHandler
             return;
         }
 
-        $watermark_ids = array_map('absint', $_POST['watermark_ids'] ?? []);
+        $watermark_ids = array_filter(array_map('absint', (array) ($_POST['watermark_ids'] ?? [])), [$this, 'isWatermarkPost']);
         if (empty($watermark_ids)) {
             wp_send_json_error(['message' => __('No watermarks selected.', 'ultimate-watermark')]);
             return;
@@ -313,10 +275,12 @@ class WatermarkActionsHandler
             if ($result) {
                 $deleted_count++;
             }
+            WatermarkHelper::clearCache($watermark_id);
         }
 
         wp_send_json_success([
-            'message' => "{$deleted_count} watermarks deleted successfully",
+            /* translators: %d: number of watermarks */
+            'message' => sprintf(_n('%d watermark deleted.', '%d watermarks deleted.', $deleted_count, 'ultimate-watermark'), $deleted_count),
             'deleted_count' => $deleted_count
         ]);
     }
@@ -326,7 +290,7 @@ class WatermarkActionsHandler
      */
     public function handleBulkActivate(): void
     {
-        $this->handleBulkStatusUpdate($_POST['watermark_ids'] ?? [], 'active');
+        $this->handleBulkStatusUpdate((array) ($_POST['watermark_ids'] ?? []), 'active');
     }
 
     /**
@@ -334,7 +298,7 @@ class WatermarkActionsHandler
      */
     public function handleBulkDeactivate(): void
     {
-        $this->handleBulkStatusUpdate($_POST['watermark_ids'] ?? [], 'inactive');
+        $this->handleBulkStatusUpdate((array) ($_POST['watermark_ids'] ?? []), 'inactive');
     }
 
     /**
@@ -354,7 +318,7 @@ class WatermarkActionsHandler
             return;
         }
 
-        $watermark_ids = array_map('absint', $watermark_ids);
+        $watermark_ids = array_filter(array_map('absint', $watermark_ids), [$this, 'isWatermarkPost']);
         if (empty($watermark_ids)) {
             wp_send_json_error(['message' => __('No watermarks selected.', 'ultimate-watermark')]);
             return;
@@ -365,17 +329,30 @@ class WatermarkActionsHandler
         
         foreach ($watermark_ids as $watermark_id) {
             // Always use update_post_meta - it will add if not exists, update if exists
-            $result = update_post_meta($watermark_id, 'active', $meta_value);
-            
-            if ($result !== false) {
+            update_post_meta($watermark_id, 'active', $meta_value);
+            if (get_post_meta($watermark_id, 'active', true) === $meta_value) {
                 $updated_count++;
             }
+            WatermarkHelper::clearCache($watermark_id);
         }
 
+        $message = $status === 'active'
+            /* translators: %d: number of watermarks */
+            ? sprintf(_n('%d watermark activated.', '%d watermarks activated.', $updated_count, 'ultimate-watermark'), $updated_count)
+            /* translators: %d: number of watermarks */
+            : sprintf(_n('%d watermark deactivated.', '%d watermarks deactivated.', $updated_count, 'ultimate-watermark'), $updated_count);
+
         wp_send_json_success([
-            'message' => "{$updated_count} watermarks {$status}d successfully",
+            'message' => $message,
             'updated_count' => $updated_count
         ]);
     }
 
+    /**
+     * Whether an ID belongs to a watermark post.
+     */
+    public function isWatermarkPost($id): bool
+    {
+        return (int) $id > 0 && get_post_type((int) $id) === 'ultimate_watermark';
+    }
 }

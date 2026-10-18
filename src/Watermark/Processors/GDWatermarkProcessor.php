@@ -6,9 +6,10 @@ use MantraBrain\UltimateWatermark\Watermark\WatermarkProcessorInterface;
 
 /**
  * GD Watermark Processor Class
- * 
- * Handles watermark application using PHP GD library with comprehensive error handling,
- * memory management, and performance optimizations for enterprise-level applications.
+ *
+ * Applies watermarks with the PHP GD library. Output matches the Imagick
+ * processor: same positioning, sizing ("scaled" = % of the target image
+ * width), rotation, opacity, percentage offsets and tiled layout.
  *
  * @package UltimateWatermark
  * @since 2.0.0
@@ -16,32 +17,32 @@ use MantraBrain\UltimateWatermark\Watermark\WatermarkProcessorInterface;
 class GDWatermarkProcessor implements WatermarkProcessorInterface
 {
     /**
-     * Maximum memory limit for image processing (256MB)
-     */
-    private const MAX_MEMORY_LIMIT = '256M';
-
-    /**
      * Maximum image dimensions allowed
      */
     private const MAX_IMAGE_WIDTH = 15000;
     private const MAX_IMAGE_HEIGHT = 15000;
-    
+
     /**
      * Maximum file size for image processing (50MB)
      */
     private const MAX_FILE_SIZE = 52428800; // 50 * 1024 * 1024
-    
+
     /**
      * Default quality settings
      */
     private const DEFAULT_QUALITY = 90;
     private const MIN_QUALITY = 1;
     private const MAX_QUALITY = 100;
-    
+
     /**
      * Default font size limits
      */
     private const MIN_FONT_SIZE = 8;
+
+    /**
+     * Upper bound on tiles drawn on one image (protects against tiny tiles on huge images).
+     */
+    private const MAX_TILES = 5000;
 
     /**
      * Supported image formats
@@ -54,44 +55,36 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
     ];
 
     /**
-     * Apply watermark to image with comprehensive error handling
+     * Resolved font paths for this request, keyed by family|weight|style.
+     *
+     * @var array<string, string>
+     */
+    private static array $fontCache = [];
+
+    /**
+     * Apply watermark to image
      */
     public function applyWatermark(string $sourceImagePath, string $outputImagePath, array $watermarkData): bool
     {
         try {
-            // Validate inputs
             $this->validateInputs($sourceImagePath, $outputImagePath, $watermarkData);
-
-            // Set memory limit and check requirements
             $this->prepareMemoryLimits();
 
-            // Load source image with error handling
             $image = $this->loadImage($sourceImagePath);
             if (!$image) {
                 throw new \RuntimeException('Failed to load source image: ' . basename($sourceImagePath));
             }
 
             try {
-                // Scale watermark data proportionally
                 $scaledWatermarkData = $this->scaleWatermarkDataForImage($image, $watermarkData);
-
-                // Apply watermark based on type
                 $watermarkType = $scaledWatermarkData['watermark_type'] ?? 'text';
                 $this->applyWatermarkByType($image, $scaledWatermarkData, $watermarkType);
 
-                // Save watermarked image
-                $result = $this->saveImage($image, $outputImagePath, $watermarkData);
-
-                return $result;
-
+                return $this->saveImage($image, $outputImagePath, $watermarkData);
             } finally {
-                // Always clean up memory
-                if (is_resource($image) || $image instanceof \GdImage) {
-                    imagedestroy($image);
-                }
+                $this->destroy($image);
             }
-
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('Ultimate Watermark GD Processor Error: ' . $e->getMessage());
             }
@@ -101,8 +94,9 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
 
     /**
      * Generate preview image
-     *
-     * @return string|false Preview URL on success, false on failure.
+     */
+    /**
+     * @return string|false Preview URL or false on failure.
      */
     public function generatePreview(string $sourceImagePath, array $watermarkData)
     {
@@ -116,21 +110,20 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             }
 
             try {
-                $scaledWatermarkData = $this->scaleWatermarkDataForImage($image, $watermarkData);
+                // The preview image is its own "full size" reference.
+                $previewData = $watermarkData;
+                $previewData['_full_size_width']  = imagesx($image);
+                $previewData['_full_size_height'] = imagesy($image);
+
+                $scaledWatermarkData = $this->scaleWatermarkDataForImage($image, $previewData);
                 $watermarkType = $scaledWatermarkData['watermark_type'] ?? 'text';
                 $this->applyWatermarkByType($image, $scaledWatermarkData, $watermarkType);
 
-                // Generate preview URL
-                $previewUrl = $this->generatePreviewUrl($image, $watermarkData);
-                return $previewUrl;
-
+                return $this->generatePreviewUrl($image, $watermarkData);
             } finally {
-                if (is_resource($image) || $image instanceof \GdImage) {
-                    imagedestroy($image);
-                }
+                $this->destroy($image);
             }
-
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('Ultimate Watermark GD Preview Error: ' . $e->getMessage());
             }
@@ -158,29 +151,22 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             throw new \InvalidArgumentException('Watermark data cannot be empty');
         }
 
-        // Check image format support
-        $imageType = exif_imagetype($sourcePath);
+        $imageInfo = @getimagesize($sourcePath);
+        $imageType = $imageInfo ? (int) $imageInfo[2] : 0;
         if (!isset(self::SUPPORTED_FORMATS[$imageType])) {
             throw new \InvalidArgumentException('Unsupported image format: ' . $imageType);
         }
     }
 
     /**
-     * Prepare memory limits for image processing
+     * Raise (never lower) the memory limit and check GD support.
      */
     private function prepareMemoryLimits(): void
     {
-        $currentLimit = ini_get('memory_limit');
-        
-        // Convert current limit to bytes
-        $currentBytes = $this->parseMemoryLimit($currentLimit);
-        $requiredBytes = $this->parseMemoryLimit(self::MAX_MEMORY_LIMIT);
-
-        if ($currentBytes < $requiredBytes) {
-            ini_set('memory_limit', self::MAX_MEMORY_LIMIT);
+        if (function_exists('wp_raise_memory_limit')) {
+            wp_raise_memory_limit('image');
         }
 
-        // Check if GD is available
         if (!extension_loaded('gd') || !function_exists('gd_info')) {
             throw new \RuntimeException('GD extension is not available');
         }
@@ -192,29 +178,10 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
     }
 
     /**
-     * Parse memory limit string to bytes
+     * Load image as a true-colour resource with alpha preserved.
      */
-    private function parseMemoryLimit(string $limit): int
-    {
-        $unit = strtolower(substr($limit, -1));
-        $value = (int) substr($limit, 0, -1);
-
-        switch ($unit) {
-            case 'g':
-                return $value * 1024 * 1024 * 1024;
-            case 'm':
-                return $value * 1024 * 1024;
-            case 'k':
-                return $value * 1024;
-            default:
-                return (int) $limit;
-        }
-    }
-
     /**
-     * Load image with comprehensive error handling
-     *
-     * @return \GdImage|resource|false GD image on success, false on failure.
+     * @return \GdImage|resource|false GD image (a resource on PHP 7.4).
      */
     private function loadImage(string $imagePath)
     {
@@ -222,7 +189,6 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             return false;
         }
 
-        // Check file size (prevent memory exhaustion)
         if (filesize($imagePath) > self::MAX_FILE_SIZE) {
             throw new \RuntimeException('Image file too large: ' . basename($imagePath));
         }
@@ -232,40 +198,40 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             throw new \RuntimeException('Unable to get image information: ' . basename($imagePath));
         }
 
-        list($width, $height, $type) = $imageInfo;
+        [$width, $height, $type] = $imageInfo;
 
-        // Validate image dimensions
         if ($width > self::MAX_IMAGE_WIDTH || $height > self::MAX_IMAGE_HEIGHT) {
             throw new \RuntimeException('Image dimensions too large: ' . $width . 'x' . $height);
         }
 
-        // Load image based on type
+        // Running out of memory is a fatal error that cannot be caught, so refuse
+        // images that will not fit (truecolor pixels take 4 bytes, plus decoder
+        // and watermark-layer overhead).
+        $memoryLimit = function_exists('wp_convert_hr_to_bytes')
+            ? wp_convert_hr_to_bytes((string) ini_get('memory_limit'))
+            : (int) ini_get('memory_limit');
+        if ($memoryLimit > 0) {
+            $needed = (int) ($width * $height * 4 * 1.5);
+            if (memory_get_usage(true) + $needed > $memoryLimit) {
+                throw new \RuntimeException(sprintf('Not enough memory to process %dx%d image with GD', $width, $height));
+            }
+        }
+
         switch ($type) {
             case IMAGETYPE_JPEG:
                 $image = imagecreatefromjpeg($imagePath);
                 break;
             case IMAGETYPE_PNG:
                 $image = imagecreatefrompng($imagePath);
-                // Preserve PNG transparency
-                if ($image) {
-                    imagealphablending($image, false);
-                    imagesavealpha($image, true);
-                }
                 break;
             case IMAGETYPE_GIF:
                 $image = imagecreatefromgif($imagePath);
                 break;
             case IMAGETYPE_WEBP:
-                if (function_exists('imagecreatefromwebp')) {
-                    $image = imagecreatefromwebp($imagePath);
-                    // Preserve WebP transparency
-                    if ($image) {
-                        imagealphablending($image, false);
-                        imagesavealpha($image, true);
-                    }
-                } else {
+                if (!function_exists('imagecreatefromwebp')) {
                     throw new \RuntimeException('WebP format not supported by this GD version');
                 }
+                $image = imagecreatefromwebp($imagePath);
                 break;
             default:
                 throw new \RuntimeException('Unsupported image type: ' . $type);
@@ -275,21 +241,30 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             throw new \RuntimeException('Failed to create image resource from: ' . basename($imagePath));
         }
 
+        // Palette images (GIF, 8-bit PNG) can't hold blended/alpha colours.
+        if (!imageistruecolor($image)) {
+            imagepalettetotruecolor($image);
+        }
+
+        // Keep alpha in the output; composite with blending on.
+        imagesavealpha($image, true);
+        imagealphablending($image, true);
+
         return $image;
     }
 
     /**
      * Apply watermark based on type
      */
-    private function applyWatermarkByType(\GdImage $image, array $watermarkData, string $type): void
+    private function applyWatermarkByType($image, array $watermarkData, string $type): void
     {
         // Allow Pro plugin to handle custom watermark types
         $handled = apply_filters('ultimate_watermark_handle_custom_type', false, $image, $watermarkData, $type);
-        
+
         if ($handled) {
             return;
         }
-        
+
         switch ($type) {
             case 'text':
                 $this->applyTextWatermark($image, $watermarkData);
@@ -300,8 +275,7 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
             default:
                 // Allow Pro plugin to register custom types
                 do_action('ultimate_watermark_apply_custom_type', $image, $watermarkData, $type);
-                
-                // If no handler processed it, throw exception
+
                 if (!did_action('ultimate_watermark_custom_type_applied')) {
                     throw new \InvalidArgumentException('Unsupported watermark type: ' . $type);
                 }
@@ -309,250 +283,522 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
     }
 
     /**
-     * Scale watermark data proportionally based on image size
+     * Scale font size, pixel offsets and custom dimensions from the full-size
+     * image down to the image being processed (thumbnails keep proportions).
      */
-    private function scaleWatermarkDataForImage(\GdImage $image, array $watermarkData): array
+    private function scaleWatermarkDataForImage($image, array $watermarkData): array
     {
         $currentWidth = imagesx($image);
         $currentHeight = imagesy($image);
 
-        // Get full size dimensions with fallback strategies
         $fullDimensions = $this->getFullSizeDimensions($watermarkData, $currentWidth, $currentHeight);
-        
-        // Calculate scaling ratio
-        $ratioX = $currentWidth / $fullDimensions['width'];
-        $ratioY = $currentHeight / $fullDimensions['height'];
-        $scaleRatio = min($ratioX, $ratioY);
 
-        // Create scaled copy
+        $scaleRatio = min(
+            $currentWidth / max(1, $fullDimensions['width']),
+            $currentHeight / max(1, $fullDimensions['height'])
+        );
+        $scaleRatio = max(0.05, min(1.0, $scaleRatio));
+
         $scaled = $watermarkData;
 
-        // Scale various watermark properties
-        $scaled = $this->scaleTextProperties($scaled, $scaleRatio);
-        $scaled = $this->scaleOffsetProperties($scaled, $scaleRatio);
-        $scaled = $this->scaleImageProperties($scaled, $scaleRatio);
+        if (isset($scaled['watermark_font_size'])) {
+            $scaled['watermark_font_size'] = max(self::MIN_FONT_SIZE, (int) round($scaled['watermark_font_size'] * $scaleRatio));
+        }
+
+        // Percentage offsets are relative to the current image; only pixel offsets scale.
+        if (!$this->usesPercentageOffsets($scaled)) {
+            if (isset($scaled['watermark_offset_x'])) {
+                $scaled['watermark_offset_x'] = (int) round($scaled['watermark_offset_x'] * $scaleRatio);
+            }
+            if (isset($scaled['watermark_offset_y'])) {
+                $scaled['watermark_offset_y'] = (int) round($scaled['watermark_offset_y'] * $scaleRatio);
+            }
+        }
+
+        if (isset($scaled['watermark_custom_width'])) {
+            $scaled['watermark_custom_width'] = max(1, (int) round($scaled['watermark_custom_width'] * $scaleRatio));
+        }
+        if (isset($scaled['watermark_custom_height'])) {
+            $scaled['watermark_custom_height'] = max(1, (int) round($scaled['watermark_custom_height'] * $scaleRatio));
+        }
 
         return $scaled;
     }
 
     /**
-     * Get full size dimensions using multiple strategies
+     * Get full size dimensions of the attachment being processed.
      */
     private function getFullSizeDimensions(array $watermarkData, int $currentWidth, int $currentHeight): array
     {
-        // Strategy 1: From watermark data
-        $width = $watermarkData['_full_size_width'] ?? null;
-        $height = $watermarkData['_full_size_height'] ?? null;
+        $width = (int) ($watermarkData['_full_size_width'] ?? 0);
+        $height = (int) ($watermarkData['_full_size_height'] ?? 0);
 
-        if ($width && $height) {
+        if ($width > 0 && $height > 0) {
             return ['width' => $width, 'height' => $height];
         }
 
-        // Strategy 2: From source image path
-        $sourcePath = $watermarkData['_source_image_path'] ?? '';
-        if ($sourcePath && file_exists($sourcePath)) {
-            $attachmentId = $this->getAttachmentIdFromPath($sourcePath);
-            if ($attachmentId) {
-                $metadata = wp_get_attachment_metadata($attachmentId);
-                if ($metadata && isset($metadata['width'], $metadata['height'])) {
-                    return ['width' => $metadata['width'], 'height' => $metadata['height']];
-                }
+        $attachmentId = (int) ($watermarkData['attachment_id'] ?? 0);
+        if ($attachmentId <= 0 && !empty($watermarkData['_source_image_path'])) {
+            $attachmentId = (int) $this->getAttachmentIdFromPath((string) $watermarkData['_source_image_path']);
+        }
+
+        if ($attachmentId > 0) {
+            $metadata = wp_get_attachment_metadata($attachmentId);
+            if (!empty($metadata['width']) && !empty($metadata['height'])) {
+                return ['width' => (int) $metadata['width'], 'height' => (int) $metadata['height']];
             }
         }
 
-        // Strategy 3: Use current image dimensions (fallback)
-        // This is safe for preview generation and when full size info is unavailable
         return ['width' => $currentWidth, 'height' => $currentHeight];
     }
 
     /**
-     * Scale text-related properties
+     * Apply text watermark (rendered on its own layer so rotation, opacity and
+     * tiling behave exactly like image watermarks).
      */
-    private function scaleTextProperties(array $data, float $ratio): array
+    private function applyTextWatermark($image, array $watermarkData): void
     {
-        if (isset($data['watermark_font_size'])) {
-            $data['watermark_font_size'] = max(self::MIN_FONT_SIZE, (int) round($data['watermark_font_size'] * $ratio));
-        }
-
-        return $data;
-    }
-
-    /**
-     * Scale offset properties
-     */
-    private function scaleOffsetProperties(array $data, float $ratio): array
-    {
-        if (isset($data['watermark_offset_x'])) {
-            $data['watermark_offset_x'] = max(0, (int) round($data['watermark_offset_x'] * $ratio));
-        }
-        if (isset($data['watermark_offset_y'])) {
-            $data['watermark_offset_y'] = max(0, (int) round($data['watermark_offset_y'] * $ratio));
-        }
-
-        return $data;
-    }
-
-    /**
-     * Scale image-related properties
-     */
-    private function scaleImageProperties(array $data, float $ratio): array
-    {
-        if (isset($data['watermark_custom_width'])) {
-            $data['watermark_custom_width'] = max(1, (int) round($data['watermark_custom_width'] * $ratio));
-        }
-        if (isset($data['watermark_custom_height'])) {
-            $data['watermark_custom_height'] = max(1, (int) round($data['watermark_custom_height'] * $ratio));
-        }
-
-        return $data;
-    }
-
-    /**
-     * Apply text watermark
-     */
-    private function applyTextWatermark(\GdImage $image, array $watermarkData): void
-    {
-        $text = $watermarkData['watermark_text'] ?? '';
-        $fontSize = $watermarkData['watermark_font_size'] ?? 20;
-        $color = $watermarkData['watermark_color'] ?? '#000000';
-        $opacity = $watermarkData['watermark_opacity'] ?? 50;
-
-        if (empty($text)) {
+        $text = (string) ($watermarkData['watermark_text'] ?? '');
+        if ($text === '') {
             throw new \InvalidArgumentException('Watermark text cannot be empty');
         }
 
-        // Convert hex color to RGB
-        $rgb = $this->hexToRgb($color);
-        $alpha = $this->calculateAlpha($opacity);
-
-        // Allocate color
-        $textColor = imagecolorallocatealpha($image, $rgb['red'], $rgb['green'], $rgb['blue'], $alpha);
-
-        // Calculate text position
-        $position = $this->calculateTextPosition($image, $text, $fontSize, $watermarkData);
-
-        // Add text with error handling
-        $result = imagettftext($image, $fontSize, 0, $position['x'], $position['y'], $textColor, $this->getFontPath($watermarkData), $text);
-        
-        if ($result === false) {
-            throw new \RuntimeException('Failed to apply text watermark');
+        $fontPath = $this->getFontPath($watermarkData);
+        if ($fontPath === '') {
+            throw new \RuntimeException('No readable TTF font available for text rendering');
         }
+
+        $fontSize = max(self::MIN_FONT_SIZE, (int) ($watermarkData['watermark_font_size'] ?? 20));
+        $rgb = $this->hexToRgb((string) ($watermarkData['watermark_color'] ?? '#000000'));
+        $opacity = max(0, min(100, (int) ($watermarkData['watermark_opacity'] ?? 50)));
+
+        // Font sizes are pixels (as in the editor and Imagick); GD's FreeType
+        // renderer works in points at 96 dpi, so convert: 1px = 0.75pt.
+        $pointSize = $fontSize * 0.75;
+
+        $bbox = imagettfbbox($pointSize, 0, $fontPath, $text);
+        if ($bbox === false) {
+            throw new \RuntimeException('Failed to measure text watermark');
+        }
+
+        $minX = min($bbox[0], $bbox[6]);
+        $maxX = max($bbox[2], $bbox[4]);
+        $minY = min($bbox[5], $bbox[7]);
+        $maxY = max($bbox[1], $bbox[3]);
+        $padding = (int) ceil($fontSize * 0.2);
+
+        // Bold / italic requested but the font file has no such variant (the
+        // bundled fonts are regular only): synthesise the style.
+        $synthetic = $this->syntheticStyle($watermarkData, $fontPath);
+        $stroke = $synthetic['bold'] ? max(1, (int) round($fontSize * 0.035)) : 0;
+        $slant = $synthetic['italic'] ? 0.21 : 0.0; // tan(12°)
+        $synthesise = $stroke > 0 || $slant > 0;
+
+        $textHeight = $maxY - $minY;
+        $slantWidth = (int) ceil($textHeight * $slant);
+        $layerWidth = max(1, $maxX - $minX + $padding * 2 + $stroke + $slantWidth);
+        $layerHeight = max(1, $textHeight + $padding * 2 + $stroke);
+
+        $layer = $this->createTransparentCanvas($layerWidth, $layerHeight);
+
+        try {
+            imagealphablending($layer, true);
+            // With synthesised styles the strokes overlap, so draw opaque and
+            // apply the opacity to the finished layer (uniform transparency).
+            $color = imagecolorallocatealpha($layer, $rgb['red'], $rgb['green'], $rgb['blue'], $synthesise ? 0 : $this->calculateAlpha($opacity));
+            $result = false;
+            for ($dx = 0; $dx <= $stroke; $dx++) {
+                for ($dy = 0; $dy <= $stroke; $dy++) {
+                    $result = imagettftext($layer, $pointSize, 0, $padding - $minX + $dx, $padding - $minY + $dy, $color, $fontPath, $text);
+                }
+            }
+            if ($result === false) {
+                throw new \RuntimeException('Failed to apply text watermark');
+            }
+
+            $this->applyTextDecoration($layer, $watermarkData, $padding, $padding - $minY, $maxX - $minX + $stroke, $fontSize, $color);
+
+            if ($slant > 0) {
+                $layer = $this->shearLayer($layer, $slant);
+            }
+            if ($synthesise && $opacity < 100) {
+                $this->applyImageTransparency($layer, $opacity);
+            }
+
+            // Tiles are spaced by the unrotated size (a rotated layer's box is mostly empty).
+            $baseWidth = imagesx($layer);
+            $baseHeight = imagesy($layer);
+            $layer = $this->rotateLayer($layer, (int) ($watermarkData['watermark_rotation'] ?? 0));
+            $this->placeLayer($image, $layer, $watermarkData, $baseWidth, $baseHeight);
+        } finally {
+            $this->destroy($layer);
+        }
+    }
+
+    /**
+     * Which requested styles the font file cannot provide itself.
+     *
+     * @return array{bold: bool, italic: bool}
+     */
+    private function syntheticStyle(array $watermarkData, string $fontPath): array
+    {
+        $weight = strtolower((string) ($watermarkData['watermark_font_weight'] ?? 'normal'));
+        $style = strtolower((string) ($watermarkData['watermark_font_style'] ?? 'normal'));
+        $file = strtolower(basename($fontPath));
+
+        return [
+            'bold'   => in_array($weight, ['bold', 'bolder', '600', '700', '800', '900'], true) && !preg_match('/bold|black|heavy/', $file),
+            'italic' => in_array($style, ['italic', 'oblique'], true) && !preg_match('/italic|oblique/', $file),
+        ];
+    }
+
+    /**
+     * Slant a layer to the right (synthetic italic): each row moves by
+     * $slant x its distance from the bottom.
+     */
+    private function shearLayer($layer, float $slant)
+    {
+        $width = imagesx($layer);
+        $height = imagesy($layer);
+        $sheared = $this->createTransparentCanvas($width, $height);
+        imagealphablending($sheared, false);
+
+        for ($y = 0; $y < $height; $y++) {
+            $shift = (int) round($slant * ($height - 1 - $y));
+            if ($shift >= $width) {
+                continue;
+            }
+            imagecopy($sheared, $layer, $shift, $y, 0, $y, $width - $shift, 1);
+        }
+
+        $this->destroy($layer);
+
+        return $sheared;
+    }
+
+    /**
+     * Draw underline / overline / line-through below, above or across the text.
+     */
+    private function applyTextDecoration($layer, array $watermarkData, int $x, int $baseline, int $width, int $fontSize, int $color): void
+    {
+        $decoration = $watermarkData['watermark_text_decoration'] ?? 'none';
+        $thickness = max(1, (int) round($fontSize / 14));
+
+        switch ($decoration) {
+            case 'underline':
+                $y = $baseline + $thickness * 2;
+                break;
+            case 'overline':
+                $y = $baseline - $fontSize - $thickness;
+                break;
+            case 'line-through':
+                $y = $baseline - (int) round($fontSize * 0.35);
+                break;
+            default:
+                return;
+        }
+
+        imagefilledrectangle($layer, $x, max(0, $y), $x + $width, max(0, $y) + $thickness - 1, $color);
     }
 
     /**
      * Apply image watermark
      */
-    private function applyImageWatermark(\GdImage $image, array $watermarkData): void
+    private function applyImageWatermark($image, array $watermarkData): void
     {
-        $imageId = $watermarkData['watermark_image_id'] ?? 0;
-        if (!$imageId) {
-            throw new \InvalidArgumentException('Watermark image ID is required');
+        $watermarkPath = (string) ($watermarkData['watermark_image_path'] ?? '');
+        if ($watermarkPath === '' || !file_exists($watermarkPath)) {
+            $imageId = (int) ($watermarkData['watermark_image_id'] ?? 0);
+            if (!$imageId) {
+                throw new \InvalidArgumentException('Watermark image ID is required');
+            }
+            $watermarkPath = (string) get_attached_file($imageId);
         }
 
-        // Get watermark image path
-        $watermarkPath = get_attached_file($imageId);
-        if (!file_exists($watermarkPath)) {
+        if ($watermarkPath === '' || !file_exists($watermarkPath)) {
             throw new \RuntimeException('Watermark image file not found');
         }
 
-        // Load watermark image
-        $watermarkImg = $this->loadImage($watermarkPath);
-        if (!$watermarkImg) {
+        $source = $this->loadImage($watermarkPath);
+        if (!$source) {
             throw new \RuntimeException('Failed to load watermark image');
         }
 
+        $layer = null;
+
         try {
-            // Calculate watermark dimensions and position
-            $watermarkDimensions = $this->calculateWatermarkDimensions($watermarkImg, $watermarkData);
-            $position = $this->calculateImagePosition($image, $watermarkDimensions, $watermarkData);
-
-            // Enable alpha blending on destination image
-            imagealphablending($image, true);
-            imagesavealpha($image, true);
-
-            // Apply opacity to watermark if needed
-            $opacity = $watermarkData['watermark_opacity'] ?? 100;
-            if ($opacity < 100) {
-                $this->applyImageTransparency($watermarkImg, $opacity);
-            }
-
-            // Copy watermark to main image with alpha blending
-            $result = imagecopyresampled(
-                $image,
-                $watermarkImg,
-                $position['x'],
-                $position['y'],
-                0,
-                0,
-                $watermarkDimensions['width'],
-                $watermarkDimensions['height'],
-                imagesx($watermarkImg),
-                imagesy($watermarkImg)
+            $dimensions = $this->calculateWatermarkDimensions(
+                imagesx($source),
+                imagesy($source),
+                $watermarkData,
+                imagesx($image),
+                imagesy($image)
             );
 
-            if (!$result) {
-                throw new \RuntimeException('Failed to apply image watermark');
+            // Resize onto a transparent layer first, then apply opacity to the
+            // (smaller) result — far cheaper than per-pixel work on the source.
+            $layer = $this->createTransparentCanvas($dimensions['width'], $dimensions['height']);
+            imagecopyresampled(
+                $layer,
+                $source,
+                0,
+                0,
+                0,
+                0,
+                $dimensions['width'],
+                $dimensions['height'],
+                imagesx($source),
+                imagesy($source)
+            );
+
+            $opacity = max(0, min(100, (int) ($watermarkData['watermark_opacity'] ?? 100)));
+            if ($opacity < 100) {
+                $this->applyImageTransparency($layer, $opacity);
             }
 
+            // Tiles are spaced by the unrotated size (a rotated layer's box is mostly empty).
+            $baseWidth = imagesx($layer);
+            $baseHeight = imagesy($layer);
+            $layer = $this->rotateLayer($layer, (int) ($watermarkData['watermark_rotation'] ?? 0));
+            $this->placeLayer($image, $layer, $watermarkData, $baseWidth, $baseHeight);
         } finally {
-            if (is_resource($watermarkImg) || $watermarkImg instanceof \GdImage) {
-                imagedestroy($watermarkImg);
+            $this->destroy($source);
+            if ($this->isGdImage($layer)) {
+                $this->destroy($layer);
             }
         }
     }
 
     /**
+     * Composite a prepared watermark layer onto the image: once at the
+     * configured position, or repeated across the whole image when tiled.
+     */
+    private function placeLayer($image, $layer, array $watermarkData, int $baseWidth = 0, int $baseHeight = 0): void
+    {
+        imagealphablending($image, true);
+
+        $imageWidth = imagesx($image);
+        $imageHeight = imagesy($image);
+        $layerWidth = imagesx($layer);
+        $layerHeight = imagesy($layer);
+
+        if ((string) ($watermarkData['watermark_tile'] ?? '0') === '1') {
+            $count = 0;
+            foreach ($this->tileOrigins($imageWidth, $imageHeight, $layerWidth, $layerHeight, $baseWidth ?: $layerWidth, $baseHeight ?: $layerHeight, $watermarkData) as [$x, $y]) {
+                imagecopy($image, $layer, $x, $y, 0, 0, $layerWidth, $layerHeight);
+                if (++$count >= self::MAX_TILES) {
+                    break;
+                }
+            }
+            return;
+        }
+
+        $position = $this->calculatePosition($watermarkData, $imageWidth, $imageHeight, $layerWidth, $layerHeight);
+
+        if (!imagecopy($image, $layer, $position['x'], $position['y'], 0, 0, $layerWidth, $layerHeight)) {
+            throw new \RuntimeException('Failed to apply watermark');
+        }
+    }
+
+    /**
+     * Top-left positions of a grid of tiles covering the whole image.
+     *
+     * Tiles are spaced by the unrotated watermark size plus the spacing
+     * percentage, centred on the image, and each (possibly rotated) layer is
+     * centred on its grid point, so rotated text forms an even pattern.
+     *
+     * @return array<int, array{0: int, 1: int}>
+     */
+    private function tileOrigins(int $imageWidth, int $imageHeight, int $layerWidth, int $layerHeight, int $baseWidth, int $baseHeight, array $watermarkData): array
+    {
+        $spacing = max(0, min(300, (int) ($watermarkData['watermark_tile_spacing'] ?? 50)));
+        $stepX = max(4, (int) round(max(1, $baseWidth) * (1 + $spacing / 100)));
+        $stepY = max(4, (int) round(max(1, $baseHeight) * (1 + $spacing / 100)));
+
+        $centerX = $imageWidth / 2;
+        $centerY = $imageHeight / 2;
+        $startX = $centerX - (int) ceil(($centerX + $layerWidth / 2) / $stepX) * $stepX;
+        $startY = $centerY - (int) ceil(($centerY + $layerHeight / 2) / $stepY) * $stepY;
+
+        $origins = [];
+        $row = 0;
+        for ($cy = $startY; $cy - $layerHeight / 2 < $imageHeight; $cy += $stepY, $row++) {
+            // Brick layout: every other row is shifted by half a step.
+            $rowStartX = $startX - (($row % 2) ? $stepX / 2 : 0);
+            for ($cx = $rowStartX; $cx - $layerWidth / 2 < $imageWidth; $cx += $stepX) {
+                $origins[] = [(int) round($cx - $layerWidth / 2), (int) round($cy - $layerHeight / 2)];
+                if (count($origins) >= self::MAX_TILES) {
+                    return $origins;
+                }
+            }
+        }
+
+        return $origins;
+    }
+
+    /**
+     * Rotate a layer clockwise by $degrees (same direction as Imagick).
+     */
+    private function rotateLayer($layer, int $degrees)
+    {
+        $degrees = $degrees % 360;
+        if ($degrees === 0) {
+            return $layer;
+        }
+
+        $transparent = imagecolorallocatealpha($layer, 0, 0, 0, 127);
+        $rotated = imagerotate($layer, -$degrees, $transparent);
+        if (!$rotated) {
+            return $layer;
+        }
+
+        imagealphablending($rotated, false);
+        imagesavealpha($rotated, true);
+        $this->destroy($layer);
+
+        // GD's interpolating rotation leaves the empty area at alpha 126 (almost,
+        // not fully, transparent). Invisible on one copy, but overlapping tiles
+        // stack it into a visible tinted box around every watermark. Anything
+        // that faint carries no watermark content, so make it fully transparent.
+        $clear = imagecolorallocatealpha($rotated, 0, 0, 0, 127);
+        $width = imagesx($rotated);
+        $height = imagesy($rotated);
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
+                if (((imagecolorat($rotated, $x, $y) >> 24) & 0x7F) === 126) {
+                    imagesetpixel($rotated, $x, $y, $clear);
+                }
+            }
+        }
+
+        return $rotated;
+    }
+
+    /**
+     * Create a fully transparent true-colour canvas.
+     */
+    private function createTransparentCanvas(int $width, int $height)
+    {
+        $canvas = imagecreatetruecolor(max(1, $width), max(1, $height));
+        if (!$canvas) {
+            throw new \RuntimeException('Failed to allocate watermark layer');
+        }
+
+        imagealphablending($canvas, false);
+        imagesavealpha($canvas, true);
+        $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+        imagefilledrectangle($canvas, 0, 0, imagesx($canvas) - 1, imagesy($canvas) - 1, $transparent);
+
+        return $canvas;
+    }
+
+    /**
      * Save image with quality and format settings
      */
-    private function saveImage(\GdImage $image, string $outputPath, array $watermarkData): bool
+    private function saveImage($image, string $outputPath, array $watermarkData): bool
     {
         $quality = $watermarkData['watermark_quality'] ?? self::DEFAULT_QUALITY;
         $imageFormat = $watermarkData['image_format'] ?? 'baseline';
 
-        // Validate quality
         $quality = max(self::MIN_QUALITY, min(self::MAX_QUALITY, (int) $quality));
 
-        // Apply interlace mode (progressive vs baseline)
         if ($imageFormat === 'progressive') {
             imageinterlace($image, true);
         }
 
-        // Ensure output directory exists
         $outputDir = dirname($outputPath);
         if (!is_dir($outputDir)) {
             wp_mkdir_p($outputDir);
         }
 
-        // Detect format from file extension
         $extension = strtolower(pathinfo($outputPath, PATHINFO_EXTENSION));
 
-        // Save based on file extension
         switch ($extension) {
             case 'jpeg':
             case 'jpg':
+            case 'jpe':
                 return imagejpeg($image, $outputPath, $quality);
             case 'png':
-                // Convert quality to PNG compression level (0-9)
-                $pngQuality = 9 - round(($quality / 100) * 9);
-                return imagepng($image, $outputPath, (int) $pngQuality);
+                imagesavealpha($image, true);
+                // PNG is lossless: "quality" does not apply, use a balanced zlib level.
+                return imagepng($image, $outputPath, 6);
             case 'gif':
-                return imagegif($image, $outputPath);
+                return $this->saveGif($image, $outputPath);
             case 'webp':
-                if (function_exists('imagewebp')) {
-                    return imagewebp($image, $outputPath, $quality);
-                } else {
+                if (!function_exists('imagewebp')) {
                     throw new \RuntimeException('WebP output not supported');
                 }
+                imagesavealpha($image, true);
+                return imagewebp($image, $outputPath, $quality);
+            case 'avif':
+                if (!function_exists('imageavif')) {
+                    throw new \RuntimeException('AVIF output not supported by this GD version');
+                }
+                imagesavealpha($image, true);
+                return imageavif($image, $outputPath, $quality);
             default:
-                // Fallback: save as JPEG
-                return imagejpeg($image, $outputPath, $quality);
+                // Never write JPEG bytes into a file with another extension.
+                throw new \RuntimeException('Unsupported output format: ' . $extension);
+        }
+    }
+
+    /**
+     * Save a GIF, keeping fully transparent pixels transparent (the image was
+     * converted to truecolor on load; imagegif() would otherwise turn them black).
+     */
+    private function saveGif($image, string $outputPath): bool
+    {
+        $width = imagesx($image);
+        $height = imagesy($image);
+        $hasTransparency = false;
+
+        for ($y = 0; $y < $height && !$hasTransparency; $y += max(1, (int) ($height / 200))) {
+            for ($x = 0; $x < $width; $x += max(1, (int) ($width / 200))) {
+                if (((imagecolorat($image, $x, $y) >> 24) & 0x7F) === 127) {
+                    $hasTransparency = true;
+                    break;
+                }
+            }
+        }
+
+        if (!$hasTransparency) {
+            return imagegif($image, $outputPath);
+        }
+
+        // Quantise to 255 colours and reserve one palette slot for transparency.
+        $palette = imagecreatetruecolor($width, $height);
+        if (!$palette) {
+            return imagegif($image, $outputPath);
+        }
+
+        try {
+            imagealphablending($palette, false);
+            imagecopy($palette, $image, 0, 0, 0, 0, $width, $height);
+            imagetruecolortopalette($palette, false, 255);
+            $transparent = imagecolorallocate($palette, 255, 0, 255);
+            if ($transparent === false) {
+                $transparent = imagecolorclosest($palette, 255, 0, 255);
+            }
+            imagecolortransparent($palette, $transparent);
+
+            for ($y = 0; $y < $height; $y++) {
+                for ($x = 0; $x < $width; $x++) {
+                    if (((imagecolorat($image, $x, $y) >> 24) & 0x7F) >= 64) {
+                        imagesetpixel($palette, $x, $y, $transparent);
+                    }
+                }
+            }
+
+            return imagegif($palette, $outputPath);
+        } finally {
+            $this->destroy($palette);
         }
     }
 
     /**
      * Generate preview URL
      */
-    private function generatePreviewUrl(\GdImage $image, array $watermarkData): string
+    private function generatePreviewUrl($image, array $watermarkData): string
     {
         $uploadDir  = wp_upload_dir();
         $previewDir = trailingslashit($uploadDir['basedir']) . 'ultimate-watermark';
@@ -567,11 +813,12 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         }
 
         $fingerprint = md5(wp_json_encode($watermarkData) ?: serialize($watermarkData));
-        $previewPath = $previewDir . '/watermark_preview_' . $fingerprint . '.jpg';
+        // PNG keeps transparent areas of PNG/WebP sources (JPEG would turn them black).
+        $previewPath = $previewDir . '/watermark_preview_' . $fingerprint . '.png';
 
-        $this->saveImage($image, $previewPath, array_merge($watermarkData, [
-            'watermark_quality' => 85,
-        ]));
+        if (!$this->saveImage($image, $previewPath, $watermarkData)) {
+            throw new \RuntimeException('Failed to write preview file');
+        }
 
         $base     = wp_normalize_path($uploadDir['basedir']);
         $normPath = wp_normalize_path($previewPath);
@@ -583,77 +830,49 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
     }
 
     /**
-     * Get attachment ID from image file path
-     * Handles both full size images and thumbnails/resized versions
+     * Get attachment ID from an image file path (full size or sub-size).
      */
     private function getAttachmentIdFromPath(string $imagePath): ?int
     {
-        if (empty($imagePath)) {
+        if ($imagePath === '') {
             return null;
         }
-        
-        // Normalize path
+
         $normalizedPath = wp_normalize_path($imagePath);
         $uploadDir = wp_upload_dir();
         $baseDir = wp_normalize_path($uploadDir['basedir']);
-        
-        // Get relative path from uploads directory
+
         if (strpos($normalizedPath, $baseDir) !== 0) {
             return null;
         }
-        
-        $relativePath = str_replace($baseDir . '/', '', $normalizedPath);
+
+        $relativePath = ltrim(substr($normalizedPath, strlen($baseDir)), '/');
         $pathInfo = pathinfo($relativePath);
-        $baseFilename = $pathInfo['filename'];
-        $directory = $pathInfo['dirname'];
-        
-        // First, try exact match (for full size images)
-        global $wpdb;
-        $attachmentId = $wpdb->get_var($wpdb->prepare(
-            "SELECT post_id FROM {$wpdb->postmeta} 
-            WHERE meta_key = '_wp_attached_file' 
-            AND meta_value = %s 
-            LIMIT 1",
-            $relativePath
-        ));
-        
-        if ($attachmentId) {
-            return (int) $attachmentId;
-        }
-        
-        // If exact match fails, try to match by base filename and directory
-        // This handles thumbnails and resized images (e.g., image-150x150.jpg -> image.jpg)
-        // Remove size suffix (e.g., -150x150) from filename
-        $baseFilenameClean = preg_replace('/-\d+x\d+$/', '', $baseFilename);
+        $directory = $pathInfo['dirname'] ?? '.';
         $extension = isset($pathInfo['extension']) ? '.' . $pathInfo['extension'] : '';
-        
-        // Try to find attachment with matching base filename in same directory
-        $possiblePath = $directory === '.' ? $baseFilenameClean . $extension : $directory . '/' . $baseFilenameClean . $extension;
-        
-        $attachmentId = $wpdb->get_var($wpdb->prepare(
-            "SELECT post_id FROM {$wpdb->postmeta} 
-            WHERE meta_key = '_wp_attached_file' 
-            AND meta_value = %s 
-            LIMIT 1",
-            $possiblePath
-        ));
-        
-        if ($attachmentId) {
-            return (int) $attachmentId;
+        $baseClean = preg_replace('/-\d+x\d+$/', '', $pathInfo['filename'] ?? '');
+        $prefix = $directory === '.' ? '' : $directory . '/';
+
+        // Exact file, the full size of a sub-size, and the "-scaled" attached
+        // file that big uploads use (sub-sizes are named after the original).
+        $candidates = array_unique(array_filter([
+            $relativePath,
+            $prefix . $baseClean . $extension,
+            $prefix . $baseClean . '-scaled' . $extension,
+        ]));
+
+        global $wpdb;
+        foreach ($candidates as $candidate) {
+            $attachmentId = $wpdb->get_var($wpdb->prepare(
+                "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_wp_attached_file' AND meta_value = %s LIMIT 1",
+                $candidate
+            ));
+            if ($attachmentId) {
+                return (int) $attachmentId;
+            }
         }
-        
-        // Last resort: search by base filename pattern in metadata
-        $attachmentId = $wpdb->get_var($wpdb->prepare(
-            "SELECT post_id FROM {$wpdb->postmeta} pm
-            INNER JOIN {$wpdb->posts} p ON pm.post_id = p.ID
-            WHERE pm.meta_key = '_wp_attached_file'
-            AND pm.meta_value LIKE %s
-            AND p.post_type = 'attachment'
-            LIMIT 1",
-            '%' . $wpdb->esc_like($baseFilenameClean) . '%'
-        ));
-        
-        return $attachmentId ? (int) $attachmentId : null;
+
+        return null;
     }
 
     /**
@@ -662,29 +881,27 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
     private function hexToRgb(string $hex): array
     {
         $hex = ltrim($hex, '#');
-        
+
         if (strlen($hex) === 3) {
-            $r = hexdec(substr($hex, 0, 1) . substr($hex, 0, 1));
-            $g = hexdec(substr($hex, 1, 1) . substr($hex, 1, 1));
-            $b = hexdec(substr($hex, 2, 1) . substr($hex, 2, 1));
-        } else {
-            $r = hexdec(substr($hex, 0, 2));
-            $g = hexdec(substr($hex, 2, 2));
-            $b = hexdec(substr($hex, 4, 2));
+            $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+        }
+        if (!preg_match('/^[0-9a-fA-F]{6}$/', $hex)) {
+            $hex = '000000';
         }
 
-        return ['red' => $r, 'green' => $g, 'blue' => $b];
+        return [
+            'red' => hexdec(substr($hex, 0, 2)),
+            'green' => hexdec(substr($hex, 2, 2)),
+            'blue' => hexdec(substr($hex, 4, 2)),
+        ];
     }
 
     /**
-     * Calculate alpha value from transparency percentage
+     * Convert opacity (0-100) to a GD alpha value (0 = opaque, 127 = transparent).
      */
-    private function calculateAlpha(int $transparency): int
+    private function calculateAlpha(int $opacity): int
     {
-        // Convert transparency (0-100) to alpha (0-127)
-        // 0% transparency = fully opaque = alpha 0
-        // 100% transparency = fully transparent = alpha 127
-        return (int) round((100 - $transparency) * 1.27);
+        return (int) round((100 - max(0, min(100, $opacity))) * 1.27);
     }
 
     /**
@@ -692,15 +909,11 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
      *
      * Resolution order:
      *   1. ultimate_watermark_resolve_font_path filter (Pro Google Fonts hook)
-     *   2. System fonts matching the requested family (best fidelity)
-     *   3. Bundled TTF mapped to the family's category (sans / serif / mono)
+     *   2. Bundled serif/mono stand-ins for serif/mono families
+     *   3. System sans fonts (better fidelity if installed)
      *   4. Bundled neutral sans default (UltimateWatermarkDefault.ttf)
-     *   5. Empty string — should be unreachable unless the bundled font is
-     *      manually deleted from the plugin's assets/fonts/ directory.
      *
-     * @param array $watermarkData Optional watermark data so the requested
-     *                             family / weight / style can be passed to
-     *                             the filter for Google Fonts resolution.
+     * Results are cached per request (the filter may hit the network).
      */
     private function getFontPath(array $watermarkData = []): string
     {
@@ -708,13 +921,14 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         $weight = (string) ($watermarkData['watermark_font_weight'] ?? 'normal');
         $style  = (string) ($watermarkData['watermark_font_style']  ?? 'normal');
 
-        /**
-         * Allow Pro plugins to provide a font file path (e.g. from Google
-         * Fonts cache) before falling back to system fonts.
-         */
+        $cacheKey = $family . '|' . $weight . '|' . $style;
+        if (isset(self::$fontCache[$cacheKey])) {
+            return self::$fontCache[$cacheKey];
+        }
+
         $external = apply_filters('ultimate_watermark_resolve_font_path', null, $family, $weight, $style);
         if (is_string($external) && $external !== '' && file_exists($external) && is_readable($external)) {
-            return $external;
+            return self::$fontCache[$cacheKey] = $external;
         }
 
         $bundledDir   = plugin_dir_path(ULTIMATE_WATERMARK_FILE) . 'assets/fonts/';
@@ -722,218 +936,206 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
         $bundledSerif = $bundledDir . 'UltimateWatermarkSerif.ttf';
         $bundledMono  = $bundledDir . 'UltimateWatermarkMono.ttf';
 
-        // Map each system family to its bundled stand-in so the picker
-        // honours the user's serif/sans/mono intent even when no system
-        // fonts exist on the host.
+        // Serif / monospace families must not be replaced by a system sans font.
         $familyMap = [
-            'Arial'           => [$bundledSans],
-            'Helvetica'       => [$bundledSans],
-            'Verdana'         => [$bundledSans],
             'Times New Roman' => [$bundledSerif],
             'Georgia'         => [$bundledSerif],
             'Courier New'     => [$bundledMono],
         ];
 
-        // Try system fonts first (better fidelity if installed), then the
-        // family-specific bundled fallback, then the neutral bundled sans.
         $fontPaths = array_merge(
+            $familyMap[$family] ?? [],
             [
                 '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
                 '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
                 '/Library/Fonts/Arial.ttf',
                 '/System/Library/Fonts/Supplemental/Arial.ttf',
-                '/System/Library/Fonts/Helvetica.ttc',
                 'C:\\Windows\\Fonts\\arial.ttf',
             ],
-            $familyMap[$family] ?? [],
             [$bundledSans]
         );
 
         foreach ($fontPaths as $fontPath) {
             if (file_exists($fontPath) && is_readable($fontPath)) {
-                return $fontPath;
+                return self::$fontCache[$cacheKey] = $fontPath;
             }
         }
 
-        return '';
+        return self::$fontCache[$cacheKey] = '';
     }
 
     /**
-     * Calculate text position
+     * Whether offsets are expressed as a percentage of the image size.
      */
-    private function calculateTextPosition(\GdImage $image, string $text, int $fontSize, array $watermarkData): array
+    private function usesPercentageOffsets(array $watermarkData): bool
     {
-        $imageWidth = imagesx($image);
-        $imageHeight = imagesy($image);
-
-        // Get text bounding box
-        $bbox = imagettfbbox($fontSize, 0, $this->getFontPath($watermarkData), $text);
-        $textWidth = $bbox[2] - $bbox[0];
-        $textHeight = $bbox[1] - $bbox[7];
-
-        // Calculate position based on alignment
-        $position = $this->calculateAlignmentPosition(
-            $imageWidth,
-            $imageHeight,
-            $textWidth,
-            $textHeight,
-            $watermarkData
-        );
-
-        return $position;
+        return in_array($watermarkData['watermark_offset_unit'] ?? 'pixels', ['percentage', '%'], true);
     }
 
     /**
-     * Calculate image position
+     * Top-left coordinates for an item of the given size (same rules as Imagick).
      */
-    private function calculateImagePosition(\GdImage $image, array $watermarkDimensions, array $watermarkData): array
-    {
-        $imageWidth = imagesx($image);
-        $imageHeight = imagesy($image);
-
-        return $this->calculateAlignmentPosition(
-            $imageWidth,
-            $imageHeight,
-            $watermarkDimensions['width'],
-            $watermarkDimensions['height'],
-            $watermarkData
-        );
-    }
-
-    /**
-     * Calculate alignment position
-     */
-    private function calculateAlignmentPosition(int $imageWidth, int $imageHeight, int $itemWidth, int $itemHeight, array $watermarkData): array
+    private function calculatePosition(array $watermarkData, int $imageWidth, int $imageHeight, int $itemWidth, int $itemHeight): array
     {
         $position = $watermarkData['watermark_position'] ?? 'bottom-right';
-        $offsetX = $watermarkData['watermark_offset_x'] ?? 0;
-        $offsetY = $watermarkData['watermark_offset_y'] ?? 0;
+        $offsetX = (int) ($watermarkData['watermark_offset_x'] ?? 0);
+        $offsetY = (int) ($watermarkData['watermark_offset_y'] ?? 0);
 
-        $x = 0;
-        $y = 0;
+        if ($this->usesPercentageOffsets($watermarkData)) {
+            $offsetX = (int) round($imageWidth * $offsetX / 100);
+            $offsetY = (int) round($imageHeight * $offsetY / 100);
+        }
 
-        // Position uses hyphen format: top-left, center-right, bottom-right, etc.
+        $centerX = (int) (($imageWidth - $itemWidth) / 2);
+        $centerY = (int) (($imageHeight - $itemHeight) / 2);
+
         switch ($position) {
             case 'top-left':
                 $x = $offsetX;
-                $y = $offsetY + $itemHeight;
+                $y = $offsetY;
                 break;
             case 'top-center':
-                $x = ($imageWidth - $itemWidth) / 2;
-                $y = $offsetY + $itemHeight;
+                $x = $centerX;
+                $y = $offsetY;
                 break;
             case 'top-right':
                 $x = $imageWidth - $itemWidth - $offsetX;
-                $y = $offsetY + $itemHeight;
+                $y = $offsetY;
                 break;
             case 'center-left':
                 $x = $offsetX;
-                $y = ($imageHeight + $itemHeight) / 2;
+                $y = $centerY;
                 break;
             case 'center':
-                $x = ($imageWidth - $itemWidth) / 2;
-                $y = ($imageHeight + $itemHeight) / 2;
+                $x = $centerX;
+                $y = $centerY;
                 break;
             case 'center-right':
                 $x = $imageWidth - $itemWidth - $offsetX;
-                $y = ($imageHeight + $itemHeight) / 2;
+                $y = $centerY;
                 break;
             case 'bottom-left':
                 $x = $offsetX;
-                $y = $imageHeight - $offsetY;
+                $y = $imageHeight - $itemHeight - $offsetY;
                 break;
             case 'bottom-center':
-                $x = ($imageWidth - $itemWidth) / 2;
-                $y = $imageHeight - $offsetY;
+                $x = $centerX;
+                $y = $imageHeight - $itemHeight - $offsetY;
                 break;
             case 'bottom-right':
             default:
                 $x = $imageWidth - $itemWidth - $offsetX;
-                $y = $imageHeight - $offsetY;
+                $y = $imageHeight - $itemHeight - $offsetY;
                 break;
         }
+
+        // Keep the watermark inside the canvas.
+        $x = max(0, min($x, max(0, $imageWidth - $itemWidth)));
+        $y = max(0, min($y, max(0, $imageHeight - $itemHeight)));
 
         return ['x' => (int) $x, 'y' => (int) $y];
     }
 
     /**
-     * Calculate watermark dimensions
+     * Calculate watermark image dimensions for the target image.
+     *
+     * - original: natural size, shrunk to fit the image if larger
+     * - custom:   configured width × height
+     * - scaled:   percentage of the target image width (keeps aspect ratio)
+     *
+     * The result is always clamped inside the target image.
      */
-    private function calculateWatermarkDimensions(\GdImage $watermarkImage, array $watermarkData): array
+    private function calculateWatermarkDimensions(int $originalWidth, int $originalHeight, array $watermarkData, int $imageWidth, int $imageHeight): array
     {
-        $originalWidth = imagesx($watermarkImage);
-        $originalHeight = imagesy($watermarkImage);
-
+        $originalWidth = max(1, $originalWidth);
+        $originalHeight = max(1, $originalHeight);
         $sizeType = $watermarkData['watermark_size_type'] ?? 'original';
 
         switch ($sizeType) {
-            case 'original':
-                return ['width' => $originalWidth, 'height' => $originalHeight];
-            
             case 'custom':
-                return [
-                    'width' => $watermarkData['watermark_custom_width'] ?? $originalWidth,
-                    'height' => $watermarkData['watermark_custom_height'] ?? $originalHeight
-                ];
-            
+                $width = (int) ($watermarkData['watermark_custom_width'] ?? $originalWidth);
+                $height = (int) ($watermarkData['watermark_custom_height'] ?? $originalHeight);
+                break;
+
             case 'scaled':
-                $scale = ($watermarkData['watermark_scale_percentage'] ?? 50) / 100;
-                return [
-                    'width' => (int) round($originalWidth * $scale),
-                    'height' => (int) round($originalHeight * $scale)
-                ];
-            
+                $percentage = max(1, min(100, (int) ($watermarkData['watermark_scale_percentage'] ?? 80)));
+                $width = (int) round($imageWidth * $percentage / 100);
+                $height = (int) round($originalHeight * $width / $originalWidth);
+                break;
+
+            case 'original':
             default:
-                return ['width' => $originalWidth, 'height' => $originalHeight];
+                $width = $originalWidth;
+                $height = $originalHeight;
+                break;
         }
+
+        if ($width > $imageWidth) {
+            $height = (int) round($height * $imageWidth / max(1, $width));
+            $width = $imageWidth;
+        }
+        if ($height > $imageHeight) {
+            $width = (int) round($width * $imageHeight / max(1, $height));
+            $height = $imageHeight;
+        }
+
+        return ['width' => max(1, $width), 'height' => max(1, $height)];
     }
 
     /**
-     * Apply transparency to image while preserving original alpha channel
+     * Multiply a layer's alpha channel by the opacity, preserving its own transparency.
      */
-    private function applyImageTransparency(\GdImage $image, int $opacity): void
+    private function applyImageTransparency($image, int $opacity): void
     {
         if ($opacity >= 100) {
-            return; // Fully opaque, no changes needed
+            return;
         }
 
-        // Preserve alpha blending settings
         imagealphablending($image, false);
         imagesavealpha($image, true);
-        
-        // Calculate opacity multiplier (0-1)
-        $opacityMultiplier = $opacity / 100;
-        
-        // Apply opacity while preserving original transparency
+
+        $opacityMultiplier = max(0, $opacity) / 100;
         $width = imagesx($image);
         $height = imagesy($image);
-        
+
         for ($x = 0; $x < $width; $x++) {
             for ($y = 0; $y < $height; $y++) {
-                $colorIndex = imagecolorat($image, $x, $y);
-                $colors = imagecolorsforindex($image, $colorIndex);
-                
-                // Preserve original alpha and multiply by opacity
-                // Alpha in GD: 0 = opaque, 127 = transparent
-                $originalAlpha = $colors['alpha'];
-                $newAlpha = 127 - ((127 - $originalAlpha) * $opacityMultiplier);
-                $newAlpha = max(0, min(127, (int)round($newAlpha)));
-                
-                $newColor = imagecolorallocatealpha(
-                    $image,
-                    $colors['red'],
-                    $colors['green'],
-                    $colors['blue'],
-                    $newAlpha
-                );
-                imagesetpixel($image, $x, $y, $newColor);
+                $rgba = imagecolorat($image, $x, $y);
+                $alpha = ($rgba >> 24) & 0x7F;
+                if ($alpha === 127) {
+                    continue; // Already fully transparent.
+                }
+
+                $newAlpha = 127 - (int) round((127 - $alpha) * $opacityMultiplier);
+                $newAlpha = max(0, min(127, $newAlpha));
+
+                imagesetpixel($image, $x, $y, ($newAlpha << 24) | ($rgba & 0xFFFFFF));
             }
         }
     }
 
     /**
+     * Whether a value is a GD image (GdImage object on PHP 8, resource on PHP 7.4).
+     */
+    private function isGdImage($image): bool
+    {
+        return (class_exists('\GdImage', false) && $image instanceof \GdImage)
+            || (is_resource($image) && get_resource_type($image) === 'gd');
+    }
+
+    /**
+     * Free a GD image (needed on PHP 7.4; a no-op since PHP 8 and deprecated in 8.5).
+     */
+    private function destroy($image): void
+    {
+        if (PHP_VERSION_ID < 80000 && is_resource($image)) {
+            imagedestroy($image);
+        }
+    }
+
+    /**
      * Get supported image formats
-     * 
+     *
      * @return array Array of supported formats
      */
     public function getSupportedFormats(): array
@@ -943,7 +1145,7 @@ class GDWatermarkProcessor implements WatermarkProcessorInterface
 
     /**
      * Check if processor is available
-     * 
+     *
      * @return bool True if GD library is available
      */
     public function isAvailable(): bool

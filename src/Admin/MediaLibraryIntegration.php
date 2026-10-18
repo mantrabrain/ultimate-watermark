@@ -6,6 +6,7 @@ use MantraBrain\UltimateWatermark\Utils\WatermarkHelper;
 use MantraBrain\UltimateWatermark\Utils\WatermarkUsageTracker;
 use MantraBrain\UltimateWatermark\Utils\BackupManager;
 use MantraBrain\UltimateWatermark\Utils\RulesEvaluator;
+use MantraBrain\UltimateWatermark\Utils\AttachmentGuard;
 
 /**
  * Media Library Integration
@@ -49,13 +50,16 @@ class MediaLibraryIntegration
         
         // Also output toggle HTML in admin footer for media popup (it will be hidden and moved by JS)
         add_action('admin_footer', [$this, 'addUploadToggleToFooter'], 999);
+
+        // Send the toggle state with every upload. Printed after core footer
+        // scripts so wp.Uploader exists, and before uploaders are created.
+        add_action('admin_print_footer_scripts', [$this, 'printUploaderParamsBridge'], 20);
         
         // Add confirmation modal to media library
-        add_action('admin_footer', [$this, 'addConfirmationModal']);
+        // (Legacy confirmation modal removed: bulk actions use the shared notification dialog.)
         
         // Add cleanup hooks for usage tracking
         add_action('delete_post', [$this, 'cleanupWatermarkUsage']);
-        add_action('delete_attachment', [$this, 'cleanupImageUsage']);
         
         // MediaLibraryIntegration hooks registered
         
@@ -92,6 +96,7 @@ class MediaLibraryIntegration
         foreach ($manual_watermarks as $watermark) {
             $action_key = 'ultimate_watermark_' . $watermark['id'];
             $action_label = sprintf(
+                /* translators: %s: watermark name */
                 __('Apply Watermark: %s', 'ultimate-watermark'),
                 $watermark['name']
             );
@@ -136,8 +141,9 @@ class MediaLibraryIntegration
         $processed_count = 0;
         $errors = [];
 
-        foreach ($post_ids as $attachment_id) {
-            if ($this->applyWatermarkToAttachment($attachment_id, $watermark_id)) {
+        foreach ($this->editableAttachmentIds($post_ids) as $attachment_id) {
+            $apply_result = $this->applyWatermarkToAttachment((int) $attachment_id, $watermark_id);
+            if (!empty($apply_result['success'])) {
                 $processed_count++;
             } else {
                 $errors[] = $attachment_id;
@@ -165,7 +171,7 @@ class MediaLibraryIntegration
         $processed_count = 0;
         $errors = [];
 
-        foreach ($post_ids as $attachment_id) {
+        foreach ($this->editableAttachmentIds($post_ids) as $attachment_id) {
             if ($this->removeWatermarkFromAttachment($attachment_id)) {
                 $processed_count++;
             } else {
@@ -253,6 +259,18 @@ class MediaLibraryIntegration
             return $result;
         }
 
+        // Applying a watermark the image already carries would stamp it twice.
+        if (in_array($watermark_id, array_map('intval', (array) (get_post_meta($attachment_id, 'applied_watermarks', true) ?: [])), true)) {
+            $result['message'] = __('This image already has this watermark. Remove it first to apply it again.', 'ultimate-watermark');
+            return $result;
+        }
+
+        // Files sold as downloads (e.g. WooCommerce/Dokan downloadable products) are never modified.
+        if (AttachmentGuard::shouldSkip($attachment_id)) {
+            $result['message'] = __('This file is a protected downloadable product file and cannot be watermarked.', 'ultimate-watermark');
+            return $result;
+        }
+
         // Get original image path
         $original_path = get_attached_file($attachment_id);
         if (!$original_path || !file_exists($original_path)) {
@@ -264,19 +282,24 @@ class MediaLibraryIntegration
         // wp_generate_attachment_metadata fires the filter that processAfterMetadataGeneration hooks into
         update_post_meta($attachment_id, '_ulwm_skip_watermarking', true);
         
-        // Regenerate all image sizes from original AND save the metadata
-        // This ensures ALL currently registered sizes (including WooCommerce sizes
-        // that may have been added after original upload) are in the metadata
-        $metadata = wp_generate_attachment_metadata($attachment_id, $original_path);
-        if (!empty($metadata)) {
-            wp_update_attachment_metadata($attachment_id, $metadata);
+        // Create any sizes registered after the upload (e.g. WooCommerce sizes)
+        // from the original image. Existing files and the metadata (including
+        // "original_image" for big "-scaled" uploads) are kept as they are.
+        if (!function_exists('wp_update_image_subsizes')) {
+            require_once ABSPATH . 'wp-admin/includes/image.php';
+        }
+        if (function_exists('wp_update_image_subsizes')) {
+            wp_update_image_subsizes($attachment_id);
         }
         
         // Remove the skip flag
         delete_post_meta($attachment_id, '_ulwm_skip_watermarking');
         
         // Create backup BEFORE applying watermarks (same as upload flow)
-        $this->createBackupForWatermarking($attachment_id);
+        if (!$this->createBackupForWatermarking($attachment_id)) {
+            $result['message'] = __('The original image could not be backed up, so it was not changed. Check that the uploads folder is writable and has free space.', 'ultimate-watermark');
+            return $result;
+        }
         
         // Get watermark data
         $watermark_data = WatermarkHelper::getActiveWatermarkById($watermark_id);
@@ -431,17 +454,52 @@ class MediaLibraryIntegration
         wp_enqueue_script(
             'ultimate-watermark-media',
             ULTIMATE_WATERMARK_URL . 'assets/js/media-library.js',
-            ['jquery'],
+            ['jquery', 'wp-i18n', 'ultimate-watermark-notification-system'],
             ULTIMATE_WATERMARK_VERSION,
             true
         );
+        wp_set_script_translations('ultimate-watermark-media', 'ultimate-watermark', ULTIMATE_WATERMARK_DIR . 'languages');
+
+        // Grid view (WordPress' default Media Library view) has no bulk-action
+        // hook: media-grid.js adds the watermark actions to its toolbar and to
+        // the attachment details popup.
+        wp_enqueue_script(
+            'ultimate-watermark-media-grid',
+            ULTIMATE_WATERMARK_URL . 'assets/js/media-grid.js',
+            ['jquery', 'wp-i18n', 'media-views', 'ultimate-watermark-media'],
+            ULTIMATE_WATERMARK_VERSION,
+            true
+        );
+        wp_set_script_translations('ultimate-watermark-media-grid', 'ultimate-watermark', ULTIMATE_WATERMARK_DIR . 'languages');
+
+        $manual = [];
+        foreach (WatermarkHelper::getActiveWatermarks() as $watermark) {
+            if ((string) ($watermark['manual_watermarking'] ?? '') === '1') {
+                $manual[] = ['id' => (int) $watermark['id'], 'name' => (string) $watermark['name']];
+            }
+        }
 
         wp_localize_script('ultimate-watermark-media', 'ultimate_watermark_media', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('ultimate_watermark_media'),
+            'manual_watermarks' => $manual,
             'processing_text' => __('Processing...', 'ultimate-watermark'),
             'success_text' => __('Watermark applied successfully!', 'ultimate-watermark'),
-            'error_text' => __('Error applying watermark.', 'ultimate-watermark')
+            'error_text' => __('Error applying watermark.', 'ultimate-watermark'),
+            'strings' => [
+                'error'          => __('Error', 'ultimate-watermark'),
+                'cancel'         => __('Cancel', 'ultimate-watermark'),
+                'watermark'      => __('watermark', 'ultimate-watermark'),
+                'select_items'   => __('Please select at least one media item.', 'ultimate-watermark'),
+                'remove_title'   => __('Remove Watermark', 'ultimate-watermark'),
+                /* translators: %d: number of images */
+                'remove_message' => __('Remove watermarks from %d selected image(s)? The original images will be restored from backup.', 'ultimate-watermark'),
+                'remove_confirm' => __('Remove Watermark', 'ultimate-watermark'),
+                'apply_title'    => __('Apply Watermark', 'ultimate-watermark'),
+                /* translators: 1: watermark name, 2: number of images */
+                'apply_message'  => __('Apply "%1$s" to %2$d selected image(s)? This modifies the image files (a backup is kept when backups are enabled).', 'ultimate-watermark'),
+                'apply_confirm'  => __('Apply Watermark', 'ultimate-watermark'),
+            ],
         ]);
     }
 
@@ -463,7 +521,8 @@ class MediaLibraryIntegration
         }
 
         $watermark_id = absint($_POST['watermark_id'] ?? 0);
-        $attachment_ids = array_map('absint', $_POST['attachment_ids'] ?? []);
+        // Only images the current user may edit (authors/vendors can't touch others' media).
+        $attachment_ids = $this->editableAttachmentIds((array) ($_POST['attachment_ids'] ?? []));
 
         if (!$watermark_id || empty($attachment_ids)) {
             wp_send_json_error(['message' => __('Invalid parameters.', 'ultimate-watermark')]);
@@ -595,7 +654,8 @@ class MediaLibraryIntegration
                     <div class="uw-toggle-container" style="
                         position: relative;
                         display: inline-block;
-                        width: 90px;
+                        flex: 0 0 50px;
+                        width: 50px;
                         height: 26px;
                     ">
                         <input type="checkbox" id="ultimate-watermark-auto-apply" name="ultimate_watermark_auto_apply" value="1"
@@ -645,8 +705,9 @@ class MediaLibraryIntegration
                     $watermark_count = count($automatic_watermarks);
                     echo '<div style="margin-bottom: 10px; font-weight: 600;">';
                     printf(
+                        /* translators: %d: number of available watermarks */
                         esc_html__('Select which watermarks to apply (%d available):', 'ultimate-watermark'),
-                        $watermark_count
+                        (int) $watermark_count
                     );
                     echo '</div>';
                     
@@ -654,7 +715,7 @@ class MediaLibraryIntegration
                     foreach ($automatic_watermarks as $watermark) {
                         $watermark_id = absint($watermark['id']);
                         $watermark_type = $watermark['type'] === 'text' ? __('Text', 'ultimate-watermark') : __('Image', 'ultimate-watermark');
-                        $watermark_name = esc_html($watermark['name']);
+                        $watermark_name = (string) $watermark['name'];
                         $edit_url = admin_url('admin.php?page=ultimate-watermark-add-watermark&ID=' . $watermark_id);
                         
                         echo '<div class="uw-watermark-item" style="display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(0, 102, 204, 0.1);">';
@@ -665,12 +726,26 @@ class MediaLibraryIntegration
                         echo '<label for="uw-wm-' . esc_attr($watermark_id) . '" style="flex: 1; cursor: pointer; margin: 0; display: flex; align-items: center; gap: 6px;">';
                         echo '<span style="font-weight: 500;">' . esc_html($watermark_name) . '</span>';
                         echo '<span style="color: #6b7280; font-size: 11px;">(' . esc_html($watermark_type) . ')</span>';
+                        // Watermarks with Rules only apply when the image matches them (e.g. once it is used on a product in that category).
+                        $has_rule_conditions = false;
+                        foreach ((array) ($watermark['watermark_rules'] ?? []) as $rule) {
+                            if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
+                                $has_rule_conditions = true;
+                                break;
+                            }
+                        }
+                        if ($has_rule_conditions) {
+                            echo '<span style="color: #92400e; font-size: 11px;" title="' . esc_attr__('Applied only when the image matches this watermark\'s Rules, for example once it is used on a product in the selected category.', 'ultimate-watermark') . '">' . esc_html__('Rules apply', 'ultimate-watermark') . '</span>';
+                        }
                         echo '</label>';
-                        echo '<a href="' . esc_url($edit_url) . '" target="_blank" 
-                                 style="color: #0066cc; text-decoration: none; font-size: 11px; padding: 2px 6px;" 
-                                 title="' . esc_attr__('Edit watermark', 'ultimate-watermark') . '">';
-                        echo '✎';
-                        echo '</a>';
+                        // Editing watermarks needs manage_options; authors only pick them.
+                        if (current_user_can('manage_options')) {
+                            echo '<a href="' . esc_url($edit_url) . '" target="_blank" 
+                                     style="color: #0066cc; text-decoration: none; font-size: 11px; padding: 2px 6px;" 
+                                     title="' . esc_attr__('Edit watermark', 'ultimate-watermark') . '" aria-label="' . esc_attr(sprintf(/* translators: %s: watermark name */ __('Edit watermark %s', 'ultimate-watermark'), $watermark['name'])) . '">';
+                            echo '✎';
+                            echo '</a>';
+                        }
                         echo '</div>';
                     }
                     echo '</div>';
@@ -710,7 +785,7 @@ class MediaLibraryIntegration
         }
         
         .uw-toggle-container input[type="checkbox"]:checked + .uw-toggle-track .uw-toggle-thumb {
-            left: 33px !important;
+            left: 24px !important;
             background: white !important;
         }
         
@@ -723,8 +798,9 @@ class MediaLibraryIntegration
             box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
         }
         
-        .uw-toggle-container input[type="checkbox"]:focus + .uw-toggle-track {
-           
+        .uw-toggle-container input[type="checkbox"]:focus-visible + .uw-toggle-track {
+            outline: 2px solid #2271b1;
+            outline-offset: 2px;
         }
         
         .uw-toggle-track:active .uw-toggle-thumb {
@@ -732,7 +808,7 @@ class MediaLibraryIntegration
         }
         
         .uw-toggle-container input[type="checkbox"]:checked + .uw-toggle-track:active .uw-toggle-thumb {
-            left: 64px !important;
+            left: 24px !important;
             transform: scale(0.95) !important;
         }
         
@@ -782,13 +858,13 @@ class MediaLibraryIntegration
                 
                 // Send to server via AJAX to store in option (asynchronous for better performance)
                 $.ajax({
-                    url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                    url: '<?php echo esc_js(esc_url_raw(admin_url('admin-ajax.php'))); ?>',
                     type: 'POST',
                     async: true, // Changed to asynchronous for better performance
                     data: {
                         action: 'ultimate_watermark_update_toggle_state',
                         enabled: isEnabled ? '1' : '0',
-                        nonce: '<?php echo wp_create_nonce('ultimate_watermark_toggle'); ?>'
+                        nonce: '<?php echo esc_js(wp_create_nonce('ultimate_watermark_toggle')); ?>'
                     }
                 });
             };
@@ -1052,7 +1128,7 @@ class MediaLibraryIntegration
                     
                     // Handle Select All button
                     $thisInfo.find('.uw-select-all').off('click').on('click', function() {
-                        $thisInfo.find('.uw-watermark-checkbox').prop('checked', true);
+                        $thisInfo.find('.uw-watermark-checkbox').prop('checked', true).trigger('change.uw-status');
                         // Save with this instance context
                         setTimeout(function() {
                             window.saveWatermarkSelections($thisInfo);
@@ -1061,7 +1137,7 @@ class MediaLibraryIntegration
                     
                     // Handle Deselect All button
                     $thisInfo.find('.uw-deselect-all').off('click').on('click', function() {
-                        $thisInfo.find('.uw-watermark-checkbox').prop('checked', false);
+                        $thisInfo.find('.uw-watermark-checkbox').prop('checked', false).trigger('change.uw-status');
                         // Save with this instance context
                         setTimeout(function() {
                             window.saveWatermarkSelections($thisInfo);
@@ -1081,14 +1157,24 @@ class MediaLibraryIntegration
                             const isEnabled = $thisToggle.is(':checked');
                             const selectedCount = $thisInfo.find('.uw-watermark-checkbox:checked').length;
                             const totalCount = $thisInfo.find('.uw-watermark-checkbox').length;
+                            const i18n = <?php echo wp_json_encode([
+                                'off'      => __('Off: new uploads are not watermarked by this toggle.', 'ultimate-watermark'),
+                                'none'     => __('On: no watermark selected, so your watermark rules decide.', 'ultimate-watermark'),
+                                /* translators: %d: number of selected watermarks */
+                                'selected' => __('On: %d watermark(s) selected.', 'ultimate-watermark'),
+                            ]); ?>;
                             if (isEnabled && selectedCount > 0) {
-                                $statusIndicator.text('✅ ' + selectedCount + ' watermark(s) selected')
+                                $statusIndicator.text('✅ ' + i18n.selected.replace('%d', selectedCount))
                                     .css('background', '#d4edda')
                                     .css('color', '#155724');
+                            } else if (isEnabled) {
+                                $statusIndicator.text('ℹ️ ' + i18n.none)
+                                    .css('background', '#fff3cd')
+                                    .css('color', '#856404');
                             } else {
-                                $statusIndicator.text('❌ Watermarking DISABLED')
-                                    .css('background', '#f8d7da')
-                                    .css('color', '#721c24');
+                                $statusIndicator.text(i18n.off)
+                                    .css('background', '#f1f5f9')
+                                    .css('color', '#475569');
                             }
                         }
                         
@@ -1099,8 +1185,8 @@ class MediaLibraryIntegration
                     }
                 });
                 
-                // Update toggle state once (after initializing all toggles) - force update to ensure server sync
-                window.ultimateWatermarkUpdateToggleState(true);
+                // Sync with the server only when the state actually changed.
+                window.ultimateWatermarkUpdateToggleState();
             };
             
             // NOTE: We don't patch FormData.append because plupload uses moxie's polyfill
@@ -1407,7 +1493,7 @@ class MediaLibraryIntegration
         // 2. JavaScript can dynamically update it to '1' when toggle is ON
         // Previously only added when option was '1', which meant on page load with default '0'
         // the param was missing entirely, breaking the monkey-patch detection.
-        $option_value = get_option('ultimate_watermark_auto_apply_toggle', '0');
+        $option_value = (string) get_user_meta(get_current_user_id(), 'ultimate_watermark_auto_apply_toggle', true);
         $params['ultimate_watermark_auto_apply'] = ($option_value === '1') ? '1' : '0';
         
         // NOTE: We don't set ultimate_watermark_ids here because this filter runs on page load,
@@ -1423,25 +1509,20 @@ class MediaLibraryIntegration
      */
     public function handleSetTempSelectedIds(): void
     {
-        // This endpoint writes an option, so it needs an authorisation check as
-        // well as the nonce. It runs as part of the media upload flow, where
-        // authors and editors are legitimate callers - hence upload_files
-        // rather than manage_options.
-        if (!current_user_can('upload_files')) {
-            wp_send_json_error(['message' => __('You do not have permission to upload files.', 'ultimate-watermark')], 403);
-            return;
-        }
-
         // Verify nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'ultimate_watermark_temp_ids')) {
             wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
             return;
         }
         
-        // Store the IDs in a temporary option (one-time use, read by upload_post_params filter)
+        if (!current_user_can('upload_files')) {
+            wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')], 403);
+        }
+
+        // Store the IDs for this user's next upload (one-time use)
         $ids_string = isset($_POST['ids']) ? sanitize_text_field($_POST['ids']) : '';
         
-        update_option('ultimate_watermark_temp_selected_ids', $ids_string, false);
+        update_user_meta(get_current_user_id(), 'ultimate_watermark_temp_selected_ids', $ids_string);
         
         wp_send_json_success(['message' => 'IDs stored temporarily', 'ids' => $ids_string]);
     }
@@ -1468,7 +1549,7 @@ class MediaLibraryIntegration
             $auto_apply_enabled = true;
         } else {
             // Check WordPress option as fallback (set by JavaScript)
-            $option_value = get_option('ultimate_watermark_auto_apply_toggle', '0');
+            $option_value = (string) get_user_meta(get_current_user_id(), 'ultimate_watermark_auto_apply_toggle', true);
             if ($option_value === '1') {
                 $auto_apply_enabled = true;
             }
@@ -1509,7 +1590,7 @@ class MediaLibraryIntegration
         update_post_meta($attachment_id, '_ulwm_watermarked', true);
         
         // Reset the toggle after use to prevent accidental watermarking of subsequent uploads
-        update_option('ultimate_watermark_auto_apply_toggle', '0');
+        update_user_meta(get_current_user_id(), 'ultimate_watermark_auto_apply_toggle', '0');
         
         return;
     }
@@ -1554,6 +1635,12 @@ class MediaLibraryIntegration
 
         // Apply watermark using WatermarkService
         try {
+            // Same attachment context as the automatic pipeline: sub-sizes and
+            // format variants scale against the attachment's full size.
+            \MantraBrain\UltimateWatermark\Watermark\WatermarkService::setAttachmentContext([
+                'attachment_id' => $attachment_id,
+                '_source_image_path' => $image_path,
+            ]);
             $success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($image_path, $watermark_id, $image_path);
             
             if ($success) {
@@ -1566,7 +1653,7 @@ class MediaLibraryIntegration
                     }
                 }
                 // Apply to alternative format variants (e.g., .webp/.avif) if present
-                foreach ($this->getAlternativeFormatPaths($image_path) as $variantPath) {
+                foreach ($this->getAlternativeFormatPaths($image_path, $attachment_id) as $variantPath) {
                     if (file_exists($variantPath) && is_writable($variantPath)) {
                         \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($variantPath, $watermark_id, $variantPath);
                     }
@@ -1578,6 +1665,8 @@ class MediaLibraryIntegration
             return false;
         } catch (\Exception $e) {
             return false;
+        } finally {
+            \MantraBrain\UltimateWatermark\Watermark\WatermarkService::setAttachmentContext([]);
         }
     }
 
@@ -1637,7 +1726,7 @@ class MediaLibraryIntegration
     }
 
     // Return alternative format files (same basename, different extension)
-    private function getAlternativeFormatPaths(string $path): array
+    private function getAlternativeFormatPaths(string $path, int $attachment_id = 0): array
     {
         $candidates = [];
         $info = pathinfo($path);
@@ -1646,7 +1735,8 @@ class MediaLibraryIntegration
         $extensions = ['webp', 'avif'];
         foreach ($extensions as $ext) {
             $alt = $base . '.' . $ext;
-            if (strtolower($info['extension'] ?? '') !== $ext && file_exists($alt)) {
+            // Skip a same-named file that is another attachment's own image.
+            if (strtolower($info['extension'] ?? '') !== $ext && file_exists($alt) && !WatermarkHelper::isFileOfAnotherAttachment($alt, $attachment_id)) {
                 $candidates[] = $alt;
             }
         }
@@ -1664,7 +1754,7 @@ class MediaLibraryIntegration
         }
         // Try sibling alternative formats based on where the canonical would be
         if ($primary) {
-            foreach ($this->getAlternativeFormatPaths($primary) as $variant) {
+            foreach ($this->getAlternativeFormatPaths($primary, $attachment_id) as $variant) {
                 if (file_exists($variant)) { return $variant; }
             }
         }
@@ -1763,7 +1853,8 @@ class MediaLibraryIntegration
         }
 
         $watermark_id = absint($_POST['watermark_id'] ?? 0);
-        $attachment_ids = array_map('absint', $_POST['attachment_ids'] ?? []);
+        // Only images the current user may edit (authors/vendors can't touch others' media).
+        $attachment_ids = $this->editableAttachmentIds((array) ($_POST['attachment_ids'] ?? []));
 
         if (!$watermark_id || empty($attachment_ids)) {
             wp_send_json_error(['message' => __('Invalid parameters.', 'ultimate-watermark')]);
@@ -1779,10 +1870,11 @@ class MediaLibraryIntegration
         // Process attachments
         $results = [];
         foreach ($attachment_ids as $attachment_id) {
-            $success = $this->applyWatermarkToAttachment($attachment_id, $watermark_id);
+            $detail = $this->applyWatermarkToAttachment($attachment_id, $watermark_id);
             $results[] = [
                 'id' => $attachment_id,
-                'success' => $success
+                'success' => !empty($detail['success']),
+                'message' => $detail['message'] ?? '',
             ];
         }
 
@@ -1809,7 +1901,8 @@ class MediaLibraryIntegration
             return;
         }
 
-        $attachment_ids = array_map('absint', $_POST['attachment_ids'] ?? []);
+        // Only images the current user may edit (authors/vendors can't touch others' media).
+        $attachment_ids = $this->editableAttachmentIds((array) ($_POST['attachment_ids'] ?? []));
 
         if (empty($attachment_ids)) {
             wp_send_json_error(['message' => __('No attachments selected.', 'ultimate-watermark')]);
@@ -1838,6 +1931,10 @@ class MediaLibraryIntegration
      */
     public function addUploadToggleScript(): void
     {
+        if (!$this->screenUsesMediaUploader()) {
+            return;
+        }
+
         // Remove screen restriction - we need this on all admin pages for media popup support
         // Media popups can open from any admin page (page editor, post editor, etc.)
         ?>
@@ -1868,7 +1965,7 @@ class MediaLibraryIntegration
                         data: {
                             action: 'ultimate_watermark_update_toggle_state',
                             enabled: isEnabled ? '1' : '0',
-                            nonce: '<?php echo wp_create_nonce('ultimate_watermark_toggle'); ?>'
+                            nonce: '<?php echo esc_js(wp_create_nonce('ultimate_watermark_toggle')); ?>'
                         }
                     });
                 };
@@ -1990,7 +2087,7 @@ class MediaLibraryIntegration
                             setTimeout(function() { window.saveWatermarkSelections($thisInfo); }, 10);
                         });
                     });
-                    window.ultimateWatermarkUpdateToggleState(true);
+                    window.ultimateWatermarkUpdateToggleState();
                 };
                 
                 // Plupload integration - inject toggle state + watermark IDs into upload params
@@ -2322,6 +2419,10 @@ class MediaLibraryIntegration
      */
     public function addUploadToggleToFooter(): void
     {
+        if (!$this->screenUsesMediaUploader()) {
+            return;
+        }
+
         // Don't show on media edit page
         global $pagenow;
         if ($pagenow === 'post.php' && isset($_GET['action']) && $_GET['action'] === 'edit') {
@@ -2338,6 +2439,102 @@ class MediaLibraryIntegration
             <?php $this->addUploadToggle(true); ?>
         </div>
         <?php
+    }
+
+    /**
+     * Attach the upload toggle state (and selected watermark IDs) to every
+     * upload made through wp.Uploader: Media Library grid, media modals and
+     * plupload-based screens. The toggle UI stores its state in localStorage.
+     */
+    public function printUploaderParamsBridge(): void
+    {
+        if (!$this->screenUsesMediaUploader()) {
+            return;
+        }
+        ?>
+        <script>
+        (function () {
+            if (!window.wp || !window.wp.Uploader || window.wp.Uploader.prototype.__uwParamsBridge) {
+                return;
+            }
+
+            function currentParams() {
+                try {
+                    if (window.localStorage.getItem('ultimate_watermark_toggle_state') !== '1') {
+                        return null;
+                    }
+                    var ids = JSON.parse(window.localStorage.getItem('ultimate_watermark_selected_ids') || '[]');
+                    return { ids: Array.isArray(ids) ? ids.filter(Boolean).map(String).join(',') : '' };
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            function applyParams(up) {
+                if (!up || !up.settings) {
+                    return;
+                }
+                var mp = up.settings.multipart_params = up.settings.multipart_params || {};
+                delete mp.ultimate_watermark_auto_apply;
+                delete mp.ultimate_watermark_ids;
+                var p = currentParams();
+                if (p) {
+                    mp.ultimate_watermark_auto_apply = '1';
+                    if (p.ids) {
+                        mp.ultimate_watermark_ids = p.ids;
+                    }
+                }
+            }
+
+            window.ultimateWatermarkApplyUploadParams = applyParams;
+
+            var originalInit = window.wp.Uploader.prototype.init;
+            window.wp.Uploader.prototype.init = function () {
+                if (typeof originalInit === 'function') {
+                    originalInit.apply(this, arguments);
+                }
+                if (this.uploader && typeof this.uploader.bind === 'function') {
+                    this.uploader.bind('BeforeUpload', function (up) {
+                        applyParams(up);
+                    });
+                }
+            };
+            window.wp.Uploader.prototype.__uwParamsBridge = true;
+        })();
+        </script>
+        <?php
+    }
+
+    /**
+     * Sanitize a list of attachment IDs down to those the user can edit.
+     *
+     * @param array $ids Raw IDs.
+     * @return int[]
+     */
+    private function editableAttachmentIds(array $ids): array
+    {
+        return array_values(array_filter(array_map('absint', $ids), static function ($id) {
+            return $id > 0 && get_post_type($id) === 'attachment' && current_user_can('edit_post', $id);
+        }));
+    }
+
+    /**
+     * Whether the current admin screen can upload media (media library or a
+     * screen that loaded the media modal). Keeps the toggle markup, scripts
+     * and observers off every other admin page.
+     */
+    private function screenUsesMediaUploader(): bool
+    {
+        if (!current_user_can('upload_files')) {
+            return false;
+        }
+
+        global $pagenow;
+        if (in_array($pagenow, ['upload.php', 'media-new.php', 'media-upload.php'], true)) {
+            return true;
+        }
+
+        return (bool) did_action('wp_enqueue_media');
     }
 
     /**
@@ -2543,11 +2740,16 @@ class MediaLibraryIntegration
     }
     
     /**
-     * Create backup for watermarking
+     * Back up the clean original before watermarking.
+     *
+     * @return bool False when backups are on but the original could not be saved.
      */
-    private function createBackupForWatermarking(int $attachment_id): void
+    private function createBackupForWatermarking(int $attachment_id): bool
     {
-        
+        if (!BackupManager::isBackupEnabled()) {
+            return true;
+        }
+
         // Get all registered image sizes
         $image_sizes = get_intermediate_image_sizes();
         $image_sizes[] = 'full';
@@ -2560,18 +2762,20 @@ class MediaLibraryIntegration
                 $backup_paths[$size] = $original_path;
             }
         }
-        
-        // Create backup for all sizes at once
-        if (!empty($backup_paths)) {
-            $full_size_path = $backup_paths['full'] ?? reset($backup_paths);
-            
-            $result = BackupManager::createBackup($full_size_path, $attachment_id, 0, $backup_paths);
-            if ($result) {
-                // Backup created successfully
-            }
-        } else {
-            // No image paths found for backup
+
+        // Big uploads: the true original is the unscaled file, not "-scaled".
+        $true_original = function_exists('wp_get_original_image_path') ? wp_get_original_image_path($attachment_id) : '';
+        if ($true_original && file_exists($true_original)) {
+            $backup_paths['full'] = $true_original;
         }
+        
+        if (empty($backup_paths)) {
+            return false;
+        }
+
+        $full_size_path = $backup_paths['full'] ?? reset($backup_paths);
+
+        return !empty(BackupManager::createBackup($full_size_path, $attachment_id, 0, $backup_paths));
     }
     
     /**

@@ -1,3 +1,16 @@
+/* i18n: falls back to the original text when wp.i18n is unavailable. */
+window.wp = window.wp || {};
+window.wp.i18n = window.wp.i18n || {
+    __: function (text) { return text; },
+    _n: function (single, plural, number) { return number === 1 ? single : plural; },
+    sprintf: function (format) {
+        var args = Array.prototype.slice.call(arguments, 1), i = 0;
+        return String(format).replace(/%(\d+\$)?[sd]/g, function (match, position) {
+            return String(position ? args[parseInt(position, 10) - 1] : args[i++]);
+        });
+    }
+};
+
 /**
  * Ultimate Watermark Page JavaScript
  * 
@@ -74,7 +87,7 @@
         initMediaUploader: function() {
             if (typeof wp !== 'undefined' && wp.media) {
                 this.mediaUploader = wp.media({
-                    title: 'Select Watermark Image',
+                    title: wp.i18n.__('Select Watermark Image', 'ultimate-watermark'),
                     button: {
                         text: 'Use Image'
                     },

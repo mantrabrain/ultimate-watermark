@@ -21,12 +21,12 @@ class WatermarkDataResolver
      * @param int|array $input Watermark ID (int) or form data (array)
      * @return array|null Normalized watermark data or null if invalid
      */
-    public static function resolve($input): ?array
+    public static function resolve($input, array $context = []): ?array
     {
         if (is_int($input)) {
-            return self::resolveFromId($input);
+            return self::resolveFromId($input, $context);
         } elseif (is_array($input)) {
-            return self::resolveFromFormData($input);
+            return self::resolveFromFormData($input, $context);
         }
         
         return null;
@@ -38,7 +38,7 @@ class WatermarkDataResolver
      * @param int $watermarkId Watermark ID
      * @return array|null Watermark data or null if not found
      */
-    private static function resolveFromId(int $watermarkId): ?array
+    private static function resolveFromId(int $watermarkId, array $context = []): ?array
     {
         // Get watermark data from database
         $watermarkData = WatermarkHelper::getActiveWatermarkById($watermarkId);
@@ -55,8 +55,9 @@ class WatermarkDataResolver
             }
         }
 
-        // Normalize the data structure
-        return self::normalizeData($watermarkData);
+        // Normalize the data structure (runtime context such as attachment_id is
+        // merged first so filters like Pro's placeholder resolver can see it).
+        return self::normalizeData(array_merge($watermarkData, $context));
     }
 
     /**
@@ -65,7 +66,7 @@ class WatermarkDataResolver
      * @param array $formData Form data array
      * @return array Normalized watermark data
      */
-    private static function resolveFromFormData(array $formData): array
+    private static function resolveFromFormData(array $formData, array $context = []): array
     {
         // Sanitize and normalize form data
         $normalizedData = self::sanitizeFormData($formData);
@@ -78,7 +79,7 @@ class WatermarkDataResolver
             }
         }
 
-        return self::normalizeData($normalizedData);
+        return self::normalizeData(array_merge($normalizedData, $context));
     }
 
     /**
@@ -105,17 +106,19 @@ class WatermarkDataResolver
             'watermark_text_decoration' => sanitize_text_field($formData['watermark_text_decoration'] ?? 'none'),
             'watermark_image_id' => absint($formData['watermark_image_id'] ?? 0),
             'watermark_position' => sanitize_text_field($formData['watermark_position'] ?? 'bottom-right'),
-            'watermark_offset_x' => absint($formData['watermark_offset_x'] ?? 10),
-            'watermark_offset_y' => absint($formData['watermark_offset_y'] ?? 10),
+            'watermark_offset_x' => (int) ($formData['watermark_offset_x'] ?? 10),
+            'watermark_offset_y' => (int) ($formData['watermark_offset_y'] ?? 10),
             'watermark_offset_unit' => sanitize_text_field($formData['watermark_offset_unit'] ?? $formData['offset_unit'] ?? 'pixels'),
             'watermark_opacity' => absint($formData['watermark_opacity'] ?? 50),
-            'watermark_rotation' => absint($formData['watermark_rotation'] ?? 0),
+            'watermark_rotation' => max(-360, min(360, (int) ($formData['watermark_rotation'] ?? 0))),
             'watermark_size_type' => sanitize_text_field($formData['watermark_size_type'] ?? 'original'),
             'watermark_custom_width' => absint($formData['watermark_custom_width'] ?? 100),
             'watermark_custom_height' => absint($formData['watermark_custom_height'] ?? 100),
             'watermark_scale_percentage' => absint($formData['watermark_scale_percentage'] ?? 50),
             'watermark_quality' => absint($formData['watermark_quality'] ?? 90),
             'image_format' => sanitize_text_field($formData['image_format'] ?? 'baseline'),
+            'watermark_tile' => (!empty($formData['watermark_tile']) && (string) $formData['watermark_tile'] === '1') ? '1' : '0',
+            'watermark_tile_spacing' => max(0, min(300, (int) ($formData['watermark_tile_spacing'] ?? 50))),
         ];
     }
 
@@ -192,7 +195,19 @@ class WatermarkDataResolver
             'watermark_rotation' => (int) ($data['watermark_rotation'] ?? $data['rotation'] ?? 0),
             'watermark_quality' => (int) ($data['watermark_quality'] ?? $data['quality'] ?? 90),
             'image_format' => $data['image_format'] ?? 'baseline',
+
+            // Tiled (repeating) layout covering the whole image
+            'watermark_tile' => (string) ($data['watermark_tile'] ?? '0') === '1' ? '1' : '0',
+            'watermark_tile_spacing' => max(0, min(300, (int) ($data['watermark_tile_spacing'] ?? 50))),
         ];
+
+        // Preserve runtime context (target attachment, source path, full-size
+        // dimensions) so processors and Pro placeholders can use it.
+        foreach (['id', 'attachment_id', '_source_image_path', '_full_size_width', '_full_size_height', '_display_copy'] as $runtimeKey) {
+            if (isset($data[$runtimeKey])) {
+                $normalized[$runtimeKey] = $data[$runtimeKey];
+            }
+        }
         
         // Allow Pro plugin to modify normalized data
         $normalized = apply_filters('ultimate_watermark_after_normalize_data', $normalized);

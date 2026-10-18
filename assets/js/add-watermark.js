@@ -6,6 +6,18 @@
  * @package UltimateWatermark
  * @since 2.0.0
  */
+/* i18n: falls back to the original text when wp.i18n is unavailable. */
+window.wp = window.wp || {};
+window.wp.i18n = window.wp.i18n || {
+    __: function (text) { return text; },
+    _n: function (single, plural, number) { return number === 1 ? single : plural; },
+    sprintf: function (format) {
+        var args = Array.prototype.slice.call(arguments, 1), i = 0;
+        return String(format).replace(/%(\d+\$)?[sd]/g, function (match, position) {
+            return String(position ? args[parseInt(position, 10) - 1] : args[i++]);
+        });
+    }
+};
 
 (function($) {
     'use strict';
@@ -53,6 +65,20 @@
             $(document).on('change', 'input[name="watermark_type"]', this.toggleWatermarkType.bind(this));
             $(document).on('change', '#watermark_size_type', this.toggleSizeFields.bind(this));
             $(document).on('change', '#watermark_on', this.togglePostTypesSelection.bind(this));
+            // Re-evaluate data-condition rows/sections whenever a field they reference changes
+            // (core fields, tiling, Pro's on-the-fly display options, …).
+            $(document).on('change', '#ultimate-watermark-form input, #ultimate-watermark-form select', function(e) {
+                const name = $(e.target).attr('name');
+                if (!name) {
+                    return;
+                }
+                const referenced = $('[data-condition]').filter(function() {
+                    return String($(this).data('condition') || '').indexOf(name) !== -1;
+                }).length > 0;
+                if (referenced) {
+                    this.showConditionalFields();
+                }
+            }.bind(this));
             $(document).on('input', '#watermark_opacity', function(e) {
                 if ($(e.target).length > 0) {
                     this.updateOpacityValue.call(this, e);
@@ -89,9 +115,32 @@
             
             // Form submission
             $(document).on('submit', '#ultimate-watermark-form', this.handleFormSubmit.bind(this));
+
+            // A field on a hidden tab can fail the browser's validation; the
+            // browser cannot show its message there and Save seems to do
+            // nothing. Open that tab and show the message on the field.
+            const form = document.getElementById('ultimate-watermark-form');
+            if (form) {
+                let handlingInvalid = false;
+                form.addEventListener('invalid', (event) => {
+                    if (handlingInvalid) {
+                        return;
+                    }
+                    const $pane = $(event.target).closest('.form-tab-content');
+                    if (!$pane.length || $pane.hasClass('active')) {
+                        return;
+                    }
+                    handlingInvalid = true;
+                    const tab = String($pane.attr('id') || '').replace(/^tab-/, '');
+                    $('.form-tab[data-tab="' + tab + '"]').first().trigger('click');
+                    window.setTimeout(() => {
+                        event.target.reportValidity();
+                        handlingInvalid = false;
+                    }, 50);
+                }, true);
+            }
             
             // Save draft
-            $(document).on('click', '#save-draft', this.saveDraft.bind(this));
         
             
             // Keyboard shortcuts
@@ -189,26 +238,31 @@
          * Switch form tab
          */
         switchTab: function(e) {
-            const $this = $(e.target);
+            // Tabs are links (so they work without JS), but every tab lives in the
+            // same form: switch client-side so unsaved changes are never lost.
+            const $this = $(e.currentTarget || e.target).closest('.form-tab');
             const tab = $this.attr('data-tab');
-            
-            if (!tab) {
+
+            if (!tab || !$('#tab-' + tab).length) {
                 return;
             }
-            
-            // If it's a link, let it navigate naturally
-            if ($this.is('a')) {
-                return; // Let the browser handle the navigation
-            }
-            
-            // For button tabs (fallback), prevent default and switch
+
             e.preventDefault();
-            
-            $('.form-tab').removeClass('active');
+
+            $('.form-tab').removeClass('active').attr('aria-selected', 'false');
             $('.form-tab-content').removeClass('active');
-            
-            $this.addClass('active');
+
+            $this.addClass('active').attr('aria-selected', 'true');
             $('#tab-' + tab).addClass('active');
+
+            // Keep the URL in sync so a reload reopens the same tab.
+            if (window.history && window.history.replaceState) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('tab', tab);
+                window.history.replaceState(null, '', url.toString());
+            }
+
+            this.showConditionalFields();
         },
 
         /**
@@ -275,6 +329,26 @@
                 watermark_on: $('#watermark_on').val(),
                 enable_conditional_rules: $('input[name="enable_conditional_rules"]:checked').val() || '0'
             };
+
+            // Any other field referenced by a condition (e.g. watermark_tile).
+            $('[data-condition]').each(function() {
+                const fieldName = String($(this).data('condition') || '').split(' === ')[0].trim();
+                if (!fieldName || Object.prototype.hasOwnProperty.call(formValues, fieldName)) {
+                    return;
+                }
+                const $input = $('#ultimate-watermark-form [name="' + fieldName + '"]');
+                if (!$input.length) {
+                    return;
+                }
+                const type = $input.first().attr('type');
+                if (type === 'checkbox') {
+                    formValues[fieldName] = $input.filter(':checked').length ? '1' : '0';
+                } else if (type === 'radio') {
+                    formValues[fieldName] = $input.filter(':checked').val();
+                } else {
+                    formValues[fieldName] = $input.val();
+                }
+            });
             
             // Debug: Log form values
             
@@ -367,7 +441,7 @@
             
             // Check if wp.media is available
             if (typeof wp === 'undefined' || !wp.media) {
-                UWNotifications.error('Error', 'WordPress media library is not available.');
+                UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('WordPress media library is not available.', 'ultimate-watermark'));
                 return;
             }
             
@@ -378,9 +452,9 @@
 
                 // Create media frame
                 const mediaFrame = wp.media({
-                    title: 'Select Watermark Image',
+                    title: wp.i18n.__('Select Watermark Image', 'ultimate-watermark'),
                     button: {
-                        text: 'Use this image'
+                        text: wp.i18n.__('Use this image', 'ultimate-watermark')
                     },
                     multiple: false,
                     library: {
@@ -637,34 +711,6 @@
         /**
          * Update preview stats
          */
-        updatePreviewStats: function() {
-            const position = $('#watermark_position option:selected').text();
-            const opacity = $('#watermark_opacity').val();
-            const rotation = $('#watermark_rotation').val();
-            const watermarkType = $('input[name="watermark_type"]:checked').val();
-            
-            let size = '';
-            if (watermarkType === 'text') {
-                size = $('#watermark_font_size').val() + 'px';
-            } else {
-                const sizeType = $('#watermark_size_type').val();
-                if (sizeType === 'custom') {
-                    const width = $('#watermark_custom_width').val() || 100;
-                    const height = $('#watermark_custom_height').val() || 100;
-                    size = width + '×' + height + 'px';
-                } else if (sizeType === 'scaled') {
-                    const scale = $('#watermark_scale_percentage').val() || 80;
-                    size = scale + '%';
-                } else {
-                    size = 'Original';
-                }
-            }
-            
-            $('#preview-position').text(position);
-            $('#preview-opacity').text(opacity + '%');
-            $('#preview-size').text(size);
-            $('#preview-rotation').text(rotation + '°');
-        },
 
 
         /**
@@ -704,7 +750,7 @@
                     
                     if (response.success) {
                         // Show success message
-                        UWNotifications.success('Success', response.data.message || 'Watermark saved successfully!');
+                        UWNotifications.success(wp.i18n.__('Success', 'ultimate-watermark'), response.data.message || wp.i18n.__('Watermark saved successfully!', 'ultimate-watermark'));
                         
                         // Only redirect if redirect_url is provided (new watermarks only)
                         if (response.data.redirect_url) {
@@ -714,7 +760,7 @@
                         }
                     } else {
                         // Show error message
-                        UWNotifications.error('Error', response.data.message || 'Failed to save watermark.');
+                        UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), response.data.message || wp.i18n.__('Failed to save watermark.', 'ultimate-watermark'));
                     }
                 },
                 error: (xhr, status, error) => {
@@ -732,8 +778,8 @@
                     }
                     
                     // Show generic error message
-                    const errorMessage = xhr.responseJSON?.data?.message || 'An error occurred while saving the watermark.';
-                    UWNotifications.error('Error', errorMessage);
+                    const errorMessage = xhr.responseJSON?.data?.message || wp.i18n.__('An error occurred while saving the watermark.', 'ultimate-watermark');
+                    UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), errorMessage);
                     
                 }
             });
@@ -747,7 +793,7 @@
                 <div id="watermark-limit-modal" class="ultimate-watermark-modal-overlay" style="display: flex;">
                     <div class="ultimate-watermark-modal upgrade-modal">
                         <div class="modal-header">
-                            <h2><span class="dashicons dashicons-lock"></span> ${data.message || 'Watermark Limit Reached'}</h2>
+                            <h2><span class="dashicons dashicons-lock"></span> ${data.message || wp.i18n.__('Watermark Limit Reached', 'ultimate-watermark')}</h2>
                             <button class="modal-close" onclick="jQuery('#watermark-limit-modal').remove()">
                                 <span class="dashicons dashicons-no-alt"></span>
                             </button>
@@ -755,7 +801,7 @@
                         <div class="modal-body">
                             <div class="upgrade-notice-content">
                                 <div class="limit-info">
-                                    <p class="limit-message">${data.upgrade_message || 'You have reached the watermark limit for the free version.'}</p>
+                                    <p class="limit-message">${data.upgrade_message || wp.i18n.__('You have reached the watermark limit for the free version.', 'ultimate-watermark')}</p>
                                     <div class="limit-stats">
                                         <span class="stat-item">
                                             <strong>Current:</strong> ${data.current_count || 1} watermark${data.current_count > 1 ? 's' : ''}
@@ -867,7 +913,7 @@
             const watermarkType = formData.get('watermark_type');
             
             if (!name || name.trim() === '') {
-                UWNotifications.error('Validation Error', 'Please enter a watermark name.');
+                UWNotifications.error(wp.i18n.__('Validation Error', 'ultimate-watermark'), wp.i18n.__('Please enter a watermark name.', 'ultimate-watermark'));
                 $('#name').focus();
                 return false;
             }
@@ -875,14 +921,14 @@
             if (watermarkType === 'text') {
                 const text = formData.get('watermark_text');
                 if (!text || text.trim() === '') {
-                    UWNotifications.error('Validation Error', 'Please enter watermark text.');
+                    UWNotifications.error(wp.i18n.__('Validation Error', 'ultimate-watermark'), wp.i18n.__('Please enter watermark text.', 'ultimate-watermark'));
                     $('#watermark_text').focus();
                     return false;
                 }
             } else {
                 const imageId = formData.get('watermark_image_id');
                 if (!imageId) {
-                    UWNotifications.error('Validation Error', 'Please select a watermark image.');
+                    UWNotifications.error(wp.i18n.__('Validation Error', 'ultimate-watermark'), wp.i18n.__('Please select a watermark image.', 'ultimate-watermark'));
                     $('#watermark-upload-area').click();
                     return false;
                 }
@@ -914,7 +960,7 @@
             if (typeof $btn.data('uw-original-html') === 'undefined') {
                 $btn.data('uw-original-html', $btn.html());
             }
-            var label = this.isEditMode() ? 'Updating…' : 'Creating…';
+            var label = this.isEditMode() ? wp.i18n.__('Updating…', 'ultimate-watermark') : wp.i18n.__('Creating…', 'ultimate-watermark');
             $btn.prop('disabled', true).html('<span class="dashicons dashicons-update"></span> ' + label);
         },
 
@@ -933,7 +979,7 @@
                 return;
             }
             // Fallback: rebuild the right label from edit-mode detection.
-            var label = this.isEditMode() ? 'Update Watermark' : 'Create Watermark';
+            var label = this.isEditMode() ? wp.i18n.__('Update Watermark', 'ultimate-watermark') : wp.i18n.__('Create Watermark', 'ultimate-watermark');
             $btn.prop('disabled', false).html('<span class="dashicons dashicons-saved"></span> ' + label);
         },
 
@@ -941,12 +987,6 @@
         /**
          * Save draft
          */
-        saveDraft: function(e) {
-            e.preventDefault();
-            
-            // TODO: Implement save draft functionality
-        },
-
         /**
          * Handle keyboard shortcuts
          */
@@ -954,13 +994,13 @@
             // Ctrl/Cmd + S to save
             if ((e.ctrlKey || e.metaKey) && e.keyCode === 83) {
                 e.preventDefault();
-                $('#save-draft').click();
+                $('#ultimate-watermark-form').trigger('submit');
             }
             
             // Ctrl/Cmd + Enter to submit
             if ((e.ctrlKey || e.metaKey) && e.keyCode === 13) {
                 e.preventDefault();
-                $('#ultimate-watermark-form').submit();
+                $('#ultimate-watermark-form').trigger('submit');
             }
         },
 
@@ -1003,12 +1043,12 @@
             
             // Check if AJAX variables are available
             if (typeof ultimate_watermark_ajax === 'undefined') {
-                this.showPreviewError('AJAX configuration not available');
+                this.showPreviewError(wp.i18n.__('AJAX configuration not available', 'ultimate-watermark'));
                 return;
             }
             
             if (!ultimate_watermark_ajax.ajax_url || !ultimate_watermark_ajax.nonce) {
-                this.showPreviewError('AJAX configuration incomplete');
+                this.showPreviewError(wp.i18n.__('AJAX configuration incomplete', 'ultimate-watermark'));
                 return;
             }
             
@@ -1130,11 +1170,22 @@
             };
             
             
-            $.ajax({
+            // Only the latest request may update the preview: an older, slower
+            // response would show stale settings (or a file the server already
+            // cleaned up).
+            if (this.previewRequest && this.previewRequest.readyState !== 4) {
+                this.previewRequest.abort();
+            }
+            const requestId = (this.previewRequestId = (this.previewRequestId || 0) + 1);
+
+            this.previewRequest = $.ajax({
                 url: ultimate_watermark_ajax.ajax_url,
                 type: 'POST',
                 data: ajaxData,
                 success: (response) => {
+                    if (requestId !== this.previewRequestId) {
+                        return;
+                    }
                     if (response && response.success) {
                         this.updatePreviewImage(response.data.preview_url);
                         this.updatePreviewStats(formData);
@@ -1143,7 +1194,10 @@
                         this.showPreviewError(this.extractErrorMessage(response));
                     }
                 },
-                error: (xhr) => {
+                error: (xhr, status) => {
+                    if (status === 'abort' || requestId !== this.previewRequestId) {
+                        return;
+                    }
                     this.showPreviewError(this.extractErrorMessage(xhr));
                 }
             });
@@ -1157,7 +1211,7 @@
         extractErrorMessage: function(payload) {
             const fallback = (typeof ultimate_watermark_ajax !== 'undefined'
                 && ultimate_watermark_ajax.strings
-                && ultimate_watermark_ajax.strings.preview_error) || 'Preview could not be generated. Please try again.';
+                && ultimate_watermark_ajax.strings.preview_error) || wp.i18n.__('Preview could not be generated. Please try again.', 'ultimate-watermark');
 
             if (!payload) {
                 return fallback;
@@ -1318,15 +1372,15 @@
          */
         formatPosition: function(position) {
             const positions = {
-                'top-left': 'Top Left',
-                'top-center': 'Top Center',
-                'top-right': 'Top Right',
-                'center-left': 'Center Left',
+                'top-left': wp.i18n.__('Top Left', 'ultimate-watermark'),
+                'top-center': wp.i18n.__('Top Center', 'ultimate-watermark'),
+                'top-right': wp.i18n.__('Top Right', 'ultimate-watermark'),
+                'center-left': wp.i18n.__('Center Left', 'ultimate-watermark'),
                 'center': 'Center',
-                'center-right': 'Center Right',
-                'bottom-left': 'Bottom Left',
-                'bottom-center': 'Bottom Center',
-                'bottom-right': 'Bottom Right'
+                'center-right': wp.i18n.__('Center Right', 'ultimate-watermark'),
+                'bottom-left': wp.i18n.__('Bottom Left', 'ultimate-watermark'),
+                'bottom-center': wp.i18n.__('Bottom Center', 'ultimate-watermark'),
+                'bottom-right': wp.i18n.__('Bottom Right', 'ultimate-watermark')
             };
             return positions[position] || position || '—';
         },
@@ -1335,7 +1389,13 @@
          * Format size for display
          */
         formatSize: function(formData) {
-            
+            if ((formData.watermark_type || 'text') !== 'image') {
+                return (formData.watermark_font_size || 24) + 'px';
+            }
+            if (formData.watermark_tile === '1' && formData.watermark_size_type === 'scaled') {
+                return (formData.watermark_scale_percentage || 80) + '% · ' + wp.i18n.__('tiled', 'ultimate-watermark');
+            }
+
             if (formData.watermark_size_type === 'scaled') {
                 const percentage = formData.watermark_scale_percentage || 80;
                 return percentage + '%';
@@ -1344,7 +1404,7 @@
                 const height = formData.watermark_custom_height || 100;
                 return width + 'x' + height;
             } else {
-                return 'Original';
+                return wp.i18n.__('Original', 'ultimate-watermark');
             }
         },
 
@@ -1373,7 +1433,7 @@
                 : this.extractErrorMessage(message);
 
             if (typeof UWNotifications !== 'undefined' && UWNotifications.error) {
-                UWNotifications.error('Preview Error', finalMessage);
+                UWNotifications.error(wp.i18n.__('Preview Error', 'ultimate-watermark'), finalMessage);
             } else if (typeof console !== 'undefined' && console.error) {
                 console.error('[Ultimate Watermark] Preview Error:', finalMessage);
             }
@@ -1494,6 +1554,14 @@
                 
                 AddWatermarkPage.handlePositionClick($(this));
             });
+
+            // Keyboard: Enter/Space selects a position (the grid is a radio group).
+            $(document).off('keydown.uwpos').on('keydown.uwpos', '.position-option', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    AddWatermarkPage.handlePositionClick($(this));
+                }
+            });
         },
 
         /**
@@ -1532,6 +1600,8 @@
             
             // Add selected class to clicked option
             $option.addClass('selected');
+            $container.find('.position-option').attr('aria-checked', 'false');
+            $option.attr('aria-checked', 'true');
             
             // Update hidden input value
             if ($finalInput.length > 0) {

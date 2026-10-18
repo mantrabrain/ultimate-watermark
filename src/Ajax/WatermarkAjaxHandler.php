@@ -96,10 +96,16 @@ class WatermarkAjaxHandler
             $this->verifyNonce($_POST['ultimate_watermark_nonce'] ?? '', 'ultimate_watermark_nonce');
 
             // Validate and sanitize input data
+            // Data stays slashed: wp_insert_post()/update_post_meta() unslash it themselves.
             $sanitized_data = $this->validateAndSanitizeInput($_POST);
 
             // Process the watermark save operation
             $is_update = !empty($sanitized_data['watermark_id']) && $sanitized_data['watermark_id'] > 0;
+
+            // Updates may only target an existing watermark (never another post type).
+            if ($is_update && get_post_type((int) $sanitized_data['watermark_id']) !== WatermarkPostType::POST_TYPE) {
+                throw new \InvalidArgumentException(__('Watermark not found.', 'ultimate-watermark'));
+            }
 
             // Check watermark limit for free version (only when creating new watermark)
             if (!$is_update) {
@@ -116,12 +122,13 @@ class WatermarkAjaxHandler
         } catch (\InvalidArgumentException $e) {
             // Check if this is a security-related exception
             if (strpos($e->getMessage(), 'Security exception:') === 0) {
-                $this->sendSecurityError($e->getMessage());
+                // "Security exception: invalid nonce" => "invalid_nonce"
+                $this->sendSecurityError(str_replace(' ', '_', trim(substr($e->getMessage(), strlen('Security exception:')))));
             } else {
                 $this->sendValidationError($e->getMessage());
             }
-        } catch (\Exception $e) {
-            $this->handleUnexpectedError($e);
+        } catch (\Throwable $e) {
+            $this->handleUnexpectedError($e instanceof \Exception ? $e : new \Exception($e->getMessage(), 0, $e));
         }
     }
 
@@ -389,6 +396,15 @@ class WatermarkAjaxHandler
             'watermark_quality'
         );
 
+        // Tiled (repeating) layout
+        $validated['watermark_tile'] = isset($data['watermark_tile']) && (string) $data['watermark_tile'] === '1' ? '1' : '0';
+        $validated['watermark_tile_spacing'] = $this->validateNumericRange(
+            $data['watermark_tile_spacing'] ?? 50,
+            0,
+            300,
+            'watermark_tile_spacing'
+        );
+
         // Image format (form field: image_format)
         $allowed_formats = ['baseline', 'progressive'];
         $validated['image_format'] = in_array($data['image_format'] ?? '', $allowed_formats)
@@ -444,7 +460,8 @@ class WatermarkAjaxHandler
     {
         $text = sanitize_text_field($text);
         if (strlen($text) > $max_length) {
-            $text = substr($text, 0, $max_length);
+            // Multibyte-safe: never cut a character (invalid UTF-8 breaks the insert).
+            $text = function_exists('mb_substr') ? mb_substr($text, 0, $max_length, 'UTF-8') : substr($text, 0, $max_length);
         }
         return $text;
     }
@@ -456,7 +473,8 @@ class WatermarkAjaxHandler
     {
         $text = sanitize_textarea_field($text);
         if (strlen($text) > $max_length) {
-            $text = substr($text, 0, $max_length);
+            // Multibyte-safe: never cut a character (invalid UTF-8 breaks the insert).
+            $text = function_exists('mb_substr') ? mb_substr($text, 0, $max_length, 'UTF-8') : substr($text, 0, $max_length);
         }
         return $text;
     }
@@ -581,8 +599,9 @@ class WatermarkAjaxHandler
      */
     private function handlePostSaveOperations(int $watermark_id, array $data): void
     {
-        // Clear cached preview
+        // Clear cached preview and watermark data
         delete_post_meta($watermark_id, 'preview_url');
+        \MantraBrain\UltimateWatermark\Utils\WatermarkHelper::clearCache($watermark_id);
         
         // Clean up old preview images
         if (class_exists('\MantraBrain\UltimateWatermark\Utils\PreviewManager')) {

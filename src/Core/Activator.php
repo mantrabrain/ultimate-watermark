@@ -130,18 +130,13 @@ class Activator
      */
     private static function createDirectories(): void
     {
-        $upload_dir = wp_upload_dir();
-        $backup_dir = $upload_dir['basedir'] . '/ultimate-watermark-backup/';
-        
+        $backup_dir = trailingslashit(wp_upload_dir()['basedir']) . 'ulwm-backup';
+
         if (!file_exists($backup_dir)) {
             wp_mkdir_p($backup_dir);
-            
-            // Create .htaccess file
-            $htaccess_content = "deny from all\n";
-            file_put_contents($backup_dir . '.htaccess', $htaccess_content);
-            
-            // Create index.html file
-            file_put_contents($backup_dir . 'index.html', '');
         }
+
+        // Originals must never be publicly downloadable.
+        \MantraBrain\UltimateWatermark\Utils\BackupManager::protectBackupDirectory($backup_dir);
     }
 }

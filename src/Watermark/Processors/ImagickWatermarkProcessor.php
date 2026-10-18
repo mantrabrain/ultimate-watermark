@@ -22,6 +22,13 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
     private static ?string $fallbackFontPath = null;
 
     /**
+     * Unrotated size of the last watermark layer (used to space tiles).
+     *
+     * @var array{0: int, 1: int}|null
+     */
+    private ?array $lastBaseSize = null;
+
+    /**
      * Apply watermark to image and write to $outputImagePath.
      */
     public function applyWatermark(string $sourceImagePath, string $outputImagePath, array $watermarkData): bool
@@ -157,8 +164,10 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         $fullWidth  = $watermarkData['_full_size_width']  ?? null;
         $fullHeight = $watermarkData['_full_size_height'] ?? null;
 
-        if (($fullWidth === null || $fullHeight === null) && !empty($watermarkData['_source_image_path'])) {
-            $attachmentId = $this->getAttachmentIdFromPath($watermarkData['_source_image_path']);
+        if (($fullWidth === null || $fullHeight === null) && (!empty($watermarkData['attachment_id']) || !empty($watermarkData['_source_image_path']))) {
+            $attachmentId = !empty($watermarkData['attachment_id'])
+                ? (int) $watermarkData['attachment_id']
+                : $this->getAttachmentIdFromPath($watermarkData['_source_image_path']);
             if ($attachmentId) {
                 $metadata = wp_get_attachment_metadata($attachmentId);
                 if (!empty($metadata['width']) && !empty($metadata['height'])) {
@@ -181,11 +190,14 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         if (isset($scaled['watermark_font_size'])) {
             $scaled['watermark_font_size'] = max(self::MIN_FONT_SIZE, (int) round($scaled['watermark_font_size'] * $scaleRatio));
         }
-        if (isset($scaled['watermark_offset_x'])) {
-            $scaled['watermark_offset_x'] = (int) round($scaled['watermark_offset_x'] * $scaleRatio);
-        }
-        if (isset($scaled['watermark_offset_y'])) {
-            $scaled['watermark_offset_y'] = (int) round($scaled['watermark_offset_y'] * $scaleRatio);
+        // Percentage offsets are relative to the current image, so only pixel offsets scale.
+        if (!$this->usesPercentageOffsets($scaled)) {
+            if (isset($scaled['watermark_offset_x'])) {
+                $scaled['watermark_offset_x'] = (int) round($scaled['watermark_offset_x'] * $scaleRatio);
+            }
+            if (isset($scaled['watermark_offset_y'])) {
+                $scaled['watermark_offset_y'] = (int) round($scaled['watermark_offset_y'] * $scaleRatio);
+            }
         }
         if (isset($scaled['watermark_custom_width'])) {
             $scaled['watermark_custom_width']  = max(10, (int) round($scaled['watermark_custom_width'] * $scaleRatio));
@@ -223,9 +235,14 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
 
         global $wpdb;
 
+        $prefix = $directory === '.' ? '' : $directory . '/';
+
+        // Exact file, the full size of a sub-size, and the "-scaled" attached
+        // file that big uploads use (sub-sizes are named after the original).
         $candidates = [$relativePath];
         if ($baseClean !== '') {
-            $candidates[] = ($directory === '.' ? '' : $directory . '/') . $baseClean . $extension;
+            $candidates[] = $prefix . $baseClean . $extension;
+            $candidates[] = $prefix . $baseClean . '-scaled' . $extension;
         }
         $candidates = array_unique(array_filter($candidates));
 
@@ -250,7 +267,7 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
     {
         $text = (string) ($watermarkData['watermark_text'] ?? '');
         if ($text === '') {
-            return;
+            throw new \InvalidArgumentException('Watermark text cannot be empty');
         }
 
         $fontSize = max(self::MIN_FONT_SIZE, (int) ($watermarkData['watermark_font_size'] ?? 24));
@@ -284,7 +301,19 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
             // Non-fatal — annotateImage will use the draw's font instead.
         }
 
-        if ($rotation === 0) {
+        if ($this->isTiled($watermarkData)) {
+            $tile = $this->buildTextImage($image, $draw, $text, $rotation, $watermarkData);
+            try {
+                $this->compositeTiled($image, $tile, $watermarkData);
+            } finally {
+                $tile->clear();
+                $tile->destroy();
+            }
+            return;
+        }
+
+        $synthetic = $this->syntheticStyle($watermarkData, $imageFontPath);
+        if ($rotation === 0 && !$synthetic['bold'] && !$synthetic['italic']) {
             $metrics    = $image->queryFontMetrics($draw, $text);
             $textWidth  = (int) $metrics['textWidth'];
             $textHeight = (int) $metrics['textHeight'];
@@ -339,10 +368,48 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
 
     private function drawRotatedText(\Imagick $image, \ImagickDraw $draw, string $text, int $rotation, array $watermarkData): void
     {
+        $tempImage = $this->buildTextImage($image, $draw, $text, $rotation, $watermarkData);
+
+        $position = $this->calculatePosition(
+            $watermarkData,
+            $image->getImageWidth(),
+            $image->getImageHeight(),
+            $tempImage->getImageWidth(),
+            $tempImage->getImageHeight()
+        );
+
+        $image->compositeImage($tempImage, \Imagick::COMPOSITE_OVER, $position['x'], $position['y']);
+
+        $tempImage->clear();
+        $tempImage->destroy();
+    }
+
+    /**
+     * Render text onto its own transparent canvas (rotated if requested).
+     */
+    private function buildTextImage(\Imagick $image, \ImagickDraw $draw, string $text, int $rotation, array $watermarkData): \Imagick
+    {
+        // Bold / italic requested but the font file has no such variant (the
+        // bundled fonts are regular only): synthesise the style. Strokes
+        // overlap the fill, so render opaque and apply the opacity afterwards.
+        $synthetic = $this->syntheticStyle($watermarkData, $this->resolvedFontPathFor($watermarkData));
+        $stroke = $synthetic['bold'] ? max(1, (int) round($draw->getFontSize() * 0.035)) : 0;
+        $synthesise = $stroke > 0 || $synthetic['italic'];
+        $opacity = $draw->getFillOpacity();
+        if ($synthesise) {
+            $draw->setFillOpacity(1);
+            if ($stroke > 0) {
+                $draw->setStrokeColor($draw->getFillColor());
+                $draw->setStrokeOpacity(1);
+                $draw->setStrokeWidth($stroke);
+                $draw->setStrokeAntialias(true);
+            }
+        }
+
         $metrics    = $image->queryFontMetrics($draw, $text);
-        $textWidth  = (int) $metrics['textWidth'];
-        $textHeight = (int) $metrics['textHeight'];
-        $ascender   = (int) ($metrics['ascender'] ?? $textHeight);
+        $textWidth  = (int) $metrics['textWidth'] + $stroke * 2;
+        $textHeight = (int) $metrics['textHeight'] + $stroke * 2;
+        $ascender   = (int) ($metrics['ascender'] ?? $textHeight) + $stroke;
 
         $padding = 10;
 
@@ -362,24 +429,46 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
             }
         }
 
-        $tempImage->annotateImage($draw, $padding, $padding + $ascender, 0, $text);
-        $tempImage->rotateImage(new \ImagickPixel('transparent'), $rotation);
+        $tempImage->annotateImage($draw, $padding + $stroke, $padding + $ascender, 0, $text);
 
-        $rotatedWidth  = $tempImage->getImageWidth();
-        $rotatedHeight = $tempImage->getImageHeight();
+        if ($synthetic['italic']) {
+            // Slant right by 12 degrees (shearImage() leaves text upright on
+            // some ImageMagick builds; an affine distortion is reliable).
+            $tempImage->setImageVirtualPixelMethod(\Imagick::VIRTUALPIXELMETHOD_TRANSPARENT);
+            $tempImage->distortImage(\Imagick::DISTORTION_AFFINEPROJECTION, [1, 0, -0.21, 1, 0, 0], true);
+            $tempImage->setImagePage(0, 0, 0, 0);
+        }
+        if ($synthesise) {
+            $draw->setFillOpacity($opacity);
+            if ($opacity < 1) {
+                $tempImage->setImageAlphaChannel(\Imagick::ALPHACHANNEL_ACTIVATE);
+                $tempImage->evaluateImage(\Imagick::EVALUATE_MULTIPLY, $opacity, \Imagick::CHANNEL_ALPHA);
+            }
+        }
 
-        $position = $this->calculatePosition(
-            $watermarkData,
-            $image->getImageWidth(),
-            $image->getImageHeight(),
-            $rotatedWidth,
-            $rotatedHeight
-        );
+        $this->lastBaseSize = [$tempImage->getImageWidth(), $tempImage->getImageHeight()];
+        if ($rotation !== 0) {
+            $tempImage->rotateImage(new \ImagickPixel('transparent'), $rotation);
+        }
 
-        $image->compositeImage($tempImage, \Imagick::COMPOSITE_OVER, $position['x'], $position['y']);
+        return $tempImage;
+    }
 
-        $tempImage->clear();
-        $tempImage->destroy();
+    /**
+     * Which requested styles the font file cannot provide itself.
+     *
+     * @return array{bold: bool, italic: bool}
+     */
+    private function syntheticStyle(array $watermarkData, ?string $fontPath): array
+    {
+        $weight = strtolower((string) ($watermarkData['watermark_font_weight'] ?? 'normal'));
+        $style = strtolower((string) ($watermarkData['watermark_font_style'] ?? 'normal'));
+        $file = strtolower(basename((string) $fontPath));
+
+        return [
+            'bold'   => in_array($weight, ['bold', 'bolder', '600', '700', '800', '900'], true) && !preg_match('/bold|black|heavy/', $file),
+            'italic' => in_array($style, ['italic', 'oblique'], true) && !preg_match('/italic|oblique/', $file),
+        ];
     }
 
     private function applyTextDecoration(\ImagickDraw $draw, array $watermarkData): void
@@ -604,7 +693,13 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
     {
         $watermarkPath = (string) ($watermarkData['watermark_image_path'] ?? '');
         if ($watermarkPath === '' || !file_exists($watermarkPath)) {
-            return;
+            $imageId = (int) ($watermarkData['watermark_image_id'] ?? 0);
+            $watermarkPath = $imageId ? (string) get_attached_file($imageId) : '';
+        }
+
+        // Fail loudly (like GD) so a missing logo is never recorded as "applied".
+        if ($watermarkPath === '' || !file_exists($watermarkPath)) {
+            throw new \RuntimeException('Watermark image file not found');
         }
 
         $watermark = new \Imagick($watermarkPath);
@@ -625,8 +720,14 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
                 $watermark->evaluateImage(\Imagick::EVALUATE_MULTIPLY, $opacity / 100, \Imagick::CHANNEL_ALPHA);
             }
 
+            $this->lastBaseSize = [$watermark->getImageWidth(), $watermark->getImageHeight()];
             if ($rotation !== 0) {
                 $watermark->rotateImage(new \ImagickPixel('transparent'), $rotation);
+            }
+
+            if ($this->isTiled($watermarkData)) {
+                $this->compositeTiled($image, $watermark, $watermarkData);
+                return;
             }
 
             $position = $this->calculatePosition(
@@ -700,6 +801,11 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         $offsetX  = (int) ($watermarkData['watermark_offset_x'] ?? 0);
         $offsetY  = (int) ($watermarkData['watermark_offset_y'] ?? 0);
 
+        if ($this->usesPercentageOffsets($watermarkData)) {
+            $offsetX = (int) round($imageWidth * $offsetX / 100);
+            $offsetY = (int) round($imageHeight * $offsetY / 100);
+        }
+
         switch ($position) {
             case 'top-left':
                 $x = $offsetX;
@@ -747,6 +853,57 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         return ['x' => (int) $x, 'y' => (int) $y];
     }
 
+    /**
+     * Whether the watermark should repeat across the whole image.
+     */
+    private function isTiled(array $watermarkData): bool
+    {
+        return (string) ($watermarkData['watermark_tile'] ?? '0') === '1';
+    }
+
+    /**
+     * Whether offsets are expressed as a percentage of the image size.
+     */
+    private function usesPercentageOffsets(array $watermarkData): bool
+    {
+        return in_array($watermarkData['watermark_offset_unit'] ?? 'pixels', ['percentage', '%'], true);
+    }
+
+    /**
+     * Repeat a watermark in a grid that covers the entire image, centred so
+     * the pattern is symmetric on landscape, portrait and square images.
+     */
+    private function compositeTiled(\Imagick $image, \Imagick $mark, array $watermarkData): void
+    {
+        $imageWidth  = $image->getImageWidth();
+        $imageHeight = $image->getImageHeight();
+        $markWidth   = max(1, $mark->getImageWidth());
+        $markHeight  = max(1, $mark->getImageHeight());
+        [$baseWidth, $baseHeight] = $this->lastBaseSize ?: [$markWidth, $markHeight];
+        $spacing     = max(0, min(300, (int) ($watermarkData['watermark_tile_spacing'] ?? 50)));
+
+        // Space tiles by the unrotated size and centre each (rotated) tile on its grid point.
+        $stepX = max(4, (int) round(max(1, $baseWidth) * (1 + $spacing / 100)));
+        $stepY = max(4, (int) round(max(1, $baseHeight) * (1 + $spacing / 100)));
+        $centerX = $imageWidth / 2;
+        $centerY = $imageHeight / 2;
+        $startX = $centerX - (int) ceil(($centerX + $markWidth / 2) / $stepX) * $stepX;
+        $startY = $centerY - (int) ceil(($centerY + $markHeight / 2) / $stepY) * $stepY;
+
+        $count = 0;
+        $row = 0;
+        for ($cy = $startY; $cy - $markHeight / 2 < $imageHeight; $cy += $stepY, $row++) {
+            // Brick layout: every other row is shifted by half a step.
+            $rowStartX = $startX - (($row % 2) ? $stepX / 2 : 0);
+            for ($cx = $rowStartX; $cx - $markWidth / 2 < $imageWidth; $cx += $stepX) {
+                $image->compositeImage($mark, \Imagick::COMPOSITE_OVER, (int) round($cx - $markWidth / 2), (int) round($cy - $markHeight / 2));
+                if (++$count >= 5000) {
+                    return; // Safety cap for tiny tiles on huge images.
+                }
+            }
+        }
+    }
+
     private function hexToRgb(string $hex): string
     {
         $hex = ltrim($hex, '#');
@@ -768,18 +925,25 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
         $extension   = strtolower(pathinfo($outputPath, PATHINFO_EXTENSION));
         $quality     = max(1, min(100, (int) ($watermarkData['watermark_quality'] ?? 90)));
         $imageFormat = $watermarkData['image_format'] ?? 'baseline';
+        $writePrefix = '';
 
         switch ($extension) {
             case 'jpg':
             case 'jpeg':
+            case 'jpe':
                 $image->setImageFormat('jpeg');
                 $image->setImageCompressionQuality($quality);
                 $image->setInterlaceScheme($imageFormat === 'progressive' ? \Imagick::INTERLACE_JPEG : \Imagick::INTERLACE_NO);
                 break;
 
             case 'png':
+                // PNG32 keeps the alpha channel: ImageMagick may otherwise
+                // "optimise" uniformly transparent images into opaque PNGs.
+                // Only the "PNG32:" filename prefix is honoured by every build.
                 $image->setImageFormat('png');
-                $image->setImageCompressionQuality($quality);
+                $writePrefix = 'PNG32:';
+                // PNG is lossless; Imagick reads tens digit as zlib level, units as filter.
+                $image->setImageCompressionQuality(75);
                 break;
 
             case 'gif':
@@ -788,6 +952,11 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
 
             case 'webp':
                 $image->setImageFormat('webp');
+                $image->setImageCompressionQuality($quality);
+                break;
+
+            case 'avif':
+                $image->setImageFormat('avif');
                 $image->setImageCompressionQuality($quality);
                 break;
 
@@ -800,7 +969,7 @@ class ImagickWatermarkProcessor implements WatermarkProcessorInterface
             wp_mkdir_p($dir);
         }
 
-        return $image->writeImage($outputPath);
+        return $image->writeImage($writePrefix . $outputPath);
     }
 
     private function preparePreviewPath(array $watermarkData): string

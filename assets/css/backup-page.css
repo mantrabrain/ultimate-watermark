@@ -184,6 +184,61 @@
 
 .uw-backups-table-container {
     /* No padding — table reaches the edges of the section card */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Phones: each backup becomes a card (checkbox + file, then the actions),
+   so Restore / Delete are always reachable without sideways scrolling. */
+@media (max-width: 600px) {
+    .uw-backups-table thead {
+        display: none;
+    }
+
+    .uw-backups-table,
+    .uw-backups-table tbody {
+        display: block;
+    }
+
+    .uw-backups-table tbody tr.uw-backup-row {
+        display: grid;
+        grid-template-columns: 36px minmax(0, 1fr);
+        align-items: center;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--uw-border);
+    }
+
+    .uw-backups-table tbody td {
+        display: block;
+        padding: 4px 0;
+        border-bottom: 0;
+    }
+
+    .uw-backups-table .uw-col-size,
+    .uw-backups-table .uw-col-date {
+        display: none;
+    }
+
+    .uw-backups-table tbody td.uw-col-actions {
+        grid-column: 1 / -1;
+        text-align: left;
+    }
+
+    .uw-backups-table .uw-file-info,
+    .uw-backups-table .uw-file-details {
+        min-width: 0;
+    }
+
+    .uw-backups-table .uw-file-name,
+    .uw-backups-table .uw-file-path {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .uw-backups-table .uw-row-actions {
+        justify-content: flex-start;
+    }
 }
 
 /* =========================================================================

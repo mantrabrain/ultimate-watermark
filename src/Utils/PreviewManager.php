@@ -30,15 +30,18 @@ class PreviewManager
         $cleanedCount = 0;
         
         // Get all preview files
-        $previewFiles = glob($previewDir . '/preview-*.jpg');
-        $watermarkPreviewFiles = glob($previewDir . '/watermark_preview_*.png');
-        
-        $allFiles = array_merge($previewFiles, $watermarkPreviewFiles);
+        $allFiles = array_merge(
+            glob($previewDir . '/preview-*.jpg') ?: [],
+            glob($previewDir . '/watermark-preview-*.jpg') ?: [],
+            glob($previewDir . '/watermark_preview_*.{png,jpg}', GLOB_BRACE) ?: []
+        );
         
         // If specific watermark ID provided, clean only that watermark's previews
+        // ("preview-1" must not match "preview-12").
         if ($watermark_id !== null) {
-            $allFiles = array_filter($allFiles, function($file) use ($watermark_id) {
-                return strpos(basename($file), 'preview-' . $watermark_id) !== false;
+            $pattern = '/(^|[-_])preview[-_]' . preg_quote((string) $watermark_id, '/') . '(\\.|[-_]|$)/';
+            $allFiles = array_filter($allFiles, function($file) use ($pattern) {
+                return (bool) preg_match($pattern, basename($file));
             });
         }
         

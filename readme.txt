@@ -1,132 +1,110 @@
 === Ultimate Watermark - Image Watermark, Image Protection & Bulk Watermarking ===
 Contributors: mantrabrain
 Donate link: https://mantrabrain.com/plugins/ultimate-watermark
-Tags: watermark, image-watermark, image-protection, watermarking, images
+Tags: watermark, image watermark, image protection, woocommerce, photography
 Requires at least: 5.9
 Tested up to: 7.1
-Stable tag: 2.1.5
+Stable tag: 2.2.0
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Requires PHP: 7.4
 
-Bulk watermark WordPress images. Add a copyright text or logo watermark to media, photos and WooCommerce products. Backup originals & restore anytime.
+Watermark images with text or a logo: automatic, bulk or tiled. WooCommerce & Dokan ready, with backups and one-click restore of every original.
 
 == Description ==
 
-**Ultimate Watermark** is a powerful, photographer-grade image watermark plugin for WordPress. Add a copyright text or logo to every image you upload, batch-watermark thousands of existing photos, protect WooCommerce product galleries, and restore the originals anytime — all without leaving wp-admin.
+**Ultimate Watermark** adds a copyright text or logo watermark to your WordPress images: automatically on upload, in bulk for the images you already have, or one image at a time. Every original is backed up first, so you can restore any image in one click.
 
-Built for photographers, content creators, bloggers, and e-commerce stores who need real protection without bloated dependencies, watermarking server services, or destructive edits.
+It is built for photographers, bloggers, WooCommerce stores and multi-vendor marketplaces (Dokan) that need real image protection without external services: everything runs on your own server with the same Imagick / GD libraries WordPress already uses.
 
-== Quick Links ==
-
-* 🔗 [View Plugin Page](https://mantrabrain.com/plugins/ultimate-watermark)
-* 🚀 [Try Ultimate Watermark Free](https://try.new/plugins/ultimate-watermark)
-* 💎 [View Pro](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)
-* 📚 [View Documentation](https://ultimate-watermark.mantrabrain.com/docs/)
+* 🔗 [Plugin page](https://mantrabrain.com/plugins/ultimate-watermark)
+* 🚀 [Try it free](https://try.new/plugins/ultimate-watermark)
+* 📚 [Documentation](https://ultimate-watermark.mantrabrain.com/docs/)
+* 💎 [Ultimate Watermark Pro](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)
 
 [youtube https://youtu.be/6QcDWgtaJRU]
 
-= Why choose Ultimate Watermark =
+= Free features =
 
-Unlike basic watermark plugins, Ultimate Watermark gives you:
+**Text and image watermarks**
 
-* **Automatic backup & restore** — originals are saved before watermarking; one click and every image is back the way you uploaded it.
-* **Native WooCommerce support** — bulk-watermark all product images, including gallery and variation images.
-* **Professional positioning** — 9 anchor points, pixel/percentage offsets, rotation, opacity, scale, custom dimensions.
-* **Photographer-friendly** — EXIF and IPTC metadata are preserved; image quality settings are honoured per format.
-* **Conditional rules engine** — apply different watermarks based on image size, post type, file size, dimensions, orientation, user role, post category, product category and more.
-* **Non-destructive on-the-fly mode (Pro)** — watermark how visitors see the image without ever touching the file on disk.
-* **REST API & developer-ready** — proper hooks, filters and PSR-4 architecture so you can extend or integrate with any custom workflow.
+* Text watermark: your copyright line, brand name or URL, with font family, size (up to 200 px), colour, bold, italic, light weight, and underline, overline or line-through.
+* Image watermark: any logo or signature from your Media Library (transparent PNG recommended; JPG, WebP and GIF also work).
+* Logo size: original, custom width/height, or scaled as a percentage of each photo, so the logo stays proportional on small and large images.
+* 9-point position grid, X/Y offsets in pixels or percent (negative values allowed), rotation and opacity.
+* **Repeat pattern:** tile the watermark across the whole image with adjustable spacing. Covers landscape, portrait and square photos completely, including rotated text, for a classic stock-photo look.
+* Output quality per watermark (JPEG quality, baseline or progressive).
+* Live preview with a real photo while you edit, showing which image library (Imagick or GD) is in use.
 
-= Core features (Free version) =
+**Four ways to apply**
 
-**[Watermark types](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)**
+* **Automatic:** new uploads are watermarked as they arrive. A toggle in the upload screen and media modals lets you switch it off for a single upload, and choose which watermark(s) to use.
+* **Bulk:** select any number of images in the Media Library, in list view (Bulk actions) or grid view (Bulk select), and apply or remove a watermark.
+* **Manual:** apply or remove a watermark from a single image: from the attachment details popup or the edit-media screen.
+* **Frontend uploads:** images uploaded from the front end of your site, such as a Dokan vendor dashboard or a front-end form, are watermarked too.
 
-* Text watermark — your copyright string, brand name, URL, or any custom text
-* Image watermark — upload a PNG/JPG/SVG logo, signature, or stamp
-* Per-template font, weight, style, decoration, color, and opacity
-* Rotation, scale, and pixel-level positioning
+**Rules**
 
-**[Application modes](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)**
+Limit a watermark to the images it belongs on, by **image size** (thumbnail, medium, large, full and every theme / WooCommerce size) and **post type** (posts, pages, products, custom post types). Combine conditions with AND / OR. Without rules a watermark applies everywhere. Pro adds 11 more conditions (see below).
 
-* Automatic — watermark every image as it's uploaded to the media library
-* Bulk — watermark hundreds of existing images from the Media Library at once
-* Manual — watermark a specific image from its attachment screen
-* Frontend uploads — watermark images submitted from frontend forms
+**WooCommerce and Dokan**
 
-**[Conditional rules](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)**
+* Product images, gallery images and variation images are watermarked automatically, including products created from the Dokan vendor dashboard, the block editor, the REST API or imports.
+* Rules are evaluated after the product and its categories are saved, so product-based rules work on the very first publish.
+* **Downloadable files are never touched:** files uploaded as downloadable products (stored in `woocommerce_uploads`) or attached to a product's downloads are never watermarked, resized, copied or previewed, so buyers always receive the exact original.
+* Vendors can only watermark, remove or restore their own images.
 
-Choose exactly which images get a watermark with rules built in plain English. Combine conditions with AND/OR logic:
+**Backup and restore**
 
-* Image size (thumbnail, medium, large, full, plus your theme's custom sizes)
-* Post type (posts, pages, products, custom post types)
-* File type (jpeg, png, gif, webp)
-* File size, image width, image height
-* Orientation (landscape / portrait / square)
-* Aspect ratio
-* User role
-* Post category
-* Product category & product tag (when WooCommerce is active)
+* The original is backed up before the first watermark is applied: full size only, or full size plus every watermarked size.
+* Restore one image or many from **Watermark → Backups**, or remove the watermark from the Media Library. Thumbnails are regenerated automatically.
+* Backups are stored in a protected folder with unguessable names and are only viewable by administrators.
+* Failure-safe: images, backups and restores are written to a temporary file and swapped in only when complete. With backups on, an image is never changed if its original could not be saved first.
 
-**[Backup & restore](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)**
+**Image protection**
 
-Every original image is preserved before the watermark is burned in:
+* Disable right-click and drag-and-drop on images, optionally also for logged-in users.
 
-* Single-click restore from the Backups admin page
-* Bulk restore — wipe watermarks from a whole upload batch
-* Storage controls — choose to keep all sizes or just the original
-* Path-traversal protected and stored under your uploads folder
+**Dashboard and analytics**
 
-**[Image library compatibility](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)**
+* Dashboard with total and protected images, protection rate, active watermarks and recent activity.
+* Analytics with watermark usage over time and protection trends.
 
-* Imagick (preferred — sharper text rendering and better color fidelity)
-* GD fallback when Imagick is not installed
-* Live preview while you edit a watermark template
-* WebP, JPEG (baseline & progressive), PNG, and GIF output
+**Built for real sites**
 
-**[Designed for production](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)**
-
-* PSR-4 namespaced source, Composer-loaded
-* Full i18n support (`ultimate-watermark` text domain)
-* Right-click protection and drag-and-drop disable for the frontend
-* Logged-in user role bypass
-* Sensible defaults — works the moment it's activated
-
-= Use cases =
-
-* **Photographers** — protect portfolio shots before publishing, watermark a whole season at once, keep EXIF data intact for clients.
-* **WordPress bloggers** — brand every featured image automatically with your site URL or logo so reposts always link back.
-* **WooCommerce stores** — watermark every product photo with a logo or "© Yourshop" string; bulk-apply on launch and forget about it.
-* **Stock & marketplace sellers** — sample-watermark previews while keeping clean originals for paid downloads.
-* **News, magazine and content sites** — apply photographer credits to images on upload using dynamic placeholders (Pro).
+* Imagick (preferred) with automatic GD fallback, including per-image fallback when Imagick lacks a format.
+* JPEG, PNG (transparency kept), WebP, AVIF (with Imagick) and GIF. Animated GIFs are skipped so they keep their animation.
+* Large uploads (WordPress' "-scaled" images), cropped copies and sizes that share one file are each watermarked exactly once. Re-applying never stacks a watermark twice.
+* Works with every page builder (Gutenberg, Elementor, Divi, Beaver Builder, Bricks): watermarks are part of the image file itself.
+* Tested on PHP 7.4 to 8.4 with both GD and Imagick, on WordPress 7.1 with WooCommerce and Dokan. Requires WordPress 5.9 or later.
+* Translation-ready, with developer filters and actions throughout.
+* 1.x settings and watermarks are migrated automatically.
 
 = Pro features =
 
-[Upgrade to Ultimate Watermark Pro](https://mantrabrain.com/plugins/ultimate-watermark/#pricing) when you outgrow the free version. The Pro extension stays in lockstep with the free plugin and adds:
+[Ultimate Watermark Pro](https://mantrabrain.com/plugins/ultimate-watermark/#pricing) is an add-on for this plugin. It adds:
 
-* **[Unlimited watermark templates](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — free version is limited to 1
-* **[Dynamic content placeholders](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — `{site_url}`, `{date_long}`, `{user_display_name}`, `{post_title}`, `{custom_field:key}` and more
-* **[EXIF placeholders](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — `{camera_model}`, `{aperture}`, `{shutter_speed}`, `{iso}`, `{focal_length}` for camera-info credits
-* **[Google Fonts library](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — 30+ curated typefaces (Roboto, Open Sans, Montserrat, Pacifico, Bebas Neue, Playfair Display, …) auto-cached on disk
-* **[Searchable font picker](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — every option rendered in its own typeface
-* **[WooCommerce per-product watermarks](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — override the global watermark on a single product
-* **[WooCommerce per-category watermarks](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — assign a default watermark per product category, with a Product → Category → Global cascade
-* **[WooCommerce variation image support](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — watermark every variation, not just the parent
-* **[On-the-fly display watermarking](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — show watermarks to visitors without modifying source files; admins/editors bypass automatically
-* **[Batch operations](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — apply, replace, or remove watermarks from large image sets via a tracked queue
-* **[Advanced conditional rules](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — date ranges, custom fields, and 14+ operators (`contains`, `in`, `between`, `greater_equal`, etc.)
-* **[Priority support](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — direct help from the team that built it
-* **[Automatic updates](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)** — receive Pro releases through the WordPress updates UI
+* **Unlimited watermarks:** the free version has one watermark; Pro removes the limit, so you can use different watermarks per size, post type or product category.
+* **11 extra rule conditions:** file type, file size, image width, image height, orientation (landscape / portrait / square), aspect ratio, upload date, user role, post category, and WooCommerce product category and product tag.
+* **45+ dynamic placeholders** in text watermarks: site name and URL, dates and times, copyright year and holder, uploader name and role, image title, caption, alt text and filename, post title, post category, custom fields and more.
+* **EXIF placeholders:** camera make and model, lens, focal length, aperture, shutter speed, ISO, flash, exposure mode and white balance, for photo credits such as `{{camera_model}} · {{aperture}} · ISO {{iso}}`.
+* **30 Google Fonts** (Roboto, Open Sans, Montserrat, Playfair Display, Pacifico, Bebas Neue and more) in a searchable picker that previews each font, downloaded once and cached locally.
+* **WooCommerce per-product and per-category watermarks:** choose a watermark on a single product or a product category, with a Product → Category → Global cascade, plus a "Watermark All Products" bulk action.
+* **On-the-fly display watermarks:** visitors see watermarked copies of your images in post content, thumbnails and WooCommerce galleries while the files on disk stay untouched. Selected roles see the originals; generated copies are cached.
+* **Batch processing:** apply, replace or remove watermarks on thousands of images in tracked batches, filtered by upload date, file size, image width and the post type they are attached to, with progress, cancel and resume. Batches continue in the background via WP-Cron.
+* **Automatic updates and priority support** with your license.
 
-[Compare features and view pricing →](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)
+= Use cases =
 
-= Trusted by =
-
-Photographers, e-commerce shops, news sites, and marketplace owners worldwide use Ultimate Watermark to protect their images on WordPress. Every release ships with active support — opening an issue gets a real response.
+* **Photographers:** protect portfolio shots, watermark a whole season at once, add camera details as a credit (Pro).
+* **Bloggers and publishers:** brand every featured image with your site name or logo so copies always point back to you.
+* **WooCommerce stores:** watermark every product photo automatically and launch with the whole catalogue protected.
+* **Marketplaces (Dokan):** watermark vendors' product previews while the paid downloadable files stay pristine.
+* **Stock and digital media sellers:** a tiled watermark across the preview, the clean original only for buyers.
 
 = Privacy =
 
-Ultimate Watermark is fully local. No images, no metadata, and no usage data are ever sent to MantraBrain or to any third party. The Pro updater contacts the licensing server only to validate your key and check for updates.
+Ultimate Watermark runs entirely on your server. No images, metadata or usage data are sent to MantraBrain or any third party. (Pro contacts the MantraBrain license server only to validate your key and check for updates, and downloads Google Fonts once when you choose one.)
 
 == Installation ==
 
@@ -135,8 +113,8 @@ Ultimate Watermark is fully local. No images, no metadata, and no usage data are
 1. In your WordPress admin, go to *Plugins → Add New*.
 2. Search for **Ultimate Watermark**.
 3. Click *Install Now*, then *Activate*.
-4. Go to *Watermark → Add Watermark* and create your first watermark template.
-5. Upload a new image — it'll be watermarked automatically.
+4. Go to *Watermark → Add Watermark* and create your first watermark.
+5. Upload a new image: it is watermarked automatically.
 
 = Manual =
 
@@ -147,92 +125,133 @@ Ultimate Watermark is fully local. No images, no metadata, and no usage data are
 
 = Activating Pro =
 
-1. Install the free plugin first (Pro requires it).
-2. Upload `ultimate-watermark-pro.zip` and activate.
-3. Go to *Watermark → License* and paste your license key.
+1. Install and activate this free plugin first (Pro is an add-on).
+2. Upload `ultimate-watermark-pro.zip` under *Plugins → Add New → Upload Plugin* and activate it.
+3. Go to *Watermark → License* and enter your license key.
 
 == Frequently Asked Questions ==
 
 = How do I add a watermark to all images in WordPress? =
 
-Activate the plugin, go to *Watermark → Add Watermark*, choose Text or Image, set your position and opacity, and save. From that moment on every new image you upload to WordPress is watermarked automatically. To watermark images you already have, go to the Media Library, select the images you want, and run the *Apply Watermark* bulk action.
+Go to *Watermark → Add Watermark*, choose Text or Image, set the position and opacity, make sure *Automatic watermarking* is on, and save. Every image you upload from then on is watermarked. For images you already have, select them in *Media → Library* and choose *Apply Watermark* (Bulk actions in list view, or *Bulk select* in grid view).
 
-= Can I remove a watermark and restore the original image? =
+= Can I remove a watermark and get the original image back? =
 
-Yes. Ultimate Watermark backs up every original before watermarking. Open *Watermark → Backups*, select an image, and click *Restore* — the original file replaces the watermarked one and the size variants regenerate automatically. There is also a bulk-restore action for whole batches.
+Yes. With backups on (the default), the original is saved before the first watermark. Open *Watermark → Backups* and click *Restore* (or select several and use *Restore Selected*), or use *Remove watermark* in the Media Library. The thumbnails are regenerated automatically.
 
-= Does the plugin preserve EXIF metadata? =
+= How do I cover the whole image with a watermark? =
 
-Yes. Camera model, lens, ISO, aperture, shutter speed, original capture date, and copyright fields are preserved through the watermarking pipeline so photographers can rely on Ultimate Watermark for portfolio work. The Pro version goes further and lets you embed those EXIF values directly into a text watermark using placeholders like `{camera_model} · f/{aperture} · ISO {iso}`.
+Turn on *Repeat Pattern* on the watermark's Appearance tab and set the spacing. The watermark is tiled across the entire image, whatever its size or orientation. A scaled logo (for example 20 %) or a rotated text gives the classic stock-photo look.
 
 = Can I watermark WooCommerce product images? =
 
-Absolutely.
+Yes. Product, gallery and variation images are watermarked automatically when the product is saved, including on first publish. Add a *Post Type is Product* rule to watermark only product images. With Pro you can also set a different watermark per product or per product category.
 
-* **Free** — automatically watermarks every product image as it's uploaded, and you can bulk-apply to the existing catalog from the Media Library.
-* **Pro** — adds per-product overrides (different watermark on a single product), per-category defaults (one watermark for "Photography Prints", another for "Wallpapers"), and full variation-image support. The cascade is Product → Category → Global, so you can set a sensible default and override only where you need to.
+= Are my downloadable products (paid files) watermarked? =
 
-= How do I bulk-watermark existing images? =
+No. Files uploaded as downloadable product files in WooCommerce or Dokan, or used in a product's *Downloadable files*, are never watermarked, resized or copied. Buyers always receive the exact file you uploaded. Developers can adjust this with the `ultimate_watermark_preserve_download_originals` filter.
 
-Open *Media → Library*, switch to list view, select the images you want to watermark, choose *Apply Watermark* in the bulk-actions dropdown, and click *Apply*. The plugin will walk through each image, back up the original, apply your watermark, and regenerate the size variants. For multi-thousand-image catalogues, the Pro batch processor splits the work into chunks so it survives long runs.
+= Does it work with Dokan? =
 
-= Will it slow down my site or my media uploads? =
+Yes. Images vendors upload from the Dokan dashboard are watermarked when the product is saved, rules such as *Post Type is Product* work on the first publish, vendors can only change their own images, and downloadable files stay untouched. Enable *Frontend watermarking* on the watermark for front-end uploads.
 
-No. The watermarking pipeline runs once at upload time, never on every page view (unless you enable Pro's *on-the-fly display* mode, which is cached). The plugin is built around the same Imagick / GD libraries WordPress core already uses, so you don't need additional services or external API calls.
+= Why isn't my watermark applied? =
 
-= I have an old version of the plugin (1.x). Will my settings carry over? =
+Check that the watermark is *Active* and has *Automatic watermarking* (or *Frontend watermarking* for front-end uploads) enabled, and that the upload toggle in the media screen is on. If the watermark has rules, it only applies to images that match them: open the *Rules* tab and relax or remove them. Animated GIFs and downloadable product files are skipped on purpose.
 
-Yes. On activation a one-time migration converts your 1.x watermark, settings, and per-attachment metadata into the new format. Your existing watermarks and applied-watermark records are preserved.
+= Does the plugin keep EXIF metadata? =
 
-= Does it work with page builders (Elementor, Beaver Builder, Divi, Bricks, Gutenberg)? =
-
-Yes. The plugin operates at the media-library level, so it's invisible to your page builder. Whichever editor you use to display the image, it ends up watermarked.
-
-= What's the difference between automatic, manual and bulk watermarking? =
-
-* **Automatic** runs every time a new image is uploaded — best for "set and forget" stores and blogs.
-* **Manual** lets you watermark a specific image from its attachment screen — useful when you want different watermarks per asset.
-* **Bulk** runs over a multi-image selection from the media library — best for retro-fitting a watermark to existing content.
-
-= Is there a free watermark plugin for WordPress? =
-
-Yes — Ultimate Watermark's free version is fully functional: 1 watermark template, automatic + bulk + manual modes, conditional rules, full backup & restore, Imagick/GD support, and WooCommerce automatic watermarking. The Pro version unlocks unlimited templates, dynamic placeholders, Google Fonts, advanced WooCommerce overrides, and on-the-fly display watermarking.
-
-= Why aren't my watermarks applying? =
-
-Check the watermark's *Rules* tab. If you've configured conditions, the watermark only applies when those conditions match. To verify, open the watermark, switch to the *Rules* tab, and either remove the rules (empty rules = applies everywhere) or relax them. With WP_DEBUG enabled the plugin logs why each rule failed in `wp-content/debug.log`.
+With Imagick (used by most hosts), the photo's EXIF and IPTC data is kept. The GD library cannot keep metadata, so on GD-only servers it is removed from watermarked copies; your backed-up original always keeps it.
 
 = Can I use my own font? =
 
-Free version uses your server's installed system fonts (Arial, Helvetica, Times, Verdana, Courier, Georgia). Pro adds 30+ Google Fonts (Roboto, Open Sans, Lato, Montserrat, Poppins, Playfair Display, Pacifico, Bebas Neue, and more) — they're downloaded once and cached locally so your watermarks render the same on every render.
+The free version includes bundled fonts (sans-serif, serif and monospace) that work on every host, mapped to the Arial, Helvetica, Times New Roman, Georgia, Verdana and Courier New choices. Pro adds 30 Google Fonts, downloaded once and cached on your server.
 
-= Will it work with my CDN / Cloudflare / object-storage uploads? =
+= Will it slow down my site? =
 
-Yes. Watermarking happens before the image is handed off to a CDN or object store, so the file your CDN serves is already watermarked. If you use an offload plugin that uploads directly to S3/R2/DigitalOcean Spaces, ensure Ultimate Watermark loads earlier than the offload plugin (priority `9` versus the offload plugin's default `10`).
+No. Watermarks are applied once, when an image is uploaded or when you apply them, never on page views. (Pro's optional on-the-fly display mode generates a cached copy the first time an image is viewed.)
 
-= Does it support REST API uploads? =
+= Does it work with REST API, block editor and page-builder uploads? =
 
-Yes. Images uploaded via the REST API (Gutenberg, headless front-ends, mobile apps) are watermarked the same way as classic-uploader uploads.
+Yes. Images uploaded through the REST API, the block editor, page builders or headless front ends are watermarked like any other upload.
 
-= How do I uninstall? =
+= Will it work with my CDN or offload plugin? =
 
-Deactivate the plugin from *Plugins → Installed Plugins*. Watermarked images are NOT reverted to originals — restore them via *Watermark → Backups → Bulk restore* before deactivating if you want to remove watermarks. Deleting the plugin cleans up its database tables; the backup files in `/wp-content/uploads/ulwm-backup/` are kept by default and can be removed manually.
+Watermarks are written into the image file on your server, so a CDN that pulls from your site serves the watermarked image. Offload plugins that move files to S3 or similar storage should do so after the image has been processed; test with a single upload first.
+
+= I used version 1.x. Will my settings carry over? =
+
+Yes. On update a one-time migration converts your 1.x watermark, settings and per-image records to the new format.
+
+= Is the free version limited? =
+
+The free version is fully functional with one watermark: automatic, bulk, manual and frontend watermarking, repeat pattern, size and post-type rules, backups and restore, and WooCommerce/Dokan support. Pro adds unlimited watermarks, more rule conditions, placeholders, Google Fonts, per-product watermarks, on-the-fly display and batch processing.
+
+= What happens when I deactivate or delete the plugin? =
+
+Watermarked images stay watermarked. To get the originals back, restore them from *Watermark → Backups* first. Your watermarks, settings and backup files (in `wp-content/uploads/ulwm-backup/`) are kept, so nothing is lost if you reinstall; remove that folder manually if you no longer need it.
 
 == Screenshots ==
 
-1. Dashboard — at-a-glance stats: total images, protected images, protection rate, active templates.
-2. Watermark templates list — manage all your watermarks with status, position, opacity and usage at a glance.
-3. Add / Edit Watermark — full-form editor with live preview as you change settings.
-4. Live preview sidebar — see exactly how the watermark will sit on a real photo, refreshed instantly.
-5. Conditional rules builder — combine image size, post type, category, file size and more with AND / OR logic.
-6. Backups — every original is preserved; restore one or many in a click.
-7. WooCommerce per-product override (Pro) — set a different watermark on a single product.
-8. Searchable Google Fonts picker (Pro) — every typeface rendered in its own font, with instant search.
-9. Pro Features comparison page — see what's in free vs. Pro.
-
-[View all Pro features and pricing →](https://mantrabrain.com/plugins/ultimate-watermark/#pricing)
+1. Dashboard: total and protected images, protection rate, active watermarks and recent activity.
+2. Analytics: watermark usage over time and image protection trends.
+3. Watermarks list: type and preview, behaviour, rules, position, opacity, usage and status of each watermark.
+4. Add / Edit Watermark with the live preview.
+5. Settings: backup strategy and image protection.
+6. Backups: restore or delete originals, one by one or in bulk.
+7. Upload screen: switch automatic watermarking on or off and choose the watermarks for this upload.
 
 == Changelog ==
+
+= 2.2.0 - 2026/10/13 =
+* **Fixed** - Images assigned as featured, gallery or variation images of a NEW product (Dokan frontend dashboard, WooCommerce REST/CRUD, block editor) were never watermarked; only re-saving an existing product worked. Images are now evaluated once the product and its categories are fully saved, so rules such as "Product Category is X" work on first publish.
+* **Fixed** - WooCommerce gallery images were never watermarked automatically (wrong meta key).
+* **New** - Protected download files: files uploaded as downloadable products (WooCommerce/Dokan, stored in woocommerce_uploads) or used in a product's downloadable files are never watermarked, copied or previewed.
+* **New** - Repeat pattern: tile a watermark across the whole image (any size or orientation) with adjustable spacing.
+* **Fixed** - GD library: image watermarks were positioned too low (or outside the image for bottom positions), "Scaled" size was relative to the logo instead of the photo, rotation and percentage offsets were ignored.
+* **Fixed** - Large images (over 2560px) got the watermark twice on the "-scaled" file; restoring them from backup created "-scaled-scaled" files and deleted the original.
+* **Fixed** - Regenerating thumbnails re-watermarked already watermarked images.
+* **Security** - Backups of original images are no longer publicly downloadable (protected folder, unguessable names, admin-only preview); backups are now byte-exact copies.
+* **Security** - Settings save requires the manage_options capability; save/delete/toggle only act on watermark posts; the upload toggle is stored per user.
+* **Improved** - Negative offsets and rotation are kept; watermark changes take effect immediately with persistent object caches; the whole object cache is no longer flushed on settings save.
+* **Improved** - Admin UI: working bulk actions on the Watermarks page and bottom bulk dropdown in the Media Library, correct upload toggle switch and status, fixed "Back to Dashboard" links, backup pagination, analytics rate capped at 100%, Chart.js bundled locally, no "translation files not found" notice.
+* **Fixed** - The Media Library upload toggle never sent its setting with uploads (grid view and media modals), so "Apply automatic watermarks to uploaded images" had no effect.
+* **Fixed** - Switching tabs on the Add/Edit Watermark screen reloaded the page and discarded unsaved changes; tabs now switch instantly and keep their state.
+* **Fixed** - Saved values of 0 (e.g. tile spacing) or an empty list (e.g. bypass roles) were replaced by defaults when editing a watermark.
+* **Improved** - Hosts whose Imagick lacks a format (e.g. JPEG/WebP) automatically fall back to GD per image instead of silently skipping it.
+* **Improved** - Live preview panel shows the saved values immediately; dead "Save Draft" button removed (Ctrl/Cmd+S saves); keyboard-accessible position grid and tabs; all admin JavaScript messages are translatable.
+* **New** - "Frontend watermarking" now works: images uploaded from the front end of the site (e.g. a Dokan vendor dashboard) get the watermarks marked for it, following their Rules, even when automatic watermarking is off.
+* **Fixed** - Cropped copies of an already watermarked image (Dokan / WordPress image cropper) were watermarked a second time.
+* **Improved** - Variation images of variable products and products moved into a rule's category later are watermarked automatically.
+* **Fixed** - Imagick: transparent PNG images lost their transparency after watermarking.
+* **Fixed** - Repeat pattern with rotated text left gaps; tiles now use an even, staggered grid on both GD and Imagick.
+* **Fixed** - Applying the same watermark again to an image stacked it a second time.
+* **Security** - Watermark rule labels on the Watermarks list are escaped (stored XSS by users who can edit watermarks).
+* **Security** - Media Library and media edit actions (apply, remove, restore) check that the user may edit each image, so vendors can only change their own media.
+* **Improved** - Large images are matched to their attachment exactly (no slow LIKE query); product gallery lookups work on all databases, including SQLite.
+* **Improved** - The upload panel marks watermarks that have Rules ("Rules apply"): they are applied once the image matches, for example when it is used on a product in the selected category.
+* **Fixed** - Image sizes that share one file (for example "large" and "medium_large", or "medium" and the WooCommerce thumbnail of a square image) were watermarked twice.
+* **Fixed** - GD rendered text about a third larger than Imagick and the editor preview (font sizes are pixels). Text watermarks on GD hosts now match; check sizes if you tuned them on a GD host.
+* **Safety** - Images are written to a temporary file and swapped in only when complete, so a failed write (full disk, missing codec) never damages an image. The same applies to backups and restores.
+* **Safety** - With backups on, an image is not changed if its original could not be backed up. Restore only succeeds (and only clears the watermark records) when the original was restored.
+* **Fixed** - Applying a watermark manually to a big ("-scaled") upload lost the link to the original file and backed up the scaled copy instead of the original.
+* **Fixed** - Rules based on the post (category, post type) were evaluated while a new post was still an empty draft; images are now evaluated when the post is first saved.
+* **Fixed** - A same-named WebP of another attachment (photo.webp next to photo.jpg) could be watermarked or deleted; restoring now also removes the watermarked WebP/AVIF copy of the full-size image.
+* **Fixed** - Animated GIFs are left untouched (they would lose their animation); transparent GIFs keep their transparency with GD; AVIF variants are watermarked with Imagick; GD previews keep transparency.
+* **Fixed** - Trashed watermarks were still applied by overrides and batches. Backups and usage records are removed when an image is deleted from anywhere (not only from wp-admin).
+* **Security** - Backup confirmation dialogs no longer interpret image titles as HTML. A watermark nonce is no longer printed on every front-end page.
+* **Improved** - Analytics loads far faster on large sites and shows an error instead of failing silently; the live preview never shows an older result; long watermark names in any language are saved safely; a missing vendor folder shows a notice instead of a fatal error.
+* **New** - Downloadable product files (WooCommerce/Dokan) are stored exactly as uploaded: WordPress no longer creates a downsized "-scaled" copy, which WooCommerce and Dokan would otherwise link to buyers instead of the original, nor thumbnail copies of the paid file. Filter: ultimate_watermark_preserve_download_originals.
+* **Fixed** - GD: rotated watermarks left a faint tinted box around each copy, clearly visible with the repeat pattern.
+* **Fixed** - Protected download files no longer show as broken images (403) in the Media Library, list view and edit screen; they appear as files.
+* **Fixed** - Dokan's product image crop step left the vendor's full-size upload unwatermarked at a public URL; it is now watermarked together with its cropped copy (filter: ultimate_watermark_protect_crop_source).
+* **New** - Media Library grid view (the default view): watermark or remove watermarks from several images via "Bulk select", and a Watermark section in the attachment details popup with the current status and Apply / Remove.
+* **Fixed** - Bold and Italic text settings had no effect with the bundled fonts (and never on GD); the style is now rendered on both GD and Imagick when the font has no bold/italic file.
+* **Fixed** - Saving a watermark silently did nothing when a value on another tab was out of range; the editor now opens that tab and shows the message. Text can be up to 200 px (was capped at 72 px in the editor).
+* **Improved** - Watermarks list: text previews are always readable (light colours on a dark strip, large sizes scaled down), logos are shown whole on a checkerboard, names no longer wrap word by word, and display-only watermarks have their own icon.
+* **Improved** - Phone layouts: editor tabs and the position grid fit the screen; Backups are listed as cards so Restore / Delete stay reachable.
+* **Improved** - The Backups page shows small cached thumbnails (kept in the protected backup folder) instead of downloading every full-size original, so it loads quickly even with very large photos.
+* **Compatibility** - Verified on PHP 7.4 through 8.4 (GD and Imagick), WooCommerce 10.7 to 11.2 and Dokan Lite 5.3.
 
 = 2.1.5 - 2026/08/21 =
 * **Compatibility** - Tested and verified against WordPress 7.1. Every WordPress function the plugin calls was cross-checked against the 7.1 codebase: none are deprecated or removed in this release.
@@ -318,6 +337,9 @@ Deactivate the plugin from *Plugins → Installed Plugins*. Watermarked images a
 * Pro version adds unlimited templates, dynamic placeholders, on-the-fly display, batch operations, WooCommerce per-product / per-category overrides.
 
 == Upgrade Notice ==
+
+= 2.2.0 =
+Fixes WooCommerce/Dokan product images not being watermarked on first publish, never touches downloadable product files, adds a repeat (tiled) pattern, and makes watermarking, backups and restores failure-safe. Text watermarks on GD hosts now match the editor size (they were about a third larger).
 
 = 2.1.5 =
 Tested up to WordPress 7.1. Fixes a fatal parse error on PHP 7.4, adds missing capability checks on two AJAX endpoints, and corrects the minimum WordPress version, which was advertised as 5.0 but is actually 5.9.

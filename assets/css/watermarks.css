@@ -85,7 +85,8 @@
     align-items: center;
 }
 
-.search-box input[type="text"] {
+.search-box input[type="text"],
+.search-box input[type="search"] {
     width: 280px;
     height: 38px;
     padding: 8px 12px 8px 36px;
@@ -97,7 +98,8 @@
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.search-box input[type="text"]:focus {
+.search-box input[type="text"]:focus,
+.search-box input[type="search"]:focus {
     outline: none;
     border-color: var(--uw-primary);
     box-shadow: var(--uw-shadow-focus);
@@ -114,7 +116,8 @@
 }
 
 @media (max-width: 600px) {
-    .search-box input[type="text"] { width: 100%; }
+    .search-box input[type="text"],
+    .search-box input[type="search"] { width: 100%; }
     .search-box { width: 100%; }
 }
 
@@ -376,9 +379,39 @@
     width: 100%;
 }
 
+/* Image watermarks (often white PNG logos): checkerboard shows any colour and transparency. */
+.watermark-preview:has(.image-watermark-preview) {
+    background: repeating-conic-gradient(#64748b 0% 25%, #94a3b8 0% 50%) 50% / 12px 12px;
+}
+
+.behavior-icon.display {
+    color: #7c3aed;
+}
+
+.behavior-none {
+    color: var(--uw-text-faint);
+    font-size: var(--uw-font-small-size);
+}
+
+/* Light watermark colours are shown on a dark strip so they stay readable. */
+.watermark-preview.is-dark {
+    background: #334155;
+    border-color: #334155;
+}
+
+.watermarks-table thead th.name-column {
+    width: 22%;
+    min-width: 160px;
+}
+
+.watermarks-table thead th.type-preview-column {
+    width: 28%;
+}
+
 .image-watermark-preview img.watermark-image-preview {
-    max-height: 28px;
-    max-width: 120px;
+    /* Uncropped "medium" size: wide logos stay whole. */
+    max-height: 32px;
+    max-width: 100%;
     object-fit: contain;
     display: block;
 }

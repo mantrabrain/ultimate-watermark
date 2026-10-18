@@ -22,6 +22,23 @@ class WatermarkService
     private static array $attachmentContext = [];
 
     /**
+     * Files already stamped in this request: attachment => "watermark|path" => true.
+     * Several image sizes can share one file (e.g. a square image's "medium" and
+     * "woocommerce_thumbnail" are both foo-300x300.jpg); it must be stamped once.
+     *
+     * @var array<int, array<string, bool>>
+     */
+    private static array $stamped = [];
+
+    /**
+     * Forget what was stamped for an attachment (called after it is restored).
+     */
+    public static function forgetAttachment(int $attachmentId): void
+    {
+        unset(self::$stamped[$attachmentId]);
+    }
+
+    /**
      * Set attachment context for the current watermark operation.
      * Pro plugin uses this to resolve dynamic placeholders (EXIF, image title, etc.)
      *
@@ -56,30 +73,120 @@ class WatermarkService
             throw new \Exception('Source image not found: ' . $sourceImagePath);
         }
 
-        // Resolve watermark data
-        $resolvedData = WatermarkDataResolver::resolve($watermarkData);
+        // Runtime context is passed into the resolver so it is visible to the
+        // normalize filters (Pro resolves {placeholders} there).
+        $context = array_merge(self::$attachmentContext, ['_source_image_path' => $sourceImagePath]);
+
+        $resolvedData = WatermarkDataResolver::resolve($watermarkData, $context);
         if (!$resolvedData) {
             throw new \Exception('Invalid watermark data provided');
         }
-        
-        // Store source image path for scaling calculations
-        $resolvedData['_source_image_path'] = $sourceImagePath;
-        
-        // Merge runtime attachment context (attachment_id, etc.) for Pro placeholder resolution
-        if (!empty(self::$attachmentContext)) {
-            $resolvedData = array_merge($resolvedData, self::$attachmentContext);
-        }
 
-        // Get processor
-        $processor = WatermarkProcessorFactory::create();
-        
         // Determine output path
         if ($outputImagePath === null) {
             $outputImagePath = $sourceImagePath; // Apply to source
         }
 
-        // Apply watermark
-        return $processor->applyWatermark($sourceImagePath, $outputImagePath, $resolvedData);
+        // Watermarking would flatten an animation to a single frame.
+        if (self::isAnimatedGif($sourceImagePath)) {
+            return false;
+        }
+
+        $attachmentId = (int) (self::$attachmentContext['attachment_id'] ?? 0);
+        $stampKey = '';
+        if ($attachmentId > 0 && $sourceImagePath === $outputImagePath) {
+            $watermarkKey = is_array($watermarkData) ? (string) ($resolvedData['id'] ?? md5(wp_json_encode($watermarkData))) : (string) $watermarkData;
+            $stampKey = $watermarkKey . '|' . (realpath($outputImagePath) ?: $outputImagePath);
+            if (isset(self::$stamped[$attachmentId][$stampKey])) {
+                return true; // Same file, same watermark: already done in this request.
+            }
+        }
+
+        // Write to a temporary file next to the target and move it into place
+        // only on success, so a failed or partial write never corrupts the image.
+        $tempPath = self::temporaryPathFor($outputImagePath);
+
+        try {
+            // Try Imagick first, then GD: a host's ImageMagick may lack a delegate
+            // (e.g. JPEG or WebP).
+            foreach (WatermarkProcessorFactory::createChainForFile($sourceImagePath) as $processor) {
+                if (!$processor->applyWatermark($sourceImagePath, $tempPath, $resolvedData)) {
+                    continue;
+                }
+
+                clearstatcache(true, $tempPath);
+                if (!is_file($tempPath) || filesize($tempPath) === 0) {
+                    continue;
+                }
+
+                if (!self::moveIntoPlace($tempPath, $outputImagePath)) {
+                    return false;
+                }
+                if ($stampKey !== '') {
+                    self::$stamped[$attachmentId][$stampKey] = true;
+                }
+                return true;
+            }
+
+            return false;
+        } finally {
+            if (file_exists($tempPath)) {
+                @unlink($tempPath);
+            }
+        }
+    }
+
+    /**
+     * Whether a file is a GIF with more than one frame.
+     */
+    public static function isAnimatedGif(string $path): bool
+    {
+        if (strtolower(pathinfo($path, PATHINFO_EXTENSION)) !== 'gif' || !is_readable($path)) {
+            return false;
+        }
+
+        $handle = @fopen($path, 'rb');
+        if (!$handle) {
+            return false;
+        }
+
+        // Count frame starts (graphic control extension followed by an image
+        // descriptor); stop at the second one.
+        $frames = 0;
+        $carry = '';
+        while (!feof($handle) && $frames < 2) {
+            $chunk = $carry . (string) fread($handle, 1024 * 100);
+            $frames += preg_match_all('#\x00\x21\xF9\x04.{4}\x00(\x2C|\x21)#s', $chunk);
+            $carry = substr($chunk, -20);
+        }
+        fclose($handle);
+
+        return $frames > 1;
+    }
+
+    private static function temporaryPathFor(string $outputPath): string
+    {
+        // Keep the extension: processors pick the output format from it.
+        return dirname($outputPath) . '/.ulwm-' . wp_generate_password(8, false, false) . '-' . basename($outputPath);
+    }
+
+    private static function moveIntoPlace(string $tempPath, string $outputPath): bool
+    {
+        $permissions = file_exists($outputPath) ? (fileperms($outputPath) & 0777) : 0;
+
+        if (!@rename($tempPath, $outputPath)) {
+            // rename() can fail across some network filesystems; fall back to copy.
+            if (!@copy($tempPath, $outputPath)) {
+                return false;
+            }
+        }
+
+        if ($permissions) {
+            @chmod($outputPath, $permissions);
+        }
+        clearstatcache(true, $outputPath);
+
+        return true;
     }
 
     /**
@@ -97,17 +204,20 @@ class WatermarkService
             throw new \Exception('Source image not found: ' . $sourceImagePath);
         }
 
-        // Resolve watermark data
-        $resolvedData = WatermarkDataResolver::resolve($watermarkData);
+        // Resolve watermark data (with the preview's attachment context, if any)
+        $resolvedData = WatermarkDataResolver::resolve($watermarkData, self::$attachmentContext);
         if (!$resolvedData) {
             throw new \Exception('Invalid watermark data provided');
         }
 
-        // Get processor
-        $processor = WatermarkProcessorFactory::create();
-        
-        // Generate preview
-        return $processor->generatePreview($sourceImagePath, $resolvedData);
+        foreach (WatermarkProcessorFactory::createChainForFile($sourceImagePath) as $processor) {
+            $url = $processor->generatePreview($sourceImagePath, $resolvedData);
+            if ($url) {
+                return $url;
+            }
+        }
+
+        return false;
     }
 
     /**

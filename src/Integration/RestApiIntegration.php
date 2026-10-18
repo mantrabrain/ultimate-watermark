@@ -2,6 +2,7 @@
 
 namespace MantraBrain\UltimateWatermark\Integration;
 
+use MantraBrain\UltimateWatermark\Utils\AttachmentGuard;
 use MantraBrain\UltimateWatermark\Utils\WatermarkHelper;
 
 /**
@@ -13,10 +14,52 @@ use MantraBrain\UltimateWatermark\Utils\WatermarkHelper;
 class RestApiIntegration
 {
     /**
+     * Instance registered by init(), so add-ons (Pro) can reuse the pipeline.
+     */
+    private static ?self $instance = null;
+
+    /**
+     * Attachments waiting to be evaluated once their parent post is fully saved.
+     * Map of attachment ID => parent post ID.
+     *
+     * @var array<int, int>
+     */
+    private array $pendingQueue = [];
+
+    /**
+     * Attachments currently being processed in this request (re-entrancy lock).
+     *
+     * @var array<int, bool>
+     */
+    private array $processing = [];
+
+    /**
+     * Whether the queue is being flushed right now.
+     */
+    private bool $flushing = false;
+
+    /**
+     * Return the active instance (null before the plugin booted).
+     */
+    public static function instance(): ?self
+    {
+        return self::$instance;
+    }
+
+    /**
      * Initialize the REST API integration
      */
     public function init(): void
     {
+        self::$instance = $this;
+
+        // Flag downloadable-product uploads so they are never watermarked.
+        AttachmentGuard::init();
+
+        // Deleting an image (from anywhere: admin, REST, WP-CLI, vendor
+        // dashboards) removes its backups and usage records.
+        add_action('delete_attachment', [$this, 'handleAttachmentDeleted']);
+
         // Hook into add_attachment (fires for ALL attachment creation, including REST API)
         add_action('add_attachment', [$this, 'markForWatermarking']);
 
@@ -29,28 +72,26 @@ class RestApiIntegration
         add_action('rest_insert_attachment', [$this, 'handleRestApiAttachmentUpload'], 10, 3);
         add_action('rest_after_insert_attachment', [$this, 'handleRestApiAttachmentUpload'], 10, 3);
 
-        // CRITICAL: Hook into REST API when a product/post is updated to detect featured image changes.
-        // Handles both /wp/v2/ and /wc/v3/ REST API routes.
-        add_filter('rest_request_before_callbacks', [$this, 'handleFeaturedImageChangeViaRest'], 15, 3);
+        // Featured image / product gallery / variation image assignments.
+        // `added_post_meta` matters: on a brand-new product (WooCommerce CRUD,
+        // Dokan frontend dashboard, REST) `_thumbnail_id` does not exist yet, so
+        // WordPress fires `added_post_meta`, never `updated_post_meta`.
+        add_action('added_post_meta', [$this, 'handleImageMetaChange'], 20, 4);
+        add_action('updated_post_meta', [$this, 'handleImageMetaChange'], 20, 4);
 
-        // CRITICAL: Hook into admin-ajax set-post-thumbnail action (classic editor / media popup flow).
-        // When user clicks "Set as featured image" in the media popup, WordPress fires this AJAX action.
-        add_action('ajax_action_set-post-thumbnail', [$this, 'handleFeaturedImageChangeViaAjax'], 20);
+        // Re-evaluate a post's images when the taxonomy terms that rules can
+        // test (product category/tag, post category) change. Dokan and
+        // WooCommerce assign categories AFTER the featured image is stored.
+        add_action('set_object_terms', [$this, 'handleObjectTermsChange'], 20, 6);
 
-        // CRITICAL: Universal hook - set_post_thumbnail fires for ALL featured image assignments
-        // regardless of how they are set (REST API, admin-ajax, programmatic, etc.)
-        add_action('set_post_thumbnail', [$this, 'handleSetPostThumbnail'], 20, 2);
+        // A post leaving auto-draft is saved for the first time: queue its images.
+        add_action('transition_post_status', [$this, 'handlePostStatusTransition'], 20, 3);
 
-        // CRITICAL: WooCommerce sometimes sets _thumbnail_id directly via update_post_meta()
-        // without calling set_post_thumbnail(), so we need to hook into updated_postmeta
-        // to catch those cases as well.
-        add_action('updated_post_meta', [$this, 'handleThumbnailMetaUpdate'], 20, 4);
-
-        // CRITICAL: WooCommerce product gallery images are stored in _product_gallery meta
-        // (an array of attachment IDs). We need to hook into this to apply watermarks
-        // to gallery images as well.
-        add_action('added_post_meta', [$this, 'handleGalleryMetaUpdate'], 20, 4);
-        add_action('updated_post_meta', [$this, 'handleGalleryMetaUpdate'], 20, 4);
+        // Evaluate queued images once the parent is fully saved: right after
+        // Dokan finishes a product save, and at the end of every request.
+        add_action('dokan_new_product_added', [$this, 'flushPendingQueue'], 999);
+        add_action('dokan_product_updated', [$this, 'flushPendingQueue'], 999);
+        add_action('shutdown', [$this, 'flushPendingQueue'], 0);
 
         // Hook into wp_insert_post for attachments as ultimate fallback
         // This fires for ALL post creation including REST API
@@ -61,481 +102,546 @@ class RestApiIntegration
     }
 
     /**
-     * Handle featured image changes via REST API.
+     * Queue images when a featured image, WooCommerce gallery or variation image is assigned.
      *
-     * When a user uploads an image via the media popup (e.g., WooCommerce featured image),
-     * the attachment is created first without a parent post. Then WordPress updates the
-     * parent post (product/page/post) to set the _thumbnail_id meta. This hook intercepts
-     * that update to detect newly assigned featured images and apply watermarks based on
-     * the parent post type rules.
-     *
-     * NOTE: The rest_request_before_callbacks filter can be called with different argument
-     * types depending on context. WooCommerce's rest_preload_api_request passes an array
-     * as the second argument instead of WP_REST_Request. We handle this gracefully.
-     *
-     * @param WP_REST_Response|WP_Error|null $response The response object.
-     * @param WP_REST_Request|array          $request  The request object or array (from preload).
-     * @param WP_REST_Server|null            $server   The server object.
-     * @return WP_REST_Response|WP_Error|null
+     * @param int    $meta_id    Meta ID.
+     * @param int    $post_id    Post ID.
+     * @param string $meta_key   Meta key.
+     * @param mixed  $meta_value Meta value.
      */
-    public function handleFeaturedImageChangeViaRest($response, $request, $server)
+    public function handleImageMetaChange($meta_id, $post_id, $meta_key, $meta_value): void
     {
-        // CRITICAL: Some contexts (like WooCommerce rest_preload_api_request) pass
-        // an array as the second argument instead of WP_REST_Request. Return early.
-        if (!$request instanceof \WP_REST_Request) {
-            return $response;
+        if ($meta_key !== '_thumbnail_id' && $meta_key !== '_product_image_gallery') {
+            return;
         }
 
-        // Only process POST/PUT requests to post endpoints (products, posts, pages, etc.)
-        $route = $request->get_route();
-        if (strpos($route, '/wp/v2/') === false) {
-            return $response;
+        $post_id = (int) $post_id;
+        $post_type = get_post_type($post_id);
+        if (!$post_type || in_array($post_type, ['attachment', 'revision', 'nav_menu_item'], true)) {
+            return;
         }
 
-        $method = strtoupper($request->get_method());
-        if (!in_array($method, ['POST', 'PUT', 'PATCH'], true)) {
-            return $response;
+        $parent_id = $this->resolveContextParentId($post_id);
+
+        foreach ($this->parseAttachmentIds($meta_value) as $attachment_id) {
+            $this->enqueueAttachment($attachment_id, $parent_id);
         }
-
-        // Check if the request includes a featured_media change
-        $featuredMedia = $request->get_param('featured_media');
-        if ($featuredMedia === null || $featuredMedia === 0 || !is_numeric($featuredMedia)) {
-            return $response;
-        }
-
-        $attachmentId = absint($featuredMedia);
-
-        // Verify it's a valid image attachment
-        if (!wp_attachment_is_image($attachmentId)) {
-            return $response;
-        }
-
-        // Check if this attachment has already been watermarked (skip if yes)
-        $alreadyWatermarked = get_post_meta($attachmentId, '_ulwm_watermarked', true);
-        if ($alreadyWatermarked) {
-            // Still being processed, skip
-            return $response;
-        }
-
-        // Check if watermark was already applied to this attachment
-        $appliedWatermarks = get_post_meta($attachmentId, 'applied_watermarks', true);
-        if (!empty($appliedWatermarks)) {
-            // Already has watermarks applied, skip
-            return $response;
-        }
-
-        // Get the parent post ID from the request URL
-        $postId = $request->get_param('id');
-        if (!$postId || !is_numeric($postId)) {
-            return $response;
-        }
-
-        $postId = absint($postId);
-        $parentPost = get_post($postId);
-        if (!$parentPost) {
-            return $response;
-        }
-
-        // Store the parent post ID for rule-based watermarking
-        update_post_meta($attachmentId, '_ulwm_uploaded_to_post_id', $postId);
-
-        // Get all active automatic watermarks
-        $allActive = WatermarkHelper::getActiveWatermarks();
-        $automaticWatermarks = array_filter($allActive, function ($watermark) {
-            return $watermark['automatic_watermarking'] === '1' || (boolean) $watermark['automatic_watermarking'] === true;
-        });
-
-        if (empty($automaticWatermarks)) {
-            return $response;
-        }
-
-        // Filter by post type rules - check if any watermarks match the parent post type
-        $parentPostType = $parentPost->post_type;
-        $matchingWatermarks = array_filter($automaticWatermarks, function ($watermark) use ($parentPostType) {
-            $watermarkOn = $watermark['watermark_on'] ?? 'everywhere';
-
-            if ($watermarkOn === 'everywhere' || $watermarkOn === '') {
-                return true;
-            }
-
-            if ($watermarkOn === 'selected_post_types') {
-                $allowedPostTypes = $watermark['watermark_post_types'] ?? [];
-
-                if (is_string($allowedPostTypes)) {
-                    $allowedPostTypes = maybe_unserialize($allowedPostTypes);
-                    if (is_string($allowedPostTypes)) {
-                        $allowedPostTypes = maybe_unserialize($allowedPostTypes);
-                    }
-                }
-
-                if (!is_array($allowedPostTypes)) {
-                    $allowedPostTypes = [];
-                }
-
-                $allowedPostTypes = array_map('strval', array_values($allowedPostTypes));
-
-                return in_array(strval($parentPostType), $allowedPostTypes, true);
-            }
-
-            return false;
-        });
-
-        if (empty($matchingWatermarks)) {
-            return $response;
-        }
-
-        // Mark the attachment for watermarking so processAfterMetadataGeneration applies watermarks
-        // with the correct parent post type context
-        update_post_meta($attachmentId, '_ulwm_watermarked', true);
-
-        // Apply watermarks immediately since metadata has already been generated
-        try {
-            $this->applyWatermarksForFeaturedImage($attachmentId, $matchingWatermarks, $postId);
-        } catch (\Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Ultimate Watermark: Error applying watermark to featured image ' . $attachmentId . ': ' . $e->getMessage());
-            }
-        }
-
-        return $response;
     }
 
     /**
-     * Apply watermarks to a featured image that was just assigned to a post.
+     * Re-queue a post's images when rule-relevant taxonomy terms change.
      *
-     * This method respects ALL watermark rules: post type rules, image size rules,
-     * and watermark_rules conditions (unified rules with image_size, product_cat, etc.).
+     * @param int    $object_id  Object ID.
+     * @param array  $terms      Terms.
+     * @param array  $tt_ids     New term taxonomy IDs.
+     * @param string $taxonomy   Taxonomy slug.
+     * @param bool   $append     Whether terms were appended.
+     * @param array  $old_tt_ids Previous term taxonomy IDs.
+     */
+    public function handleObjectTermsChange($object_id, $terms, $tt_ids, $taxonomy, $append, $old_tt_ids): void
+    {
+        /**
+         * Taxonomies whose changes trigger re-evaluation of a post's images.
+         *
+         * @param string[] $taxonomies
+         */
+        $watched = (array) apply_filters('ultimate_watermark_rule_taxonomies', ['product_cat', 'product_tag', 'category']);
+        if (!in_array($taxonomy, $watched, true)) {
+            return;
+        }
+
+        $new = array_map('intval', (array) $tt_ids);
+        $old = array_map('intval', (array) $old_tt_ids);
+        sort($new);
+        sort($old);
+        if ($new === $old) {
+            return;
+        }
+
+        $this->enqueuePostImages((int) $object_id);
+    }
+
+    /**
+     * Queue a post's images the first time it leaves auto-draft.
+     *
+     * @param string   $new_status New status.
+     * @param string   $old_status Old status.
+     * @param \WP_Post $post       Post object.
+     */
+    public function handlePostStatusTransition($new_status, $old_status, $post): void
+    {
+        if ($old_status !== 'auto-draft' || $new_status === 'auto-draft' || !$post instanceof \WP_Post) {
+            return;
+        }
+
+        $this->enqueuePostImages((int) $post->ID);
+
+        // Images uploaded into the new post's editor (attached to it) were
+        // deferred while it was an auto-draft.
+        $attached = get_posts([
+            'post_type'      => 'attachment',
+            'post_mime_type' => 'image',
+            'post_parent'    => (int) $post->ID,
+            'post_status'    => 'inherit',
+            'posts_per_page' => 200,
+            'fields'         => 'ids',
+            'no_found_rows'  => true,
+        ]);
+        $parent_id = $this->resolveContextParentId((int) $post->ID);
+        foreach ($attached as $attachment_id) {
+            $this->enqueueAttachment((int) $attachment_id, $parent_id);
+        }
+    }
+
+    /**
+     * Clean up after an attachment is deleted.
+     *
+     * @param int $attachment_id Attachment ID.
+     */
+    public function handleAttachmentDeleted($attachment_id): void
+    {
+        $attachment_id = (int) $attachment_id;
+        if ($attachment_id <= 0) {
+            return;
+        }
+
+        \MantraBrain\UltimateWatermark\Utils\WatermarkUsageTracker::cleanupImageUsage($attachment_id);
+        \MantraBrain\UltimateWatermark\Utils\BackupManager::deleteAttachmentBackups($attachment_id);
+    }
+
+    /**
+     * Queue the featured image, product gallery and variation images of a post.
+     */
+    public function enqueuePostImages(int $post_id): void
+    {
+        $post = get_post($post_id);
+        if (!$post || in_array($post->post_type, ['attachment', 'revision', 'nav_menu_item'], true)) {
+            return;
+        }
+
+        $parent_id = $this->resolveContextParentId($post_id);
+
+        $ids = $this->parseAttachmentIds(get_post_meta($post_id, '_thumbnail_id', true));
+
+        if ($post->post_type === 'product') {
+            $ids = array_merge($ids, $this->parseAttachmentIds(get_post_meta($post_id, '_product_image_gallery', true)));
+
+            $variation_ids = get_posts([
+                'post_type'      => 'product_variation',
+                'post_parent'    => $post_id,
+                'post_status'    => 'any',
+                'posts_per_page' => -1,
+                'fields'         => 'ids',
+                'no_found_rows'  => true,
+            ]);
+            foreach ($variation_ids as $variation_id) {
+                $ids = array_merge($ids, $this->parseAttachmentIds(get_post_meta((int) $variation_id, '_thumbnail_id', true)));
+            }
+        }
+
+        foreach (array_unique($ids) as $attachment_id) {
+            $this->enqueueAttachment($attachment_id, $parent_id);
+        }
+    }
+
+    /**
+     * Add an attachment to the deferred queue.
+     */
+    public function enqueueAttachment(int $attachment_id, int $parent_id): void
+    {
+        if ($attachment_id <= 0 || $parent_id <= 0) {
+            return;
+        }
+
+        $this->pendingQueue[$attachment_id] = $parent_id;
+    }
+
+    /**
+     * Process every queued attachment. Safe to call repeatedly.
+     */
+    public function flushPendingQueue(): void
+    {
+        if ($this->flushing || empty($this->pendingQueue)) {
+            return;
+        }
+
+        $this->flushing = true;
+
+        try {
+            // Processing may queue more work (it writes post meta), so drain until empty.
+            $guard = 0;
+            while (!empty($this->pendingQueue) && $guard++ < 10) {
+                $batch = $this->pendingQueue;
+                $this->pendingQueue = [];
+
+                foreach ($batch as $attachment_id => $parent_id) {
+                    try {
+                        $this->processAttachmentForParent((int) $attachment_id, (int) $parent_id);
+                    } catch (\Throwable $e) {
+                        if (defined('WP_DEBUG') && WP_DEBUG) {
+                            error_log('Ultimate Watermark: Failed to process attachment ' . $attachment_id . ' for post ' . $parent_id . ': ' . $e->getMessage());
+                        }
+                    }
+                }
+            }
+        } finally {
+            $this->flushing = false;
+        }
+    }
+
+    /**
+     * Apply the matching automatic watermarks to an image assigned to a post.
+     *
+     * Rules (post type, image size and unified conditions such as product
+     * category) are evaluated against the parent post as it is saved now.
+     * Images that are already watermarked, protected download files and
+     * non-images are skipped, so calling this repeatedly is safe.
+     *
+     * @param int $attachment_id Attachment ID.
+     * @param int $parent_id     Post the image belongs to (product, post, page…).
+     * @return bool True when at least one watermark was applied.
+     */
+    public function processAttachmentForParent(int $attachment_id, int $parent_id): bool
+    {
+        if ($attachment_id <= 0 || $parent_id <= 0 || isset($this->processing[$attachment_id])) {
+            return false;
+        }
+
+        if (!wp_attachment_is_image($attachment_id) || AttachmentGuard::shouldSkip($attachment_id)) {
+            return false;
+        }
+
+        if (get_post_meta($attachment_id, '_ulwm_skip_watermarking', true)) {
+            return false;
+        }
+
+        // Never stack watermarks on an image that already carries one.
+        $applied = get_post_meta($attachment_id, 'applied_watermarks', true);
+        if (!empty($applied)) {
+            return false;
+        }
+
+        $parent = get_post($parent_id);
+        if (!$parent || in_array($parent->post_status, ['auto-draft', 'trash'], true)) {
+            // Auto-drafts have no terms yet; they are re-queued when first saved.
+            return false;
+        }
+
+        $this->processing[$attachment_id] = true;
+
+        try {
+            $watermarks = $this->getWatermarksForParent($attachment_id, $parent);
+            if (empty($watermarks)) {
+                return false;
+            }
+
+            update_post_meta($attachment_id, '_ulwm_uploaded_to_post_id', $parent_id);
+
+            $applied = $this->applyWatermarksForFeaturedImage(
+                $attachment_id,
+                $watermarks['watermarks'],
+                $parent_id,
+                $watermarks['override']
+            );
+        } finally {
+            unset($this->processing[$attachment_id]);
+        }
+
+        if ($applied) {
+            $this->protectCropSource($attachment_id, $parent_id);
+        }
+
+        return $applied;
+    }
+
+    /**
+     * A cropped copy (Dokan's product-image crop step, the WordPress cropper)
+     * was just watermarked: watermark the full-size image it was cropped from
+     * too, under the same rules, so the clean original is not left at a public
+     * URL in the media library.
+     */
+    private function protectCropSource(int $attachment_id, int $parent_id): void
+    {
+        $source_id = (int) get_post_meta($attachment_id, '_ulwm_crop_source', true);
+        if ($source_id <= 0 || $source_id === $attachment_id) {
+            return;
+        }
+
+        /**
+         * Whether to also watermark the image a watermarked crop was made from.
+         *
+         * @param bool $protect       Default true.
+         * @param int  $source_id     Attachment the crop was made from.
+         * @param int  $attachment_id The watermarked crop.
+         */
+        if (!apply_filters('ultimate_watermark_protect_crop_source', true, $source_id, $attachment_id)) {
+            return;
+        }
+
+        // Same checks as any image: protected files, already-watermarked
+        // images and rule mismatches are skipped there.
+        $this->processAttachmentForParent($source_id, $parent_id);
+    }
+
+    /**
+     * Apply one specific watermark to every size of an image (explicit user
+     * action such as a batch job). Protected download files and images that
+     * already carry a watermark are skipped; a backup is created first.
+     *
+     * @return bool True when the watermark was applied.
+     */
+    public function applySpecificWatermark(int $attachment_id, int $watermark_id): bool
+    {
+        if ($attachment_id <= 0 || $watermark_id <= 0 || isset($this->processing[$attachment_id])) {
+            return false;
+        }
+
+        if (!wp_attachment_is_image($attachment_id) || AttachmentGuard::shouldSkip($attachment_id)) {
+            return false;
+        }
+
+        if (!empty(get_post_meta($attachment_id, 'applied_watermarks', true))) {
+            return false;
+        }
+
+        $watermark = WatermarkHelper::getActiveWatermarkById($watermark_id);
+        if (!$watermark) {
+            return false;
+        }
+
+        $this->processing[$attachment_id] = true;
+        try {
+            return $this->applyWatermarksForFeaturedImage(
+                $attachment_id,
+                [$watermark],
+                WatermarkHelper::resolveParentPostId($attachment_id),
+                true
+            );
+        } finally {
+            unset($this->processing[$attachment_id]);
+        }
+    }
+
+    /**
+     * Resolve which watermarks are candidates for an image of a given post.
+     *
+     * @return array{watermarks: array, override: bool}|array Empty array when none apply.
+     */
+    private function getWatermarksForParent(int $attachment_id, \WP_Post $parent): array
+    {
+        /**
+         * Explicit watermark assignment for an image (e.g. Pro's per-product or
+         * per-category override). When non-empty, these watermarks are applied
+         * instead of the automatic, rule-based ones.
+         *
+         * @param int[] $watermark_ids Watermark IDs.
+         * @param int   $attachment_id Attachment ID.
+         * @param int   $parent_id     Parent post ID.
+         */
+        $override_ids = (array) apply_filters('ultimate_watermark_override_watermark_ids', [], $attachment_id, (int) $parent->ID);
+        $override_ids = array_values(array_unique(array_filter(array_map('intval', $override_ids))));
+
+        if (!empty($override_ids)) {
+            $override = [];
+            foreach ($override_ids as $watermark_id) {
+                $data = WatermarkHelper::getActiveWatermarkById($watermark_id);
+                if ($data) {
+                    $override[] = $data;
+                }
+            }
+            if (!empty($override)) {
+                return ['watermarks' => $override, 'override' => true];
+            }
+        }
+
+        $frontend_upload = $this->isFrontendUpload($attachment_id);
+        $automatic = array_filter(WatermarkHelper::getActiveWatermarks(), static function ($watermark) use ($frontend_upload) {
+            if (($watermark['automatic_watermarking'] ?? '0') === '1' || ($watermark['automatic_watermarking'] ?? false) === true) {
+                return true;
+            }
+            // "Frontend watermarking": also used for images uploaded from the front end.
+            return $frontend_upload && ($watermark['frontend_watermarking'] ?? '0') === '1';
+        });
+
+        $parent_type = (string) $parent->post_type;
+        $matching = array_filter($automatic, function ($watermark) use ($parent_type) {
+            return $this->watermarkAllowsPostType($watermark, $parent_type);
+        });
+
+        return empty($matching) ? [] : ['watermarks' => array_values($matching), 'override' => false];
+    }
+
+    /**
+     * Legacy "Watermark on" check against the parent post type.
+     */
+    private function watermarkAllowsPostType(array $watermark, string $post_type): bool
+    {
+        $watermark_on = $watermark['watermark_on'] ?? 'everywhere';
+
+        if ($watermark_on === 'everywhere' || $watermark_on === '') {
+            return true;
+        }
+
+        if ($watermark_on !== 'selected_post_types') {
+            return false;
+        }
+
+        $allowed = $watermark['watermark_post_types'] ?? [];
+        if (is_string($allowed)) {
+            $allowed = maybe_unserialize($allowed);
+            if (is_string($allowed)) {
+                $allowed = maybe_unserialize($allowed);
+            }
+        }
+        if (!is_array($allowed)) {
+            return false;
+        }
+
+        return in_array($post_type, array_map('strval', array_values($allowed)), true);
+    }
+
+    /**
+     * Whether a watermark carries unified (condition-based) rules.
+     */
+    /**
+     * Whether a watermark's rules need the post the image belongs to
+     * (categories, tags, post type) to be evaluated meaningfully.
+     */
+    private function rulesDependOnParent(array $watermark): bool
+    {
+        foreach ((array) ($watermark['watermark_rules'] ?? []) as $rule) {
+            foreach ((array) ($rule['conditions'] ?? []) as $condition) {
+                if (in_array($condition['type'] ?? '', ['post_type', 'post_category', 'product_cat', 'product_tag'], true)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function hasUnifiedConditions(array $watermark): bool
+    {
+        $rules = $watermark['watermark_rules'] ?? [];
+        if (empty($rules) || !is_array($rules)) {
+            return false;
+        }
+
+        foreach ($rules as $rule) {
+            if (is_array($rule) && !empty($rule['conditions']) && is_array($rule['conditions'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Variations are evaluated in the context of their parent product, since
+     * categories and tags live on the product, not on the variation.
+     */
+    private function resolveContextParentId(int $post_id): int
+    {
+        if (get_post_type($post_id) === 'product_variation') {
+            $product_id = (int) wp_get_post_parent_id($post_id);
+            if ($product_id > 0) {
+                return $product_id;
+            }
+        }
+
+        return $post_id;
+    }
+
+    /**
+     * Normalize a meta value (int, numeric string, comma list or array) into attachment IDs.
+     *
+     * @param mixed $value
+     * @return int[]
+     */
+    private function parseAttachmentIds($value): array
+    {
+        if (is_string($value)) {
+            $value = maybe_unserialize($value);
+        }
+
+        if (is_numeric($value)) {
+            $value = [(int) $value];
+        } elseif (is_string($value)) {
+            $value = explode(',', $value);
+        }
+
+        if (!is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_map('absint', $value))));
+    }
+
+    /**
+     * Apply watermarks to an image that belongs to a post.
+     *
+     * Respects post type rules (already filtered by the caller), image size
+     * rules and unified watermark_rules conditions (product_cat, etc.).
+     * A backup is created only when at least one size will be watermarked.
      *
      * @param int   $attachmentId       The attachment ID.
-     * @param array $matchingWatermarks Watermarks that match the parent post type.
+     * @param array $matchingWatermarks Candidate watermarks.
      * @param int   $parentPostId       The parent post ID.
+     * @param bool  $isOverride         Explicit assignment: skip rule evaluation.
+     * @return bool True when at least one size was watermarked.
      */
-    private function applyWatermarksForFeaturedImage(int $attachmentId, array $matchingWatermarks, int $parentPostId): void
+    private function applyWatermarksForFeaturedImage(int $attachmentId, array $matchingWatermarks, int $parentPostId, bool $isOverride = false): bool
     {
-        // Get all registered image sizes
         $imageSizes = get_intermediate_image_sizes();
         $imageSizes[] = 'full';
 
-        // Create backup before applying watermarks
-        $this->createBackupForWatermarking($attachmentId);
-
+        $plan = [];
         foreach ($imageSizes as $size) {
-            // Apply the FULL rule system for each size
             $watermarksForSize = [];
 
             foreach ($matchingWatermarks as $watermark) {
-                // Step 1: Legacy image size filter (only if no unified rules exist)
-                $rules = $watermark['watermark_rules'] ?? [];
-                $hasUnifiedConditions = false;
+                if (!$isOverride) {
+                    if ($this->hasUnifiedConditions($watermark)) {
+                        $evalContext = \MantraBrain\UltimateWatermark\Utils\RulesEvaluator::buildContext(
+                            $attachmentId,
+                            $size,
+                            $parentPostId
+                        );
 
-                if (!empty($rules) && is_array($rules)) {
-                    foreach ($rules as $rule) {
-                        if (!empty($rule['conditions']) && is_array($rule['conditions'])) {
-                            $hasUnifiedConditions = true;
-                            break;
+                        if (!\MantraBrain\UltimateWatermark\Utils\RulesEvaluator::evaluate($watermark['watermark_rules'], $evalContext)) {
+                            continue;
                         }
-                    }
-                }
-
-                if (!$hasUnifiedConditions) {
-                    // Apply legacy size filter
-                    if (!WatermarkHelper::shouldApplyWatermarkByImageSize($watermark, $size)) {
+                    } elseif (!WatermarkHelper::shouldApplyWatermarkByImageSize($watermark, $size)) {
                         continue;
                     }
                 }
 
-                // Step 2: Unified watermark_rules conditions
-                if ($hasUnifiedConditions) {
-                    $evalContext = \MantraBrain\UltimateWatermark\Utils\RulesEvaluator::buildContext(
-                        $attachmentId,
-                        $size,
-                        $parentPostId
-                    );
-
-                    if (!\MantraBrain\UltimateWatermark\Utils\RulesEvaluator::evaluate($rules, $evalContext)) {
-                        continue;
-                    }
-                }
-
-                // All rules passed - include this watermark for this size
                 $watermarksForSize[] = $watermark;
             }
 
-            if (empty($watermarksForSize)) {
-                continue;
-            }
-
-            // Apply each watermark for this size
-            foreach ($watermarksForSize as $watermark) {
-                $this->applyWatermarkToAttachmentSize($attachmentId, $watermark, $size);
+            if (!empty($watermarksForSize)) {
+                $plan[$size] = $watermarksForSize;
             }
         }
 
-        // Clean up the flag
+        if (empty($plan)) {
+            return false;
+        }
+
+        // Back up the clean files before anything is modified.
+        if (!$this->createBackupForWatermarking($attachmentId)) {
+            return false;
+        }
+
+        foreach ($plan as $size => $watermarks) {
+            foreach ($watermarks as $watermark) {
+                $this->applyWatermarkToAttachmentSize($attachmentId, $watermark, (string) $size);
+            }
+        }
+
         delete_post_meta($attachmentId, '_ulwm_watermarked');
-    }
 
-    /**
-     * Handle featured image changes via admin-ajax (classic editor / media popup flow).
-     *
-     * When user clicks "Set as featured image" in the media popup, WordPress fires
-     * the 'set-post-thumbnail' AJAX action. This hook intercepts it to apply watermarks
-     * based on the parent post type rules.
-     *
-     * @return void
-     */
-    public function handleFeaturedImageChangeViaAjax(): void
-    {
-        // Only process if we have the required POST data
-        if (!isset($_POST['post_id'], $_POST['thumbnail_id'])) {
-            return;
-        }
-
-        $postId = absint($_POST['post_id']);
-        $attachmentId = absint($_POST['thumbnail_id']);
-
-        // Verify it's a valid image attachment
-        if (!wp_attachment_is_image($attachmentId)) {
-            return;
-        }
-
-        // Check if watermark was already applied to this attachment
-        $appliedWatermarks = get_post_meta($attachmentId, 'applied_watermarks', true);
-        if (!empty($appliedWatermarks)) {
-            return; // Already watermarked
-        }
-
-        $parentPost = get_post($postId);
-        if (!$parentPost) {
-            return;
-        }
-
-        $this->applyWatermarksForParentPost($attachmentId, $postId);
-    }
-
-    /**
-     * Handle set_post_thumbnail action (universal fallback for ALL featured image assignments).
-     *
-     * This hook fires for ALL featured image assignments regardless of how they are set:
-     * - REST API (both /wp/v2/ and /wc/v3/)
-     * - admin-ajax (classic editor / media popup)
-     * - Programmatic (set_post_thumbnail() function)
-     *
-     * @param int $post_ID The post ID.
-     * @param int $thumbnail_ID The attachment ID.
-     * @return void
-     */
-    public function handleSetPostThumbnail(int $post_ID, int $thumbnail_ID): void
-    {
-        // Verify it's a valid image attachment
-        if (!wp_attachment_is_image($thumbnail_ID)) {
-            return;
-        }
-
-        // Check if watermark was already applied to this attachment
-        $appliedWatermarks = get_post_meta($thumbnail_ID, 'applied_watermarks', true);
-        if (!empty($appliedWatermarks)) {
-            return; // Already watermarked
-        }
-
-        // Check if currently being processed by another hook
-        $processingFlag = get_post_meta($thumbnail_ID, '_ulwm_processing', true);
-        if ($processingFlag) {
-            return; // Already being processed
-        }
-
-        $parentPost = get_post($post_ID);
-        if (!$parentPost) {
-            return;
-        }
-
-        $this->applyWatermarksForParentPost($thumbnail_ID, $post_ID);
-    }
-
-    /**
-     * Handle _thumbnail_id meta updates (catches WooCommerce direct meta updates).
-     *
-     * WooCommerce sometimes sets _thumbnail_id directly via update_post_meta()
-     * without calling set_post_thumbnail(), so we need to hook into updated_post_meta
-     * to catch those cases as well.
-     *
-     * @param int    $meta_id    Meta ID.
-     * @param int    $post_id    Post ID.
-     * @param string $meta_key   Meta key.
-     * @param mixed  $meta_value Meta value.
-     * @return void
-     */
-    public function handleThumbnailMetaUpdate(int $meta_id, int $post_id, string $meta_key, $meta_value): void
-    {
-        // Only process _thumbnail_id meta updates
-        if ($meta_key !== '_thumbnail_id') {
-            return;
-        }
-
-        // Convert to int (meta_value might be string from POST data)
-        $thumbnailId = absint($meta_value);
-        if ($thumbnailId <= 0) {
-            return;
-        }
-
-        // Verify it's a valid image attachment
-        if (!wp_attachment_is_image($thumbnailId)) {
-            return;
-        }
-
-        // Check if watermark was already applied to this attachment
-        $appliedWatermarks = get_post_meta($thumbnailId, 'applied_watermarks', true);
-        if (!empty($appliedWatermarks)) {
-            return; // Already watermarked
-        }
-
-        // Check if currently being processed by another hook
-        $processingFlag = get_post_meta($thumbnailId, '_ulwm_processing', true);
-        if ($processingFlag) {
-            return; // Already being processed
-        }
-
-        $parentPost = get_post($post_id);
-        if (!$parentPost) {
-            return;
-        }
-
-        $this->applyWatermarksForParentPost($thumbnailId, $post_id);
-    }
-
-    /**
-     * Handle WooCommerce product gallery meta updates (_product_gallery).
-     *
-     * WooCommerce stores product gallery images as an array of attachment IDs
-     * in the _product_gallery meta field. When this meta is updated, we need to
-     * apply watermarks to any new images that were added to the gallery.
-     *
-     * @param int    $meta_id    Meta ID.
-     * @param int    $post_id    Post ID.
-     * @param string $meta_key   Meta key.
-     * @param mixed  $meta_value Meta value.
-     * @return void
-     */
-    public function handleGalleryMetaUpdate(int $meta_id, int $post_id, string $meta_key, $meta_value): void
-    {
-        // Only process _product_gallery meta updates
-        if ($meta_key !== '_product_gallery') {
-            return;
-        }
-
-        // The meta_value is an array of attachment IDs (serialized)
-        if (!is_array($meta_value)) {
-            $meta_value = maybe_unserialize($meta_value);
-        }
-
-        if (!is_array($meta_value) || empty($meta_value)) {
-            return;
-        }
-
-        $parentPost = get_post($post_id);
-        if (!$parentPost || $parentPost->post_type !== 'product') {
-            return;
-        }
-
-        // Process each gallery image
-        foreach ($meta_value as $attachmentId) {
-            $attachmentId = absint($attachmentId);
-            if ($attachmentId <= 0) {
-                continue;
-            }
-
-            // Verify it's a valid image attachment
-            if (!wp_attachment_is_image($attachmentId)) {
-                continue;
-            }
-
-            // Check if watermark was already applied to this attachment
-            $appliedWatermarks = get_post_meta($attachmentId, 'applied_watermarks', true);
-            if (!empty($appliedWatermarks)) {
-                continue; // Already watermarked
-            }
-
-            // Check if currently being processed by another hook
-            $processingFlag = get_post_meta($attachmentId, '_ulwm_processing', true);
-            if ($processingFlag) {
-                continue; // Already being processed
-            }
-
-            $this->applyWatermarksForParentPost($attachmentId, $post_id);
-        }
-    }
-
-    /**
-     * Apply watermarks to an image based on its parent post type.
-     *
-     * This is the shared method used by handleFeaturedImageChangeViaAjax and handleSetPostThumbnail.
-     * It respects ALL watermark rules: post type rules, image size rules,
-     * and watermark_rules conditions (unified rules with image_size, product_cat, etc.).
-     *
-     * @param int $attachmentId The attachment ID.
-     * @param int $parentPostId The parent post ID.
-     * @return void
-     */
-    private function applyWatermarksForParentPost(int $attachmentId, int $parentPostId): void
-    {
-        update_post_meta($attachmentId, '_ulwm_processing', true);
-
-        try {
-            $parentPost = get_post($parentPostId);
-            if (!$parentPost) {
-                return;
-            }
-
-            update_post_meta($attachmentId, '_ulwm_uploaded_to_post_id', $parentPostId);
-
-            $allActive = WatermarkHelper::getActiveWatermarks();
-
-            $automaticWatermarks = array_filter($allActive, function ($watermark) {
-                return $watermark['automatic_watermarking'] === '1' || (boolean) $watermark['automatic_watermarking'] === true;
-            });
-
-            if (empty($automaticWatermarks)) {
-                return;
-            }
-
-            // Filter by post type rules — keep watermarks where the parent
-            // post type is allowed (or where the watermark applies "everywhere").
-            $parentPostType = $parentPost->post_type;
-            $matchingWatermarks = array_filter($automaticWatermarks, function ($watermark) use ($parentPostType) {
-                $watermarkOn = $watermark['watermark_on'] ?? 'everywhere';
-
-                if ($watermarkOn === 'everywhere' || $watermarkOn === '') {
-                    return true;
-                }
-
-                if ($watermarkOn === 'selected_post_types') {
-                    $allowedPostTypes = $watermark['watermark_post_types'] ?? [];
-                    if (is_string($allowedPostTypes)) {
-                        $allowedPostTypes = maybe_unserialize($allowedPostTypes);
-                        if (is_string($allowedPostTypes)) {
-                            $allowedPostTypes = maybe_unserialize($allowedPostTypes);
-                        }
-                    }
-                    if (!is_array($allowedPostTypes)) {
-                        $allowedPostTypes = [];
-                    }
-                    $allowedPostTypes = array_map('strval', array_values($allowedPostTypes));
-
-                    return in_array(strval($parentPostType), $allowedPostTypes, true);
-                }
-
-                return false;
-            });
-
-            if (empty($matchingWatermarks)) {
-                return;
-            }
-
-            $this->applyWatermarksForFeaturedImage($attachmentId, $matchingWatermarks, $parentPostId);
-
-        } finally {
-            delete_post_meta($attachmentId, '_ulwm_processing');
-        }
+        return !empty(get_post_meta($attachmentId, 'applied_watermarks', true));
     }
 
     /**
@@ -547,16 +653,12 @@ class RestApiIntegration
      * REST API request lifecycle, before WordPress consumes the raw request body for
      * file processing, and stores them in a static property for later retrieval.
      *
-     * NOTE: The rest_request_before_callbacks filter can be called with different argument
-     * types depending on context. WooCommerce's rest_preload_api_request passes an array
-     * as the second argument instead of WP_REST_Request. We handle this gracefully.
-     *
-     * @param WP_REST_Response|WP_Error|null $response The response object.
-     * @param WP_REST_Request|array          $request  The request object or array (from preload).
-     * @param WP_REST_Server|null            $server   The server object.
-     * @return WP_REST_Response|WP_Error|null
+     * @param WP_REST_Response|WP_Error|mixed $response Result to send to the client.
+     * @param array                          $handler  Route handler used for the request.
+     * @param WP_REST_Request|mixed          $request  Request used to generate the response.
+     * @return WP_REST_Response|WP_Error|mixed
      */
-    public function captureWatermarkToggleFromRequest($response, $request, $server)
+    public function captureWatermarkToggleFromRequest($response, $handler, $request)
     {
         // CRITICAL: Some contexts (like WooCommerce rest_preload_api_request) pass
         // an array as the second argument instead of WP_REST_Request. Return early.
@@ -637,7 +739,7 @@ class RestApiIntegration
      */
     public function handleRestApiAttachmentUpload(\WP_Post $attachment, \WP_REST_Request $request, bool $creating): void
     {
-        if (!$creating || !wp_attachment_is_image($attachment->ID)) {
+        if (!$creating || !wp_attachment_is_image($attachment->ID) || AttachmentGuard::shouldSkip((int) $attachment->ID)) {
             return;
         }
         
@@ -740,6 +842,13 @@ class RestApiIntegration
      */
     public function markForWatermarking(int $attachment_id): void
     {
+        // Downloadable product files (WooCommerce / Dokan) are never watermarked.
+        if (AttachmentGuard::isDownloadUploadRequest() || AttachmentGuard::shouldSkip($attachment_id)) {
+            return;
+        }
+
+        $this->flagUploadOrigin($attachment_id);
+
         // Check if auto-apply is enabled via toggle (for media library uploads)
         // For REST API uploads, we'll check watermark rules based on parent post type
         $auto_apply_enabled = false;
@@ -764,7 +873,7 @@ class RestApiIntegration
         } else {
             // Parameter not sent at all - use WordPress option fallback
             // This handles uploads from other sources (not via media library toggle)
-            $option_value = get_option('ultimate_watermark_auto_apply_toggle', '0');
+            $option_value = (string) get_user_meta(get_current_user_id(), 'ultimate_watermark_auto_apply_toggle', true);
             if ($option_value === '1') {
                 $auto_apply_enabled = true;
             }
@@ -813,10 +922,10 @@ class RestApiIntegration
                 $ids_string = sanitize_text_field($_REQUEST['ultimate_watermark_ids']);
             }
             // 3. Check WordPress option (set by AJAX before upload)
-            elseif (get_option('ultimate_watermark_temp_selected_ids', '') !== '') {
-                $ids_string = sanitize_text_field(get_option('ultimate_watermark_temp_selected_ids', ''));
+            elseif ((string) get_user_meta(get_current_user_id(), 'ultimate_watermark_temp_selected_ids', true) !== '') {
+                $ids_string = sanitize_text_field((string) get_user_meta(get_current_user_id(), 'ultimate_watermark_temp_selected_ids', true));
                 // Clear after reading (one-time use)
-                delete_option('ultimate_watermark_temp_selected_ids');
+                delete_user_meta(get_current_user_id(), 'ultimate_watermark_temp_selected_ids');
             }
             // 4. Check raw input as last resort
             else {
@@ -861,11 +970,34 @@ class RestApiIntegration
         if (get_post_meta($attachment_id, '_ulwm_skip_watermarking', true)) {
             return $metadata;
         }
+
+        // Protected download files (e.g. uploads/woocommerce_uploads) stay untouched.
+        if (!is_array($metadata) || AttachmentGuard::shouldSkip((int) $attachment_id)) {
+            return $metadata;
+        }
+
+        // Metadata is regenerated from the already-watermarked file (thumbnail
+        // regeneration, image editor, Pro bulk tools). Watermarking again here
+        // would stack a second watermark on every size.
+        $already_applied = get_post_meta($attachment_id, 'applied_watermarks', true);
+        if (!empty($already_applied)) {
+            return $metadata;
+        }
         
         // Check if this image should be watermarked
         // _ulwm_watermarked flag is ONLY set by toggle (media library uploads with toggle ON)
         // For REST API uploads, we check rules directly without setting this flag
         $was_toggle_enabled = get_post_meta($attachment_id, '_ulwm_watermarked', true);
+
+        // Toggle on but no watermark picked: fall back to rule-based watermarking.
+        if ($was_toggle_enabled) {
+            $selected = get_post_meta($attachment_id, '_ulwm_selected_watermark_ids', true);
+            if (empty($selected)) {
+                $was_toggle_enabled = false;
+                delete_post_meta($attachment_id, '_ulwm_watermarked');
+                delete_post_meta($attachment_id, '_ulwm_selected_watermark_ids');
+            }
+        }
         
         // Determine if we should watermark based on rules (for REST API uploads)
         $should_watermark_by_rules = false;
@@ -893,6 +1025,11 @@ class RestApiIntegration
             if (!empty($automatic_watermarks)) {
                 if ($parent_post_id > 0) {
                     $parent_post = get_post($parent_post_id);
+                    // A new post is still an auto-draft (no categories yet): its
+                    // images are evaluated when it is first saved.
+                    if ($parent_post && in_array($parent_post->post_status, ['auto-draft', 'trash'], true)) {
+                        $parent_post = null;
+                    }
                     if ($parent_post) {
                         // Check if any watermarks match the parent post type rules
                         $parent_post_type = $parent_post->post_type;
@@ -943,50 +1080,133 @@ class RestApiIntegration
         
         // Watermark if toggle was enabled OR rules match
         if ($was_toggle_enabled || $should_watermark_by_rules) {
+            // Raise (never lower) the memory limit for image processing.
+            wp_raise_memory_limit('image');
+
             try {
-                // Increase memory limit for watermark processing
-                $original_memory_limit = ini_get('memory_limit');
-                ini_set('memory_limit', '256M');
-                
-                // Create backup BEFORE applying watermarks
-                $this->createBackupForWatermarking($attachment_id);
-                
-                // Apply watermarks to the generated thumbnails
-                // Pass whether toggle was enabled (affects filtering behavior)
-                // If toggle was enabled, apply all; if rule-based, filter by rules
-                $this->applyWatermarksToGeneratedImages($attachment_id, $was_toggle_enabled);
-                
-                // Restore original memory limit
-                ini_set('memory_limit', $original_memory_limit);
-                
-                // Remove the flag to prevent re-processing (only if toggle was enabled)
+                // Create backup BEFORE applying watermarks (skip the image if it fails).
+                if ($this->createBackupForWatermarking($attachment_id)) {
+                    // Toggle uploads apply the user's selection; otherwise filter by rules.
+                    $this->applyWatermarksToGeneratedImages($attachment_id, (bool) $was_toggle_enabled);
+                }
+            } catch (\Throwable $e) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Ultimate Watermark: Failed to watermark attachment ' . $attachment_id . ': ' . $e->getMessage());
+                }
+            } finally {
+                // Remove the one-shot toggle flags so the image is never re-processed by them.
                 if ($was_toggle_enabled) {
                     delete_post_meta($attachment_id, '_ulwm_watermarked');
                     delete_post_meta($attachment_id, '_ulwm_selected_watermark_ids');
-                    // DON'T reset the toggle option - let localStorage control it instead
-                    // This allows toggle state to persist across page reloads
-                    // update_option('ultimate_watermark_auto_apply_toggle', '0');
                 }
-                
-            } catch (\Exception $e) {
-                // Restore original memory limit
-                ini_set('memory_limit', $original_memory_limit);
             }
         }
         
+        // Images uploaded from the front end of the site (vendor dashboards,
+        // submission forms) that are not attached to a post yet: apply the
+        // watermarks marked "Frontend watermarking" whose rules match now.
+        // Watermarks whose rules depend on the post (category, post type) are
+        // left for later: they are evaluated once the image is assigned to it.
+        if (!$was_toggle_enabled && $this->isFrontendUpload((int) $attachment_id) && empty(get_post_meta($attachment_id, 'applied_watermarks', true))) {
+            $parent_id = (int) get_post_meta($attachment_id, '_ulwm_uploaded_to_post_id', true) ?: (int) wp_get_post_parent_id($attachment_id);
+            if ($parent_id <= 0) {
+                $frontend = array_values(array_filter(WatermarkHelper::getActiveWatermarks(), function ($watermark) {
+                    return ($watermark['frontend_watermarking'] ?? '0') === '1'
+                        && $this->watermarkAllowsPostType($watermark, 'attachment')
+                        && !$this->rulesDependOnParent($watermark);
+                }));
+                if (!empty($frontend)) {
+                    wp_raise_memory_limit('image');
+                    try {
+                        $this->applyWatermarksForFeaturedImage((int) $attachment_id, $frontend, 0);
+                    } catch (\Throwable $e) {
+                        if (defined('WP_DEBUG') && WP_DEBUG) {
+                            error_log('Ultimate Watermark: Frontend watermarking failed for attachment ' . $attachment_id . ': ' . $e->getMessage());
+                        }
+                    }
+                }
+            }
+        }
+
         return $metadata;
+    }
+
+    /**
+     * Record where an upload came from.
+     *
+     * - Uploads made from a page outside wp-admin (Dokan dashboard, front-end
+     *   forms) are flagged as front-end uploads for "Frontend watermarking".
+     * - A crop of an already watermarked image (Dokan / Customizer crop step)
+     *   inherits that state, so the copy is never watermarked a second time.
+     */
+    private function flagUploadOrigin(int $attachment_id): void
+    {
+        // phpcs:disable WordPress.Security.NonceVerification -- read-only classification; core verified the upload nonce.
+        // Core ('crop-image', 'custom-header-crop'), Dokan and most media
+        // croppers post the source attachment ID together with cropDetails.
+        $is_crop = !empty($_POST['id']) && !empty($_POST['cropDetails']);
+        if ($is_crop) {
+            $source_id = absint($_POST['id']);
+            if ($source_id > 0 && $source_id !== $attachment_id) {
+                update_post_meta($attachment_id, '_ulwm_crop_source', $source_id);
+            }
+            $source_applied = get_post_meta($source_id, 'applied_watermarks', true);
+            if (!empty($source_applied)) {
+                update_post_meta($attachment_id, 'applied_watermarks', $source_applied);
+            }
+            if (get_post_meta($source_id, '_ulwm_frontend_upload', true) === '1') {
+                update_post_meta($attachment_id, '_ulwm_frontend_upload', '1');
+            }
+            return;
+        }
+        // phpcs:enable
+
+        $referer = wp_get_raw_referer();
+        // Compare host + path only: http/https or mapped-domain differences
+        // must not turn an admin upload into a "front-end" one.
+        $strip = static function ($url) {
+            $parts = wp_parse_url((string) $url);
+            return strtolower(($parts['host'] ?? '') . ($parts['path'] ?? ''));
+        };
+        $referer_key = $referer ? $strip($referer) : '';
+        $is_frontend = $referer_key !== ''
+            && strpos($referer_key, $strip(admin_url())) !== 0
+            && strpos($referer_key, $strip(network_admin_url())) !== 0;
+
+        /**
+         * Filter whether an upload counts as a front-end upload.
+         *
+         * @param bool $is_frontend   Detected from the HTTP referer.
+         * @param int  $attachment_id Attachment ID.
+         */
+        if (apply_filters('ultimate_watermark_is_frontend_upload', $is_frontend, $attachment_id)) {
+            update_post_meta($attachment_id, '_ulwm_frontend_upload', '1');
+        }
+    }
+
+    /**
+     * Whether an attachment was uploaded from the front end.
+     */
+    private function isFrontendUpload(int $attachment_id): bool
+    {
+        return get_post_meta($attachment_id, '_ulwm_frontend_upload', true) === '1';
     }
 
     /**
      * Create backup for watermarking
      */
-    private function createBackupForWatermarking(int $attachment_id): void
+    private function createBackupForWatermarking(int $attachment_id): bool
     {
+        // Backups switched off: watermark without one (the site owner's choice).
+        if (!\MantraBrain\UltimateWatermark\Utils\BackupManager::isBackupEnabled()) {
+            return true;
+        }
+
         // Get the original image file path using get_attached_file
         // This should be the original unwatermarked file at this point
         $original_path = get_attached_file($attachment_id);
         if (!$original_path || !file_exists($original_path)) {
-            return;
+            return false;
         }
 
         // CRITICAL: Verify this is the actual original file, not a watermarked version
@@ -1034,13 +1254,16 @@ class RestApiIntegration
             $backup_paths['full'] = $original_path;
         }
         
-        // Create backup with all sizes
-        \MantraBrain\UltimateWatermark\Utils\BackupManager::createBackup(
+        // Create backup with all sizes. Backups are on, so never modify an image
+        // whose original could not be saved (full disk, unwritable folder).
+        $backup = \MantraBrain\UltimateWatermark\Utils\BackupManager::createBackup(
             $backup_paths['full'],
             $attachment_id,
             0,
             $backup_paths
         );
+
+        return !empty($backup);
     }
 
     /**
@@ -1328,8 +1551,6 @@ class RestApiIntegration
                 '_source_image_path' => $image_path,
             ]);
             $success = \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($image_path, $watermark_id, $image_path);
-            // Clear context after use
-            \MantraBrain\UltimateWatermark\Watermark\WatermarkService::setAttachmentContext([]);
 
             if (!$success && defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('Ultimate Watermark: applyWatermarkById failed for watermark ID ' . $watermark_id . ' on attachment ' . $attachment_id);
@@ -1347,7 +1568,7 @@ class RestApiIntegration
                 
                 // Apply to ALL format variants (both original formats AND WebP/AVIF)
                 // This ensures watermark is visible regardless of which format WordPress serves
-                $format_variants = $this->getAllFormatVariants($image_path);
+                $format_variants = $this->getAllFormatVariants($image_path, $attachment_id);
                 foreach ($format_variants as $variantPath) {
                     if (file_exists($variantPath) && is_writable($variantPath)) {
                         \MantraBrain\UltimateWatermark\Watermark\WatermarkService::applyWatermarkById($variantPath, $watermark_id, $variantPath);
@@ -1359,6 +1580,10 @@ class RestApiIntegration
             }
         } catch (\Exception $e) {
             // Silently handle exceptions
+        } finally {
+            // Cleared only now so the scaled/original copy and WebP/AVIF variants
+            // resolve the same attachment (same font size and placeholders).
+            \MantraBrain\UltimateWatermark\Watermark\WatermarkService::setAttachmentContext([]);
         }
     }
 
@@ -1372,25 +1597,10 @@ class RestApiIntegration
             // First, try to get the primary attached file
             $file_path = get_attached_file($attachment_id);
             
-            // Prefer original formats (jpg, png) over WebP/AVIF
-            if ($file_path) {
-                $ext = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
-                // If it's a WebP/AVIF, try to find the original format
-                if (in_array($ext, ['webp', 'avif'])) {
-                    $base = pathinfo($file_path, PATHINFO_DIRNAME) . '/' . pathinfo($file_path, PATHINFO_FILENAME);
-                    // Try common original formats
-                    foreach (['jpg', 'jpeg', 'png'] as $original_ext) {
-                        $original_path = $base . '.' . $original_ext;
-                        if (file_exists($original_path)) {
-                            return $original_path;
-                        }
-                    }
-                }
-                
-                // If original format found or not WebP/AVIF, return it
-                if (file_exists($file_path)) {
-                    return $file_path;
-                }
+            // Always the file WordPress records for this attachment: a same-named
+            // .jpg/.png next to a .webp is usually a different attachment.
+            if ($file_path && file_exists($file_path)) {
+                return $file_path;
             }
             
             // Also check for scaled versions (WordPress 5.3+ big image feature)
@@ -1419,18 +1629,6 @@ class RestApiIntegration
             $upload_dir = wp_upload_dir();
             $full_path = $upload_dir['basedir'] . '/' . $image_path['path'];
             
-            // Prefer original formats over WebP/AVIF
-            $ext = strtolower(pathinfo($full_path, PATHINFO_EXTENSION));
-            if (in_array($ext, ['webp', 'avif'])) {
-                $base = pathinfo($full_path, PATHINFO_DIRNAME) . '/' . pathinfo($full_path, PATHINFO_FILENAME);
-                // Try common original formats
-                foreach (['jpg', 'jpeg', 'png'] as $original_ext) {
-                    $original_path = $base . '.' . $original_ext;
-                    if (file_exists($original_path)) {
-                        return $original_path;
-                    }
-                }
-            }
             
             return $full_path;
         }
@@ -1445,17 +1643,6 @@ class RestApiIntegration
             $full_path = $upload_dir['basedir'] . '/' . $base_dir . '/' . $metadata['sizes'][$size]['file'];
 
             if (file_exists($full_path)) {
-                // Prefer original formats over WebP/AVIF
-                $ext = strtolower(pathinfo($full_path, PATHINFO_EXTENSION));
-                if (in_array($ext, ['webp', 'avif'])) {
-                    $base = pathinfo($full_path, PATHINFO_DIRNAME) . '/' . pathinfo($full_path, PATHINFO_FILENAME);
-                    foreach (['jpg', 'jpeg', 'png'] as $original_ext) {
-                        $original_path = $base . '.' . $original_ext;
-                        if (file_exists($original_path)) {
-                            return $original_path;
-                        }
-                    }
-                }
                 return $full_path;
             }
         }
@@ -1501,29 +1688,24 @@ class RestApiIntegration
         if (empty($metadata['file'])) {
             return null;
         }
-        $upload_dir = wp_upload_dir();
-        $base_dir = $upload_dir['basedir'] . '/' . dirname($metadata['file']);
-        $original_file = basename($metadata['file']);
-        
-        // If current path is scaled, try original
-        if (strpos($currentFullPath, '-scaled.') !== false) {
-            $original_path = $base_dir . '/' . $original_file;
-            if (file_exists($original_path)) {
-                return $original_path;
-            }
-            if (!empty($metadata['original_image'])) {
-                $metaFile = $base_dir . '/' . $metadata['original_image'];
-                if (file_exists($metaFile)) {
-                    return $metaFile;
-                }
-            }
+
+        $basedir   = trailingslashit(wp_upload_dir()['basedir']);
+        $scaled    = $basedir . $metadata['file'];
+        $original  = !empty($metadata['original_image'])
+            ? $basedir . dirname($metadata['file']) . '/' . $metadata['original_image']
+            : null;
+        $current   = realpath($currentFullPath);
+
+        // Big-image uploads: the attached file is "-scaled"; its counterpart is the original.
+        if ($current !== false && $current === realpath($scaled)) {
+            return ($original && file_exists($original) && realpath($original) !== $current) ? $original : null;
         }
-        
-        // If current path is original, try scaled
-        $scaled_pattern = $base_dir . '/' . pathinfo($original_file, PATHINFO_FILENAME) . '-scaled.' . pathinfo($original_file, PATHINFO_EXTENSION);
-        if (file_exists($scaled_pattern)) {
-            return $scaled_pattern;
+
+        // Current path is the original: counterpart is the scaled attached file.
+        if ($original && $current !== false && $current === realpath($original) && file_exists($scaled)) {
+            return $scaled;
         }
+
         return null;
     }
 
@@ -1552,7 +1734,7 @@ class RestApiIntegration
      * Get ALL format variants (both original formats and WebP/AVIF)
      * This ensures watermarks are applied to all formats WordPress might serve
      */
-    private function getAllFormatVariants(string $path): array
+    private function getAllFormatVariants(string $path, int $attachment_id = 0): array
     {
         $candidates = [];
         $info = pathinfo($path);
@@ -1562,13 +1744,15 @@ class RestApiIntegration
         $base = $info['dirname'] . '/' . $info['filename'];
         $current_ext = strtolower($info['extension'] ?? '');
         
-        // All possible formats
-        $all_formats = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif'];
+        // Only next-gen copies (written by image optimizers next to the
+        // original) are siblings of this file. A same-named .jpg/.png/.gif is
+        // usually a different attachment and must not be touched.
+        $all_formats = ['webp', 'avif'];
         
         foreach ($all_formats as $ext) {
             if ($ext !== $current_ext) {
                 $variant = $base . '.' . $ext;
-                if (file_exists($variant)) {
+                if (file_exists($variant) && !WatermarkHelper::isFileOfAnotherAttachment($variant, $attachment_id)) {
                     $candidates[] = $variant;
                 }
             }
@@ -1595,7 +1779,7 @@ class RestApiIntegration
         // Try sibling alternative formats based on where the canonical would be
         if ($primary) {
             foreach ($this->getAlternativeFormatPaths($primary) as $variant) {
-                if (file_exists($variant)) {
+                if (file_exists($variant) && !WatermarkHelper::isFileOfAnotherAttachment($variant, $attachment_id)) {
                     return $variant;
                 }
             }

@@ -243,3 +243,8 @@
     .actions-left .btn,
     .actions-right .btn { flex: 1; justify-content: center; }
 }
+
+/* One divider between settings sections (the top border of the next one). */
+.settings-sections .settings-section {
+    border-bottom: 0;
+}

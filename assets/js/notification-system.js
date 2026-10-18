@@ -6,6 +6,18 @@
  * @package UltimateWatermark
  * @since 2.0.0
  */
+/* i18n: falls back to the original text when wp.i18n is unavailable. */
+window.wp = window.wp || {};
+window.wp.i18n = window.wp.i18n || {
+    __: function (text) { return text; },
+    _n: function (single, plural, number) { return number === 1 ? single : plural; },
+    sprintf: function (format) {
+        var args = Array.prototype.slice.call(arguments, 1), i = 0;
+        return String(format).replace(/%(\d+\$)?[sd]/g, function (match, position) {
+            return String(position ? args[parseInt(position, 10) - 1] : args[i++]);
+        });
+    }
+};
 
 class NotificationSystem {
     constructor() {
@@ -449,8 +461,8 @@ class NotificationSystem {
     confirm(options) {
         return new Promise((resolve) => {
             const {
-                title = 'Confirm Action',
-                message = 'Are you sure you want to proceed?',
+                title = wp.i18n.__('Confirm Action', 'ultimate-watermark'),
+                message = wp.i18n.__('Are you sure you want to proceed?', 'ultimate-watermark'),
                 type = 'warning',
                 confirmText = 'Confirm',
                 cancelText = 'Cancel',
@@ -549,7 +561,7 @@ class NotificationSystem {
         return new Promise((resolve) => {
             const {
                 title = 'Alert',
-                message = 'Please take note of this information.',
+                message = wp.i18n.__('Please take note of this information.', 'ultimate-watermark'),
                 type = 'info',
                 buttonText = 'OK'
             } = options;

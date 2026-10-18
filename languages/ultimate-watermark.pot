@@ -2,14 +2,14 @@
 # This file is distributed under the GPL v3 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Ultimate Watermark 2.1.5\n"
+"Project-Id-Version: Ultimate Watermark 2.2.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/ultimate-watermark\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-21T14:21:12+00:00\n"
+"POT-Creation-Date: 2026-10-17T14:00:14+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: ultimate-watermark\n"
@@ -42,138 +42,182 @@ msgstr ""
 msgid "https://mantrabrain.com"
 msgstr ""
 
-#: src/Admin/AdminManager.php:137
-#: src/Admin/AdminManager.php:138
+#: src/Admin/AdminManager.php:150
+#: src/Admin/AdminManager.php:151
+#: src/Admin/MediaEditIntegration.php:121
 msgid "Watermark"
 msgstr ""
 
-#: src/Admin/AdminManager.php:149
-#: src/Admin/AdminManager.php:150
+#: src/Admin/AdminManager.php:162
+#: src/Admin/AdminManager.php:163
 #: src/Admin/Components/Header.php:45
 #: src/Admin/Pages/DashboardPage.php:31
 msgid "Dashboard"
 msgstr ""
 
-#: src/Admin/AdminManager.php:159
-#: src/Admin/AdminManager.php:160
+#: src/Admin/AdminManager.php:172
+#: src/Admin/AdminManager.php:173
 #: src/Admin/Pages/AnalyticsPage.php:41
 #: src/Admin/Pages/DashboardPage.php:147
 msgid "Analytics"
 msgstr ""
 
-#: src/Admin/AdminManager.php:169
-#: src/Admin/AdminManager.php:170
+#: src/Admin/AdminManager.php:182
+#: src/Admin/AdminManager.php:183
 #: src/Admin/Components/Header.php:49
 msgid "Watermarks"
 msgstr ""
 
-#: src/Admin/AdminManager.php:178
-#: src/Admin/AdminManager.php:179
+#: src/Admin/AdminManager.php:191
+#: src/Admin/AdminManager.php:192
 msgid "Add Watermark"
 msgstr ""
 
-#: src/Admin/AdminManager.php:187
-#: src/Admin/AdminManager.php:188
-#: src/Admin/AdminManager.php:1083
+#: src/Admin/AdminManager.php:200
+#: src/Admin/AdminManager.php:201
+#: src/Admin/AdminManager.php:1101
 #: src/Admin/Components/Header.php:53
 #: src/Admin/Pages/DashboardPage.php:137
-#: src/Admin/Pages/SettingsPage.php:207
+#: src/Admin/Pages/SettingsPage.php:194
 msgid "Settings"
 msgstr ""
 
-#: src/Admin/AdminManager.php:196
+#: src/Admin/AdminManager.php:209
 #: src/Admin/Pages/BackupPage.php:32
 #: src/Admin/Pages/BackupPage.php:52
 msgid "Backup Management"
 msgstr ""
 
-#: src/Admin/AdminManager.php:197
+#: src/Admin/AdminManager.php:210
 msgid "Backups"
 msgstr ""
 
-#: src/Admin/AdminManager.php:207
-#: src/Admin/AdminManager.php:208
-#: src/Admin/AdminManager.php:1088
+#: src/Admin/AdminManager.php:220
+#: src/Admin/AdminManager.php:221
+#: src/Admin/AdminManager.php:1106
 msgid "Get Pro"
 msgstr ""
 
-#: src/Admin/AdminManager.php:303
+#: src/Admin/AdminManager.php:316
+#: assets/js/backup-page.js:469
+#: assets/js/backup-page.js:471
 msgid "Backup deleted successfully."
 msgstr ""
 
-#: src/Admin/AdminManager.php:305
+#: src/Admin/AdminManager.php:318
+#: assets/js/backup-page.js:477
+#: assets/js/backup-page.js:479
 msgid "Failed to delete backup."
 msgstr ""
 
-#: src/Admin/AdminManager.php:357
+#: src/Admin/AdminManager.php:370
+#: assets/js/backup-page.js:563
 msgid "Failed to restore image from backup."
 msgstr ""
 
-#: src/Admin/AdminManager.php:445
+#: src/Admin/AdminManager.php:458
 msgid "Failed to restore any images from backup."
 msgstr ""
 
-#: src/Admin/AdminManager.php:522
+#: src/Admin/AdminManager.php:535
 msgid "Failed to delete any backups."
 msgstr ""
 
-#: src/Admin/AdminManager.php:592
-msgid "You do not have permission to change these settings."
-msgstr ""
-
-#: src/Admin/AdminManager.php:598
-#: src/Admin/MediaEditIntegration.php:548
-#: src/Admin/MediaEditIntegration.php:633
-#: src/Admin/MediaLibraryIntegration.php:455
-#: src/Admin/MediaLibraryIntegration.php:1437
-#: src/Admin/MediaLibraryIntegration.php:1755
-#: src/Admin/MediaLibraryIntegration.php:1802
-#: src/Ajax/WatermarkActionsHandler.php:40
-#: src/Ajax/WatermarkActionsHandler.php:155
-#: src/Ajax/WatermarkActionsHandler.php:201
-#: src/Ajax/WatermarkActionsHandler.php:291
-#: src/Ajax/WatermarkActionsHandler.php:347
-#: src/Ajax/WatermarkAjaxHandler.php:674
+#: src/Admin/AdminManager.php:608
+#: src/Admin/AdminManager.php:687
+#: src/Admin/MediaEditIntegration.php:593
+#: src/Admin/MediaEditIntegration.php:681
+#: src/Admin/MediaLibraryIntegration.php:513
+#: src/Admin/MediaLibraryIntegration.php:1514
+#: src/Admin/MediaLibraryIntegration.php:1845
+#: src/Admin/MediaLibraryIntegration.php:1894
+#: src/Ajax/WatermarkActionsHandler.php:41
+#: src/Ajax/WatermarkActionsHandler.php:152
+#: src/Ajax/WatermarkActionsHandler.php:200
+#: src/Ajax/WatermarkActionsHandler.php:253
+#: src/Ajax/WatermarkActionsHandler.php:311
+#: src/Ajax/WatermarkAjaxHandler.php:693
 msgid "Security check failed."
 msgstr ""
 
-#: src/Admin/AdminManager.php:604
+#: src/Admin/AdminManager.php:613
+#: src/Admin/AdminManager.php:692
+#: src/Admin/MediaEditIntegration.php:599
+#: src/Admin/MediaEditIntegration.php:687
+#: src/Admin/MediaLibraryIntegration.php:519
+#: src/Admin/MediaLibraryIntegration.php:1519
+#: src/Admin/MediaLibraryIntegration.php:1851
+#: src/Admin/MediaLibraryIntegration.php:1900
+#: src/Ajax/WatermarkActionsHandler.php:47
+#: src/Ajax/WatermarkActionsHandler.php:158
+#: src/Ajax/WatermarkActionsHandler.php:206
+#: src/Ajax/WatermarkActionsHandler.php:259
+#: src/Ajax/WatermarkActionsHandler.php:317
+msgid "Insufficient permissions."
+msgstr ""
+
+#: src/Admin/AdminManager.php:619
 msgid "Invalid form data."
 msgstr ""
 
-#: src/Admin/AdminManager.php:655
+#: src/Admin/AdminManager.php:661
 msgid "Failed to save settings to database."
 msgstr ""
 
-#: src/Admin/AdminManager.php:664
+#: src/Admin/AdminManager.php:670
 msgid "Settings saved successfully."
 msgstr ""
 
-#: src/Admin/AdminManager.php:670
+#: src/Admin/AdminManager.php:676
 msgid "An error occurred while saving settings."
 msgstr ""
 
+#: src/Admin/AdminManager.php:719
+msgid "Your session has expired. Please reload the page."
+msgstr ""
+
+#: src/Admin/AdminManager.php:724
+msgid "You do not have permission to view analytics."
+msgstr ""
+
 #: src/Admin/Components/ConfirmationModal.php:35
-#: src/Admin/MediaLibraryIntegration.php:2358
+#: src/Admin/MediaLibraryIntegration.php:2555
+#: assets/js/notification-system.js:464
 msgid "Confirm Action"
 msgstr ""
 
 #: src/Admin/Components/ConfirmationModal.php:38
-#: src/Admin/MediaLibraryIntegration.php:2364
+#: src/Admin/MediaLibraryIntegration.php:2561
+#: assets/js/notification-system.js:465
 msgid "Are you sure you want to proceed?"
 msgstr ""
 
 #: src/Admin/Components/ConfirmationModal.php:41
-#: src/Admin/MediaLibraryIntegration.php:2371
+#: src/Admin/MediaLibraryIntegration.php:2568
 msgid "Confirm"
 msgstr ""
 
 #: src/Admin/Components/ConfirmationModal.php:44
-#: src/Admin/MediaLibraryIntegration.php:2368
-#: src/Admin/Pages/AddWatermarkPage.php:1171
-#: src/Admin/Pages/WatermarkPage.php:172
-#: src/Admin/Pages/WatermarkPage.php:181
+#: src/Admin/MediaLibraryIntegration.php:491
+#: src/Admin/MediaLibraryIntegration.php:2565
+#: src/Admin/Pages/AddWatermarkPage.php:1214
+#: src/Admin/Pages/WatermarkPage.php:169
+#: src/Admin/Pages/WatermarkPage.php:178
 #: src/Admin/Templates/WatermarkModal.php:284
+#: assets/js/backup-page.js:428
+#: assets/js/backup-page.js:520
+#: assets/js/backup-page.js:651
+#: assets/js/backup-page.js:732
+#: assets/js/backup-page.js:920
+#: assets/js/backup-page.js:932
+#: assets/js/backup-page.js:943
+#: assets/js/backup-page.js:954
+#: assets/js/media-edit.js:65
+#: assets/js/media-grid.js:63
+#: assets/js/watermarks.js:69
+#: assets/js/watermarks.js:323
+#: assets/js/watermarks.js:479
+#: assets/js/watermarks.js:558
 msgid "Cancel"
 msgstr ""
 
@@ -210,268 +254,398 @@ msgid "Page actions"
 msgstr ""
 
 #: src/Admin/MediaEditIntegration.php:68
-#: src/Admin/MediaEditIntegration.php:142
+#: src/Admin/MediaEditIntegration.php:178
 msgid "Applied Watermark"
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:179
-#: src/Admin/MediaEditIntegration.php:742
+#: src/Admin/MediaEditIntegration.php:94
+msgid "Protected download file: never watermarked."
+msgstr ""
+
+#. translators: %s: comma-separated watermark names
+#: src/Admin/MediaEditIntegration.php:107
+#: assets/js/media-grid.js:200
+#, php-format,js-format
+msgid "Watermarked with: %s"
+msgstr ""
+
+#: src/Admin/MediaEditIntegration.php:110
+#: assets/js/media-grid.js:199
+msgid "Not watermarked."
+msgstr ""
+
+#: src/Admin/MediaEditIntegration.php:115
+msgid "All watermark options"
+msgstr ""
+
+#: src/Admin/MediaEditIntegration.php:199
+msgid "Protected download file: Ultimate Watermark never modifies or previews this file."
+msgstr ""
+
+#: src/Admin/MediaEditIntegration.php:224
+#: src/Admin/MediaEditIntegration.php:795
+#: assets/js/media-edit.js:100
 msgid "No watermarks applied"
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:209
+#: src/Admin/MediaEditIntegration.php:254
 msgid "Watermark Status"
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:213
-#: src/Admin/MediaEditIntegration.php:244
+#: src/Admin/MediaEditIntegration.php:258
+#: src/Admin/MediaEditIntegration.php:289
 msgid "Applied"
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:248
-#: src/Admin/Pages/AddWatermarkPage.php:736
+#: src/Admin/MediaEditIntegration.php:293
+#: src/Admin/Pages/AddWatermarkPage.php:755
 msgid "None"
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:272
+#: src/Admin/MediaEditIntegration.php:317
 msgid "Show Details"
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:277
+#: src/Admin/MediaEditIntegration.php:322
+#: assets/js/media-edit.js:64
 msgid "Remove All"
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:371
+#: src/Admin/MediaEditIntegration.php:416
 msgid "Original Image"
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:372
+#: src/Admin/MediaEditIntegration.php:417
 msgid "Full Resolution"
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:384
+#: src/Admin/MediaEditIntegration.php:429
 msgid "Unknown Size"
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:485
+#: src/Admin/MediaEditIntegration.php:530
 msgid "Full Size"
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:534
-#: src/Admin/Pages/WatermarkPage.php:292
+#: src/Admin/MediaEditIntegration.php:579
+#: src/Admin/Pages/WatermarkPage.php:299
 msgid "No image set"
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:554
-#: src/Admin/MediaEditIntegration.php:639
-#: src/Admin/MediaLibraryIntegration.php:461
-#: src/Admin/MediaLibraryIntegration.php:1761
-#: src/Admin/MediaLibraryIntegration.php:1808
-#: src/Ajax/WatermarkActionsHandler.php:46
-#: src/Ajax/WatermarkActionsHandler.php:161
-#: src/Ajax/WatermarkActionsHandler.php:207
-#: src/Ajax/WatermarkActionsHandler.php:297
-#: src/Ajax/WatermarkActionsHandler.php:353
-msgid "Insufficient permissions."
+#: src/Admin/MediaEditIntegration.php:605
+#: src/Admin/MediaEditIntegration.php:699
+msgid "You are not allowed to edit this image."
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:562
+#: src/Admin/MediaEditIntegration.php:610
 msgid "Invalid attachment or watermark ID."
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:568
-#: src/Admin/MediaEditIntegration.php:652
-#: src/Admin/MediaLibraryIntegration.php:252
+#: src/Admin/MediaEditIntegration.php:616
+#: src/Admin/MediaEditIntegration.php:704
+#: src/Admin/MediaLibraryIntegration.php:258
 msgid "Attachment is not an image."
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:575
+#: src/Admin/MediaEditIntegration.php:623
 msgid "Watermark is not applied to this image."
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:584
+#: src/Admin/MediaEditIntegration.php:632
 msgid "Watermark removed successfully."
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:589
+#: src/Admin/MediaEditIntegration.php:637
 msgid "Failed to remove watermark. Backup file may not exist."
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:646
+#: src/Admin/MediaEditIntegration.php:694
 msgid "Invalid attachment ID."
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:660
+#: src/Admin/MediaEditIntegration.php:712
 msgid "No watermarks applied to this image."
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:669
+#: src/Admin/MediaEditIntegration.php:721
 msgid "All watermarks removed successfully."
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:674
+#: src/Admin/MediaEditIntegration.php:726
 msgid "Failed to remove watermarks. Backup file may not exist."
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:736
+#: src/Admin/MediaEditIntegration.php:789
 msgid "Are you sure you want to remove this watermark? This will restore the original image from backup."
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:737
+#: src/Admin/MediaEditIntegration.php:790
+#: assets/js/media-edit.js:62
 msgid "Are you sure you want to remove ALL watermarks from this image? This will restore the original image from backup."
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:738
+#: src/Admin/MediaEditIntegration.php:791
 msgid "Removing watermark..."
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:739
+#: src/Admin/MediaEditIntegration.php:792
 msgid "Watermark removed successfully"
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:740
+#: src/Admin/MediaEditIntegration.php:793
+#: assets/js/media-edit.js:93
 msgid "All watermarks removed successfully"
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:741
+#: src/Admin/MediaEditIntegration.php:794
+#: assets/js/media-edit.js:61
+#: assets/js/media-edit.js:134
 msgid "Remove All Watermarks"
 msgstr ""
 
-#: src/Admin/MediaEditIntegration.php:743
+#: src/Admin/MediaEditIntegration.php:796
 msgid "Failed to remove watermark"
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:95
+#. translators: %s: watermark name
+#: src/Admin/MediaLibraryIntegration.php:100
 #, php-format
 msgid "Apply Watermark: %s"
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:103
+#: src/Admin/MediaLibraryIntegration.php:108
+#: src/Admin/MediaLibraryIntegration.php:494
+#: src/Admin/MediaLibraryIntegration.php:497
+#: assets/js/media-grid.js:131
 msgid "Remove Watermark"
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:259
+#: src/Admin/MediaLibraryIntegration.php:264
+msgid "This image already has this watermark. Remove it first to apply it again."
+msgstr ""
+
+#: src/Admin/MediaLibraryIntegration.php:270
+msgid "This file is a protected downloadable product file and cannot be watermarked."
+msgstr ""
+
+#: src/Admin/MediaLibraryIntegration.php:277
 msgid "Original image file not found on disk."
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:284
-#: src/Admin/MediaLibraryIntegration.php:475
-#: src/Admin/MediaLibraryIntegration.php:1775
+#: src/Admin/MediaLibraryIntegration.php:300
+msgid "The original image could not be backed up, so it was not changed. Check that the uploads folder is writable and has free space."
+msgstr ""
+
+#: src/Admin/MediaLibraryIntegration.php:307
+#: src/Admin/MediaLibraryIntegration.php:534
+#: src/Admin/MediaLibraryIntegration.php:1866
 msgid "Watermark not found or inactive."
 msgstr ""
 
 #. translators: %s: image size name
-#: src/Admin/MediaLibraryIntegration.php:343
+#: src/Admin/MediaLibraryIntegration.php:366
 #, php-format
 msgid "Size \"%s\" does not exist for this image (image may be too small to generate this size)."
 msgstr ""
 
 #. translators: %s: image size name
-#: src/Admin/MediaLibraryIntegration.php:367
+#: src/Admin/MediaLibraryIntegration.php:390
 #, php-format
 msgid "Watermark processor failed for size \"%s\"."
 msgstr ""
 
 #. translators: 1: image size name, 2: error message
-#: src/Admin/MediaLibraryIntegration.php:378
+#: src/Admin/MediaLibraryIntegration.php:401
 #, php-format
 msgid "Error applying watermark to size \"%1$s\": %2$s"
 msgstr ""
 
 #. translators: 1: number of sizes, 2: comma-separated list of size names
-#: src/Admin/MediaLibraryIntegration.php:392
+#: src/Admin/MediaLibraryIntegration.php:415
 #, php-format
 msgid "Watermark applied to %1$d size(s): %2$s."
 msgstr ""
 
 #. translators: %s: comma-separated list of size names
-#: src/Admin/MediaLibraryIntegration.php:401
+#: src/Admin/MediaLibraryIntegration.php:424
 #, php-format
 msgid "Watermark was not applied to any size. The watermark rules did not match any of the available image sizes (%s). Please check your watermark rule conditions."
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:405
+#: src/Admin/MediaLibraryIntegration.php:428
 msgid "Watermark was not applied to any size."
 msgstr ""
 
 #. translators: %s: comma-separated list of skipped size names
-#: src/Admin/MediaLibraryIntegration.php:413
+#: src/Admin/MediaLibraryIntegration.php:436
 #, php-format
 msgid "Skipped sizes (not available): %s."
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:442
-#: src/Assets/AssetManager.php:421
+#: src/Admin/MediaLibraryIntegration.php:486
+#: src/Assets/AssetManager.php:435
 msgid "Processing..."
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:443
+#: src/Admin/MediaLibraryIntegration.php:487
 msgid "Watermark applied successfully!"
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:444
+#: src/Admin/MediaLibraryIntegration.php:488
 msgid "Error applying watermark."
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:469
-#: src/Admin/MediaLibraryIntegration.php:1769
+#: src/Admin/MediaLibraryIntegration.php:490
+#: assets/js/add-watermark.js:444
+#: assets/js/add-watermark.js:763
+#: assets/js/add-watermark.js:782
+#: assets/js/analytics.js:145
+#: assets/js/backup-page.js:406
+#: assets/js/backup-page.js:477
+#: assets/js/backup-page.js:486
+#: assets/js/backup-page.js:499
+#: assets/js/backup-page.js:563
+#: assets/js/backup-page.js:568
+#: assets/js/backup-page.js:630
+#: assets/js/backup-page.js:687
+#: assets/js/backup-page.js:696
+#: assets/js/backup-page.js:711
+#: assets/js/backup-page.js:768
+#: assets/js/backup-page.js:777
+#: assets/js/media-edit.js:107
+#: assets/js/media-edit.js:113
+#: assets/js/media-grid.js:50
+#: assets/js/media-library.js:370
+#: assets/js/media-library.js:376
+#: assets/js/media-library.js:415
+#: assets/js/watermarks.js:239
+#: assets/js/watermarks.js:245
+#: assets/js/watermarks.js:295
+#: assets/js/watermarks.js:300
+#: assets/js/watermarks.js:373
+#: assets/js/watermarks.js:378
+#: assets/js/watermarks.js:438
+#: assets/js/watermarks.js:448
+#: assets/js/watermarks.js:464
+#: assets/js/watermarks.js:499
+#: assets/js/watermarks.js:516
+#: assets/js/watermarks.js:535
+#: assets/js/watermarks.js:715
+#: assets/js/watermarks.js:725
+msgid "Error"
+msgstr ""
+
+#: src/Admin/MediaLibraryIntegration.php:492
+msgid "watermark"
+msgstr ""
+
+#: src/Admin/MediaLibraryIntegration.php:493
+#: assets/js/media-grid.js:126
+msgid "Please select at least one media item."
+msgstr ""
+
+#. translators: %d: number of images
+#: src/Admin/MediaLibraryIntegration.php:496
+#, php-format
+msgid "Remove watermarks from %d selected image(s)? The original images will be restored from backup."
+msgstr ""
+
+#: src/Admin/MediaLibraryIntegration.php:498
+#: src/Admin/MediaLibraryIntegration.php:501
+#: assets/js/media-grid.js:131
+msgid "Apply Watermark"
+msgstr ""
+
+#. translators: 1: watermark name, 2: number of images
+#: src/Admin/MediaLibraryIntegration.php:500
+#, php-format
+msgid "Apply \"%1$s\" to %2$d selected image(s)? This modifies the image files (a backup is kept when backups are enabled)."
+msgstr ""
+
+#: src/Admin/MediaLibraryIntegration.php:528
+#: src/Admin/MediaLibraryIntegration.php:1860
 msgid "Invalid parameters."
 msgstr ""
 
 #. translators: 1: attachment ID, 2: detail message
-#: src/Admin/MediaLibraryIntegration.php:502
+#: src/Admin/MediaLibraryIntegration.php:561
 #, php-format
 msgid "Attachment #%1$d: %2$s"
 msgstr ""
 
 #. translators: 1: success count, 2: total count
-#: src/Admin/MediaLibraryIntegration.php:510
+#: src/Admin/MediaLibraryIntegration.php:569
 #, php-format
 msgid "%1$d of %2$d attachment(s) watermarked successfully."
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:628
+#: src/Admin/MediaLibraryIntegration.php:688
 msgid "Apply automatic watermarks to uploaded images"
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:648
+#. translators: %d: number of available watermarks
+#: src/Admin/MediaLibraryIntegration.php:709
 #, php-format
 msgid "Select which watermarks to apply (%d available):"
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:656
+#: src/Admin/MediaLibraryIntegration.php:717
 msgid "Text"
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:656
+#: src/Admin/MediaLibraryIntegration.php:717
 msgid "Image"
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:671
+#: src/Admin/MediaLibraryIntegration.php:738
+msgid "Applied only when the image matches this watermark's Rules, for example once it is used on a product in the selected category."
+msgstr ""
+
+#: src/Admin/MediaLibraryIntegration.php:738
+msgid "Rules apply"
+msgstr ""
+
+#: src/Admin/MediaLibraryIntegration.php:745
 msgid "Edit watermark"
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:680
+#. translators: %s: watermark name
+#: src/Admin/MediaLibraryIntegration.php:745
+#, php-format
+msgid "Edit watermark %s"
+msgstr ""
+
+#: src/Admin/MediaLibraryIntegration.php:755
 msgid "Select All"
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:683
+#: src/Admin/MediaLibraryIntegration.php:758
 msgid "Deselect All"
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:688
+#: src/Admin/MediaLibraryIntegration.php:763
 msgid "No automatic watermarks are currently configured."
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:691
+#: src/Admin/MediaLibraryIntegration.php:766
 msgid "To enable automatic watermarking, create a watermark and enable \"Automatic Watermarking\" in its settings."
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:1431
-msgid "You do not have permission to upload files."
+#: src/Admin/MediaLibraryIntegration.php:1161
+msgid "Off: new uploads are not watermarked by this toggle."
 msgstr ""
 
-#: src/Admin/MediaLibraryIntegration.php:1815
+#: src/Admin/MediaLibraryIntegration.php:1162
+msgid "On: no watermark selected, so your watermark rules decide."
+msgstr ""
+
+#. translators: %d: number of selected watermarks
+#: src/Admin/MediaLibraryIntegration.php:1164
+#, php-format
+msgid "On: %d watermark(s) selected."
+msgstr ""
+
+#: src/Admin/MediaLibraryIntegration.php:1908
 msgid "No attachments selected."
 msgstr ""
 
@@ -539,7 +713,6 @@ msgstr ""
 
 #: src/Admin/Pages/AddWatermarkPage.php:62
 #: src/Admin/Pages/WatermarkPage.php:30
-#: src/Admin/Pages/WatermarkPage.php:64
 #: src/PostTypes/WatermarkPostType.php:43
 msgid "Add New Watermark"
 msgstr ""
@@ -553,8 +726,8 @@ msgid "Create a new watermark template with live preview"
 msgstr ""
 
 #: src/Admin/Pages/AddWatermarkPage.php:67
-#: src/Admin/Pages/AddWatermarkPage.php:157
-#: src/Admin/Pages/AddWatermarkPage.php:2161
+#: src/Admin/Pages/AddWatermarkPage.php:179
+#: src/Admin/Pages/AddWatermarkPage.php:2208
 msgid "Back to Watermarks"
 msgstr ""
 
@@ -563,681 +736,737 @@ msgstr ""
 msgid "Live Preview"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:133
-#: src/Admin/Pages/AddWatermarkPage.php:899
-#: src/Admin/Pages/WatermarkPage.php:98
-#: src/Admin/Templates/WatermarkModal.php:159
-msgid "Position"
+#: src/Admin/Pages/AddWatermarkPage.php:122
+#: src/Admin/Pages/AddWatermarkPage.php:615
+msgid "Watermark preview"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:134
-#: src/Admin/Pages/AddWatermarkPage.php:910
-#: src/Admin/Templates/WatermarkModal.php:161
-#: src/Admin/Templates/WatermarkModal.php:265
-msgid "Bottom Right"
+#: src/Admin/Pages/AddWatermarkPage.php:126
+msgid "Generating preview..."
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:137
-#: src/Admin/Pages/AddWatermarkPage.php:927
-#: src/Admin/Pages/WatermarkPage.php:99
-#: src/Admin/Templates/WatermarkModal.php:172
-msgid "Opacity"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:141
-#: src/Admin/Pages/BackupPage.php:148
-msgid "Size"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:145
-#: src/Admin/Pages/AddWatermarkPage.php:917
-#: src/Admin/Templates/WatermarkModal.php:186
-msgid "Rotation"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:163
-#: src/Admin/Templates/WatermarkModal.php:290
-msgid "Save Draft"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:167
-msgid "Update Watermark"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:167
-#: src/Admin/Pages/DashboardPage.php:27
-#: src/Admin/Pages/DashboardPage.php:117
-#: src/Admin/Templates/WatermarkModal.php:294
-msgid "Create Watermark"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:585
-msgid "Click to select from Media Library"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:635
-#: src/Admin/Pages/SettingsPage.php:225
-msgid "General"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:639
-#: src/Admin/Templates/WatermarkModal.php:56
-msgid "Watermark Type"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:647
-#: src/Admin/Pages/AnalyticsPage.php:524
-#: src/Admin/Templates/WatermarkModal.php:62
-msgid "Text Watermark"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:648
-#: src/Admin/Templates/WatermarkModal.php:63
-msgid "Add text-based watermarks"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:652
-#: src/Admin/Pages/AnalyticsPage.php:524
-#: src/Admin/Templates/WatermarkModal.php:71
-msgid "Image Watermark"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:653
-#: src/Admin/Templates/WatermarkModal.php:72
-msgid "Upload image watermarks"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:663
-#: src/Admin/Templates/WatermarkModal.php:79
-msgid "Text Settings"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:668
-#: src/Admin/Templates/WatermarkModal.php:81
-msgid "Watermark Text"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:669
-#: src/Admin/Templates/WatermarkModal.php:82
-msgid "Enter watermark text"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:677
-#: src/Admin/Templates/WatermarkModal.php:86
-msgid "Font Size"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:687
-#: src/Admin/Templates/WatermarkModal.php:92
-msgid "Text Color"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:694
-#: src/Admin/Templates/WatermarkModal.php:97
-msgid "Font Family"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:709
-#: src/Admin/Templates/WatermarkModal.php:109
-msgid "Font Weight"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:712
-#: src/Admin/Pages/AddWatermarkPage.php:724
-#: src/Admin/Templates/WatermarkModal.php:111
-msgid "Normal"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:713
-#: src/Admin/Templates/WatermarkModal.php:112
-msgid "Bold"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:714
-#: src/Admin/Templates/WatermarkModal.php:113
-msgid "Light"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:721
-msgid "Font Style"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:725
-msgid "Italic"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:726
-msgid "Oblique"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:733
-msgid "Text Decoration"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:737
-msgid "Underline"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:738
-msgid "Overline"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:739
-msgid "Line Through"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:747
-#: src/Admin/Templates/WatermarkModal.php:121
-msgid "Watermark Image"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:752
-msgid "Select Watermark Image"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:753
-#: src/Admin/Templates/WatermarkModal.php:127
-msgid "Recommended: PNG with transparency"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:760
-#: src/Admin/Templates/WatermarkModal.php:119
-msgid "Image Settings"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:765
-msgid "Watermark Size Type"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:768
-msgid "Original Size"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:769
-msgid "Custom Size"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:770
-msgid "Scaled"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:777
-msgid "Custom Width (px)"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:787
-msgid "Custom Height (px)"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:797
-msgid "Watermark scale"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:802
-msgid "Enter a number ranging from 0 to 100. 100 makes width of watermark image equal to width of the image it is applied to."
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:808
-#: src/Admin/Templates/WatermarkModal.php:200
-msgid "Image Quality"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:817
-msgid "Image Format"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:820
-msgid "Baseline"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:821
-msgid "Progressive"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:829
-#: src/Admin/Templates/WatermarkModal.php:141
-msgid "Template Name"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:833
-#: src/Admin/Pages/WatermarkPage.php:94
-#: src/Admin/Templates/WatermarkModal.php:143
-msgid "Name"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:834
-#: src/Admin/Templates/WatermarkModal.php:144
-msgid "Enter a name for this watermark template"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:842
-#: src/Admin/Templates/WatermarkModal.php:148
-msgid "Description"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:843
-#: src/Admin/Templates/WatermarkModal.php:149
-msgid "Optional description for this watermark"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:852
-msgid "Watermarking Behavior"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:856
-#: src/Admin/Pages/AddWatermarkPage.php:1227
-#: src/Admin/Pages/WatermarkPage.php:219
-msgid "Active"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:857
-msgid "Enable this watermark. When inactive, this watermark will not be applied to any images."
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:864
-#: src/Admin/Pages/WatermarkPage.php:303
-msgid "Automatic watermarking"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:865
-msgid "When there is no way to choose watermark, you can use this watermark as automatic watermark."
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:872
-#: src/Admin/Pages/WatermarkPage.php:308
-msgid "Manual watermarking"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:873
-msgid "If you want to apply manual watermark, it should show in the list on the media so that user can choose this watermark."
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:880
-#: src/Admin/Pages/WatermarkPage.php:313
-msgid "Frontend watermarking"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:881
-msgid "When images are uploaded from frontend, this watermark (checked) should be applied there."
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:891
-#: src/Admin/Templates/WatermarkModal.php:46
-msgid "Appearance"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:895
-msgid "Position Settings"
-msgstr ""
-
-#: src/Admin/Pages/AddWatermarkPage.php:902
+#: src/Admin/Pages/AddWatermarkPage.php:135
+#: src/Admin/Pages/AddWatermarkPage.php:921
 #: src/Admin/Templates/WatermarkModal.php:164
+#: assets/js/add-watermark.js:1375
 msgid "Top Left"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:903
+#: src/Admin/Pages/AddWatermarkPage.php:135
+#: src/Admin/Pages/AddWatermarkPage.php:922
 #: src/Admin/Templates/WatermarkModal.php:166
+#: assets/js/add-watermark.js:1376
 msgid "Top Center"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:904
+#: src/Admin/Pages/AddWatermarkPage.php:135
+#: src/Admin/Pages/AddWatermarkPage.php:923
 #: src/Admin/Templates/WatermarkModal.php:163
+#: assets/js/add-watermark.js:1377
 msgid "Top Right"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:905
+#: src/Admin/Pages/AddWatermarkPage.php:136
+#: src/Admin/Pages/AddWatermarkPage.php:924
+#: assets/js/add-watermark.js:1378
 msgid "Center Left"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:906
+#: src/Admin/Pages/AddWatermarkPage.php:136
+#: src/Admin/Pages/AddWatermarkPage.php:925
 #: src/Admin/Templates/WatermarkModal.php:165
 msgid "Center"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:907
+#: src/Admin/Pages/AddWatermarkPage.php:136
+#: src/Admin/Pages/AddWatermarkPage.php:926
+#: assets/js/add-watermark.js:1380
 msgid "Center Right"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:908
+#: src/Admin/Pages/AddWatermarkPage.php:137
+#: src/Admin/Pages/AddWatermarkPage.php:927
 #: src/Admin/Templates/WatermarkModal.php:162
+#: assets/js/add-watermark.js:1381
 msgid "Bottom Left"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:909
+#: src/Admin/Pages/AddWatermarkPage.php:137
+#: src/Admin/Pages/AddWatermarkPage.php:928
 #: src/Admin/Templates/WatermarkModal.php:167
+#: assets/js/add-watermark.js:1382
 msgid "Bottom Center"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:937
+#: src/Admin/Pages/AddWatermarkPage.php:137
+#: src/Admin/Pages/AddWatermarkPage.php:929
+#: src/Admin/Templates/WatermarkModal.php:161
+#: src/Admin/Templates/WatermarkModal.php:265
+#: assets/js/add-watermark.js:1383
+msgid "Bottom Right"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:147
+#: assets/js/add-watermark.js:1407
+msgid "Original"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:155
+#: src/Admin/Pages/AddWatermarkPage.php:918
+#: src/Admin/Pages/WatermarkPage.php:95
+#: src/Admin/Templates/WatermarkModal.php:159
+msgid "Position"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:159
+#: src/Admin/Pages/AddWatermarkPage.php:946
+#: src/Admin/Pages/WatermarkPage.php:96
+#: src/Admin/Templates/WatermarkModal.php:172
+msgid "Opacity"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:163
+#: src/Admin/Pages/BackupPage.php:148
+msgid "Size"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:167
+#: src/Admin/Pages/AddWatermarkPage.php:936
+#: src/Admin/Templates/WatermarkModal.php:186
+msgid "Rotation"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:185
+#: assets/js/add-watermark.js:982
+msgid "Update Watermark"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:185
+#: src/Admin/Pages/DashboardPage.php:27
+#: src/Admin/Pages/DashboardPage.php:117
+#: src/Admin/Templates/WatermarkModal.php:294
+#: assets/js/add-watermark.js:982
+msgid "Create Watermark"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:603
+msgid "Click to select from Media Library"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:653
+#: src/Admin/Pages/SettingsPage.php:212
+msgid "General"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:657
+#: src/Admin/Templates/WatermarkModal.php:56
+msgid "Watermark Type"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:665
+#: src/Admin/Pages/AnalyticsPage.php:522
+#: src/Admin/Templates/WatermarkModal.php:62
+msgid "Text Watermark"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:666
+#: src/Admin/Templates/WatermarkModal.php:63
+msgid "Add text-based watermarks"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:670
+#: src/Admin/Pages/AnalyticsPage.php:522
+#: src/Admin/Templates/WatermarkModal.php:71
+msgid "Image Watermark"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:671
+#: src/Admin/Templates/WatermarkModal.php:72
+msgid "Upload image watermarks"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:681
+#: src/Admin/Templates/WatermarkModal.php:79
+msgid "Text Settings"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:686
+#: src/Admin/Templates/WatermarkModal.php:81
+msgid "Watermark Text"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:687
+#: src/Admin/Templates/WatermarkModal.php:82
+msgid "Enter watermark text"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:695
+#: src/Admin/Templates/WatermarkModal.php:86
+msgid "Font Size"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:706
+#: src/Admin/Templates/WatermarkModal.php:92
+msgid "Text Color"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:713
+#: src/Admin/Templates/WatermarkModal.php:97
+msgid "Font Family"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:728
+#: src/Admin/Templates/WatermarkModal.php:109
+msgid "Font Weight"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:731
+#: src/Admin/Pages/AddWatermarkPage.php:743
+#: src/Admin/Templates/WatermarkModal.php:111
+msgid "Normal"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:732
+#: src/Admin/Templates/WatermarkModal.php:112
+msgid "Bold"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:733
+#: src/Admin/Templates/WatermarkModal.php:113
+msgid "Light"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:740
+msgid "Font Style"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:744
+msgid "Italic"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:745
+msgid "Oblique"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:752
+msgid "Text Decoration"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:756
+msgid "Underline"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:757
+msgid "Overline"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:758
+msgid "Line Through"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:766
+#: src/Admin/Templates/WatermarkModal.php:121
+msgid "Watermark Image"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:771
+#: assets/js/add-watermark.js:455
+#: assets/js/watermark.js:90
+msgid "Select Watermark Image"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:772
+#: src/Admin/Templates/WatermarkModal.php:127
+msgid "Recommended: PNG with transparency"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:779
+#: src/Admin/Templates/WatermarkModal.php:119
+msgid "Image Settings"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:784
+msgid "Watermark Size Type"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:787
+msgid "Original Size"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:788
+msgid "Custom Size"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:789
+msgid "Scaled"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:796
+msgid "Custom Width (px)"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:806
+msgid "Custom Height (px)"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:816
+msgid "Watermark scale"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:821
+msgid "Enter a number ranging from 0 to 100. 100 makes width of watermark image equal to width of the image it is applied to."
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:827
+#: src/Admin/Templates/WatermarkModal.php:200
+msgid "Image Quality"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:836
+msgid "Image Format"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:839
+msgid "Baseline"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:840
+msgid "Progressive"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:848
+#: src/Admin/Templates/WatermarkModal.php:141
+msgid "Template Name"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:852
+#: src/Admin/Pages/WatermarkPage.php:91
+#: src/Admin/Templates/WatermarkModal.php:143
+msgid "Name"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:853
+#: src/Admin/Templates/WatermarkModal.php:144
+msgid "Enter a name for this watermark template"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:861
+#: src/Admin/Templates/WatermarkModal.php:148
+msgid "Description"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:862
+#: src/Admin/Templates/WatermarkModal.php:149
+msgid "Optional description for this watermark"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:871
+msgid "Watermarking Behavior"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:875
+#: src/Admin/Pages/AddWatermarkPage.php:1270
+#: src/Admin/Pages/WatermarkPage.php:216
+#: assets/js/watermarks.js:289
+#: assets/js/watermarks.js:663
+msgid "Active"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:876
+msgid "Enable this watermark. When inactive, this watermark will not be applied to any images."
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:883
+#: src/Admin/Pages/WatermarkPage.php:310
+msgid "Automatic watermarking"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:884
+msgid "Apply this watermark automatically when an image is assigned to a post or product (featured, gallery or variation image) and the watermark's Rules match."
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:891
+#: src/Admin/Pages/WatermarkPage.php:315
+msgid "Manual watermarking"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:892
+msgid "Offer this watermark in the Media Library bulk actions so it can be applied to selected images by hand."
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:899
+#: src/Admin/Pages/WatermarkPage.php:320
+msgid "Frontend watermarking"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:900
+msgid "Apply this watermark to images uploaded from the front end of your site (for example a Dokan vendor dashboard or a submission form), following this watermark's Rules, even when Automatic watermarking is off."
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:910
+#: src/Admin/Templates/WatermarkModal.php:46
+msgid "Appearance"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:914
+msgid "Position Settings"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:956
 msgid "Watermark offset [X]"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:941
+#: src/Admin/Pages/AddWatermarkPage.php:960
 msgid "Enter watermark offset value for X (ie offset width)"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:948
+#: src/Admin/Pages/AddWatermarkPage.php:967
 msgid "Watermark offset [Y]"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:952
+#: src/Admin/Pages/AddWatermarkPage.php:971
 msgid "Enter watermark offset value for Y (ie offset height)"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:959
+#: src/Admin/Pages/AddWatermarkPage.php:978
 msgid "Offset unit"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:962
+#: src/Admin/Pages/AddWatermarkPage.php:981
 msgid "Pixels"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:963
+#: src/Admin/Pages/AddWatermarkPage.php:982
 msgid "Percentage"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:965
+#: src/Admin/Pages/AddWatermarkPage.php:984
 msgid "Select the watermark offset unit"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:975
-#: src/Admin/Pages/WatermarkPage.php:97
-msgid "Rules"
+#: src/Admin/Pages/AddWatermarkPage.php:992
+msgid "Repeat Pattern"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:979
-msgid "Rules Management"
+#: src/Admin/Pages/AddWatermarkPage.php:996
+msgid "Repeat the watermark across the entire image"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:983
-msgid "Rules Manager"
+#: src/Admin/Pages/AddWatermarkPage.php:997
+msgid "Tiles the watermark in a grid that covers the whole image, whatever its size or orientation (landscape, portrait or square). Position and offsets are ignored while this is on. Tip: combine with \"Scaled\" size (e.g. 20%) and a rotation for a classic stock-photo pattern."
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:984
-msgid "Create and manage watermark rules with names and conditions"
+#: src/Admin/Pages/AddWatermarkPage.php:1004
+msgid "Spacing between tiles (%)"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1017
-msgid "Posts"
+#: src/Admin/Pages/AddWatermarkPage.php:1009
+msgid "Gap between repeated watermarks, as a percentage of the watermark size. 0 places them edge to edge."
 msgstr ""
 
 #: src/Admin/Pages/AddWatermarkPage.php:1018
+#: src/Admin/Pages/WatermarkPage.php:94
+msgid "Rules"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:1022
+msgid "Rules Management"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:1026
+msgid "Rules Manager"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:1027
+msgid "Create and manage watermark rules with names and conditions"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:1060
+msgid "Posts"
+msgstr ""
+
+#: src/Admin/Pages/AddWatermarkPage.php:1061
 msgid "Pages"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1019
+#: src/Admin/Pages/AddWatermarkPage.php:1062
 msgid "Attachments"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1041
-#: src/Admin/Pages/WatermarkPage.php:714
+#: src/Admin/Pages/AddWatermarkPage.php:1084
+#: src/Admin/Pages/WatermarkPage.php:729
 #: src/Admin/Templates/WatermarkModal.php:134
 msgid "Image Size"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1043
-#: src/Admin/Pages/AddWatermarkPage.php:1052
-#: src/Admin/Pages/WatermarkPage.php:739
+#: src/Admin/Pages/AddWatermarkPage.php:1086
+#: src/Admin/Pages/AddWatermarkPage.php:1095
+#: src/Admin/Pages/WatermarkPage.php:754
 msgid "is"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1044
-#: src/Admin/Pages/AddWatermarkPage.php:1053
-#: src/Admin/Pages/WatermarkPage.php:740
+#: src/Admin/Pages/AddWatermarkPage.php:1087
+#: src/Admin/Pages/AddWatermarkPage.php:1096
+#: src/Admin/Pages/WatermarkPage.php:755
 msgid "is not"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1050
-#: src/Admin/Pages/WatermarkPage.php:715
+#: src/Admin/Pages/AddWatermarkPage.php:1093
+#: src/Admin/Pages/WatermarkPage.php:730
 msgid "Post Type"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1092
+#: src/Admin/Pages/AddWatermarkPage.php:1135
 msgid "Watermark Rules"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1093
+#: src/Admin/Pages/AddWatermarkPage.php:1136
 msgid "Create and manage rules for when and where this watermark should be applied."
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1098
-#: src/Admin/Pages/AddWatermarkPage.php:1124
-#: src/Admin/Pages/AddWatermarkPage.php:1265
+#: src/Admin/Pages/AddWatermarkPage.php:1141
+#: src/Admin/Pages/AddWatermarkPage.php:1167
+#: src/Admin/Pages/AddWatermarkPage.php:1308
 msgid "Add New Rule"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1108
-#: src/Admin/Pages/AddWatermarkPage.php:1132
+#: src/Admin/Pages/AddWatermarkPage.php:1151
+#: src/Admin/Pages/AddWatermarkPage.php:1175
 msgid "Rule Name"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1109
-#: src/Admin/Pages/AddWatermarkPage.php:1150
+#: src/Admin/Pages/AddWatermarkPage.php:1152
+#: src/Admin/Pages/AddWatermarkPage.php:1193
 msgid "Conditions"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1110
-#: src/Admin/Pages/WatermarkPage.php:101
+#: src/Admin/Pages/AddWatermarkPage.php:1153
+#: src/Admin/Pages/WatermarkPage.php:98
 msgid "Status"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1111
+#: src/Admin/Pages/AddWatermarkPage.php:1154
 #: src/Admin/Pages/BackupPage.php:150
 msgid "Actions"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1133
+#: src/Admin/Pages/AddWatermarkPage.php:1176
 msgid "Enter rule name"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1134
+#: src/Admin/Pages/AddWatermarkPage.php:1177
 msgid "Give this rule a descriptive name."
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1139
+#: src/Admin/Pages/AddWatermarkPage.php:1182
 msgid "Logic Operator"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1141
+#: src/Admin/Pages/AddWatermarkPage.php:1184
 msgid "AND - All conditions must match"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1142
+#: src/Admin/Pages/AddWatermarkPage.php:1185
 msgid "OR - Any condition can match"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1144
+#: src/Admin/Pages/AddWatermarkPage.php:1187
 msgid "How should multiple conditions be evaluated together."
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1153
+#: src/Admin/Pages/AddWatermarkPage.php:1196
 msgid "Add Condition"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1164
+#: src/Admin/Pages/AddWatermarkPage.php:1207
 msgid "No conditions added yet."
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1165
+#: src/Admin/Pages/AddWatermarkPage.php:1208
 msgid "Click \"Add Condition\" to define when this rule applies."
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1172
+#: src/Admin/Pages/AddWatermarkPage.php:1215
 msgid "Save Rule"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1214
+#: src/Admin/Pages/AddWatermarkPage.php:1257
 msgid "No rules defined. Click \"Add New Rule\" to create one."
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1226
+#: src/Admin/Pages/AddWatermarkPage.php:1269
 msgid "Logic:"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1229
-#: src/Admin/Pages/WatermarkPage.php:243
+#: src/Admin/Pages/AddWatermarkPage.php:1272
+#: src/Admin/Pages/WatermarkPage.php:240
 msgid "Edit"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1230
-#: src/Admin/Pages/WatermarkPage.php:77
-#: src/Admin/Pages/WatermarkPage.php:119
-#: src/Admin/Pages/WatermarkPage.php:143
-#: src/Admin/Pages/WatermarkPage.php:171
-#: src/Admin/Pages/WatermarkPage.php:257
+#: src/Admin/Pages/AddWatermarkPage.php:1273
+#: src/Admin/Pages/WatermarkPage.php:74
+#: src/Admin/Pages/WatermarkPage.php:116
+#: src/Admin/Pages/WatermarkPage.php:140
+#: src/Admin/Pages/WatermarkPage.php:168
+#: src/Admin/Pages/WatermarkPage.php:254
+#: assets/js/backup-page.js:427
+#: assets/js/backup-page.js:919
+#: assets/js/watermarks.js:68
+#: assets/js/watermarks.js:322
 msgid "Delete"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1239
+#: src/Admin/Pages/AddWatermarkPage.php:1282
 msgid "No conditions"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1280
+#: src/Admin/Pages/AddWatermarkPage.php:1323
 msgid "Edit Rule"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1300
+#: src/Admin/Pages/AddWatermarkPage.php:1343
 msgid "Please enter a rule name."
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1342
+#: src/Admin/Pages/AddWatermarkPage.php:1385
 msgid "Are you sure you want to delete the rule"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1351
+#: src/Admin/Pages/AddWatermarkPage.php:1394
 msgid "Select condition type..."
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1359
+#: src/Admin/Pages/AddWatermarkPage.php:1402
 msgid "Condition"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1360
+#: src/Admin/Pages/AddWatermarkPage.php:1403
 msgid "Remove"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1363
+#: src/Admin/Pages/AddWatermarkPage.php:1406
 msgid "Type"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1364
+#: src/Admin/Pages/AddWatermarkPage.php:1407
 msgid "Operator"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1364
-#: src/Admin/Pages/AddWatermarkPage.php:1433
-#: src/Admin/Pages/AddWatermarkPage.php:1441
+#: src/Admin/Pages/AddWatermarkPage.php:1407
+#: src/Admin/Pages/AddWatermarkPage.php:1476
+#: src/Admin/Pages/AddWatermarkPage.php:1484
 msgid "Select..."
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1365
-#: src/Admin/Pages/AddWatermarkPage.php:1441
-#: src/Admin/Pages/AddWatermarkPage.php:1445
-#: src/Admin/Pages/AddWatermarkPage.php:1447
-#: src/Admin/Pages/AddWatermarkPage.php:1451
+#: src/Admin/Pages/AddWatermarkPage.php:1408
+#: src/Admin/Pages/AddWatermarkPage.php:1484
+#: src/Admin/Pages/AddWatermarkPage.php:1488
+#: src/Admin/Pages/AddWatermarkPage.php:1490
+#: src/Admin/Pages/AddWatermarkPage.php:1494
 msgid "Value"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1365
-#: src/Admin/Pages/AddWatermarkPage.php:1451
+#: src/Admin/Pages/AddWatermarkPage.php:1408
+#: src/Admin/Pages/AddWatermarkPage.php:1494
 msgid "Select type first"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:1445
-#: src/Admin/Pages/AddWatermarkPage.php:1447
+#: src/Admin/Pages/AddWatermarkPage.php:1488
+#: src/Admin/Pages/AddWatermarkPage.php:1490
 msgid "Enter value..."
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2134
+#: src/Admin/Pages/AddWatermarkPage.php:2181
 msgid "Full Size (Original)"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2158
+#: src/Admin/Pages/AddWatermarkPage.php:2205
+#: assets/js/add-watermark.js:796
 msgid "Watermark Limit Reached"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2173
+#: src/Admin/Pages/AddWatermarkPage.php:2220
 msgid "You've Reached the Free Version Limit"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2174
+#: src/Admin/Pages/AddWatermarkPage.php:2221
 msgid "Upgrade to Pro to unlock unlimited watermarks and advanced features"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2180
+#: src/Admin/Pages/AddWatermarkPage.php:2227
 msgid "Current Watermarks"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2187
+#: src/Admin/Pages/AddWatermarkPage.php:2234
 msgid "Free Version Limit"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2192
+#: src/Admin/Pages/AddWatermarkPage.php:2239
 msgid "Upgrade to Pro and Get:"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2197
+#: src/Admin/Pages/AddWatermarkPage.php:2244
 #: src/Admin/ProFeaturesPage.php:84
 msgid "Unlimited Watermarks"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2198
+#: src/Admin/Pages/AddWatermarkPage.php:2245
 msgid "Create as many watermark templates as you need"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2204
+#: src/Admin/Pages/AddWatermarkPage.php:2251
 msgid "Advanced Rules Engine"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2205
+#: src/Admin/Pages/AddWatermarkPage.php:2252
 msgid "Complex conditional watermarking based on multiple criteria"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2211
+#: src/Admin/Pages/AddWatermarkPage.php:2258
 #: src/Admin/ProFeaturesPage.php:94
 #: src/Admin/ProFeaturesPage.php:123
 msgid "WooCommerce Integration"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2212
+#: src/Admin/Pages/AddWatermarkPage.php:2259
 msgid "Per-product and per-category watermarks"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2218
+#: src/Admin/Pages/AddWatermarkPage.php:2265
 msgid "Frontend Watermarking"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2219
+#: src/Admin/Pages/AddWatermarkPage.php:2266
 msgid "Apply watermarks to frontend uploads automatically"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2225
+#: src/Admin/Pages/AddWatermarkPage.php:2272
 msgid "On-the-fly Watermarking"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2226
+#: src/Admin/Pages/AddWatermarkPage.php:2273
 msgid "Dynamic watermark display without modifying original images"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2232
+#: src/Admin/Pages/AddWatermarkPage.php:2279
 #: src/Admin/ProFeaturesPage.php:104
 #: src/Admin/ProFeaturesPage.php:125
 msgid "Priority Support"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2233
+#: src/Admin/Pages/AddWatermarkPage.php:2280
 msgid "Get help from our expert support team when you need it"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2242
+#: src/Admin/Pages/AddWatermarkPage.php:2289
 msgid "Upgrade to Pro Now"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2244
+#: src/Admin/Pages/AddWatermarkPage.php:2291
 msgid "14-day money-back guarantee • Instant access • Lifetime updates"
 msgstr ""
 
-#: src/Admin/Pages/AddWatermarkPage.php:2250
+#: src/Admin/Pages/AddWatermarkPage.php:2297
 msgid "Free version is limited to 1 watermark"
 msgstr ""
 
@@ -1311,12 +1540,12 @@ msgid "Image Protection Trends"
 msgstr ""
 
 #: src/Admin/Pages/AnalyticsPage.php:154
-#: src/Admin/Pages/AnalyticsPage.php:387
+#: src/Admin/Pages/AnalyticsPage.php:385
 msgid "Protected"
 msgstr ""
 
 #: src/Admin/Pages/AnalyticsPage.php:158
-#: src/Admin/Pages/AnalyticsPage.php:387
+#: src/Admin/Pages/AnalyticsPage.php:385
 msgid "Unprotected"
 msgstr ""
 
@@ -1346,88 +1575,93 @@ msgstr ""
 msgid "System Performance"
 msgstr ""
 
-#: src/Admin/Pages/AnalyticsPage.php:367
-#: src/Admin/Pages/AnalyticsPage.php:476
+#: src/Admin/Pages/AnalyticsPage.php:365
+#: src/Admin/Pages/AnalyticsPage.php:474
+#: assets/js/analytics.js:367
 msgid "Watermarked Images"
 msgstr ""
 
-#: src/Admin/Pages/AnalyticsPage.php:414
+#: src/Admin/Pages/AnalyticsPage.php:412
 msgid "Untitled"
 msgstr ""
 
-#: src/Admin/Pages/AnalyticsPage.php:422
+#: src/Admin/Pages/AnalyticsPage.php:420
+#: assets/js/analytics.js:319
 msgid "Usage Count"
 msgstr ""
 
-#: src/Admin/Pages/AnalyticsPage.php:503
-#: src/Admin/Pages/WatermarkPage.php:156
-#: src/Admin/Pages/WatermarkPage.php:200
-#: src/Assets/AssetManager.php:424
+#: src/Admin/Pages/AnalyticsPage.php:501
+#: src/Admin/Pages/WatermarkPage.php:153
+#: src/Admin/Pages/WatermarkPage.php:197
+#: src/Assets/AssetManager.php:438
 msgid "No watermarks found"
 msgstr ""
 
-#: src/Admin/Pages/AnalyticsPage.php:517
-#: src/Admin/Pages/DashboardPage.php:402
+#: src/Admin/Pages/AnalyticsPage.php:515
+#: src/Admin/Pages/DashboardPage.php:404
 msgid "Untitled Watermark"
 msgstr ""
 
-#: src/Admin/Pages/AnalyticsPage.php:519
-#: src/Admin/Pages/WatermarkPage.php:219
+#: src/Admin/Pages/AnalyticsPage.php:517
+#: src/Admin/Pages/WatermarkPage.php:216
+#: assets/js/watermarks.js:292
+#: assets/js/watermarks.js:667
 msgid "Inactive"
 msgstr ""
 
-#: src/Admin/Pages/AnalyticsPage.php:529
+#: src/Admin/Pages/AnalyticsPage.php:527
 msgid "uses"
 msgstr ""
 
-#: src/Admin/Pages/AnalyticsPage.php:546
+#: src/Admin/Pages/AnalyticsPage.php:544
 #: src/Admin/Pages/DashboardPage.php:278
 msgid "No recent activity"
 msgstr ""
 
-#: src/Admin/Pages/AnalyticsPage.php:580
-#: src/Admin/Pages/DashboardPage.php:474
+#: src/Admin/Pages/AnalyticsPage.php:578
+#: src/Admin/Pages/DashboardPage.php:483
 msgid "Memory Usage"
 msgstr ""
 
-#: src/Admin/Pages/AnalyticsPage.php:588
-#: src/Admin/Pages/DashboardPage.php:511
+#: src/Admin/Pages/AnalyticsPage.php:586
+#: src/Admin/Pages/DashboardPage.php:521
 msgid "Backup Storage"
 msgstr ""
 
-#: src/Admin/Pages/AnalyticsPage.php:596
-#: src/Admin/Pages/DashboardPage.php:450
+#: src/Admin/Pages/AnalyticsPage.php:591
+#: src/Admin/Pages/DashboardPage.php:453
 msgid "Image Processing"
 msgstr ""
 
-#: src/Admin/Pages/AnalyticsPage.php:600
+#: src/Admin/Pages/AnalyticsPage.php:595
 msgid "Imagick (Recommended)"
 msgstr ""
 
-#: src/Admin/Pages/AnalyticsPage.php:602
+#: src/Admin/Pages/AnalyticsPage.php:597
 msgid "GD Library"
 msgstr ""
 
-#: src/Admin/Pages/AnalyticsPage.php:604
+#: src/Admin/Pages/AnalyticsPage.php:599
 msgid "Not Available"
 msgstr ""
 
-#: src/Admin/Pages/AnalyticsPage.php:634
-#: src/Admin/Pages/DashboardPage.php:324
+#. translators: %s: watermark type (text or image)
+#: src/Admin/Pages/AnalyticsPage.php:630
+#: src/Admin/Pages/DashboardPage.php:325
 #, php-format
 msgid "New %s created"
 msgstr ""
 
-#: src/Admin/Pages/AnalyticsPage.php:635
+#: src/Admin/Pages/AnalyticsPage.php:631
 #: src/Admin/Pages/BackupPage.php:288
-#: src/Admin/Pages/DashboardPage.php:325
-#: src/Admin/Pages/DashboardPage.php:349
+#: src/Admin/Pages/DashboardPage.php:326
+#: src/Admin/Pages/DashboardPage.php:351
 msgid "ago"
 msgstr ""
 
 #: src/Admin/Pages/BackupPage.php:28
-#: src/Admin/Pages/SettingsPage.php:203
-#: src/Admin/Pages/SettingsPage.php:331
+#: src/Admin/Pages/SettingsPage.php:190
+#: src/Admin/Pages/SettingsPage.php:318
 msgid "Back to Dashboard"
 msgstr ""
 
@@ -1452,7 +1686,7 @@ msgid "Backup Files"
 msgstr ""
 
 #: src/Admin/Pages/BackupPage.php:102
-#: src/Assets/AssetManager.php:464
+#: src/Assets/AssetManager.php:478
 msgid "Loading..."
 msgstr ""
 
@@ -1575,73 +1809,82 @@ msgstr ""
 msgid "Start by creating a watermark"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php:348
+#. translators: %d: number of images
+#: src/Admin/Pages/DashboardPage.php:350
 #, php-format
 msgid "%d images watermarked"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php:380
+#: src/Admin/Pages/DashboardPage.php:382
 msgid "No watermarks created"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php:381
+#: src/Admin/Pages/DashboardPage.php:383
 msgid "Create your first watermark"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php:404
+#: src/Admin/Pages/DashboardPage.php:406
 msgid "(Inactive)"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php:410
+#. translators: %d: number of times the watermark was used
+#: src/Admin/Pages/DashboardPage.php:413
 #, php-format
 msgid "Used %d time"
 msgid_plural "Used %d times"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/Pages/DashboardPage.php:412
+#: src/Admin/Pages/DashboardPage.php:415
 msgid "Not used yet"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php:433
+#: src/Admin/Pages/DashboardPage.php:436
 msgid "Plugin Status"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php:435
+#: src/Admin/Pages/DashboardPage.php:438
 msgid "Ultimate Watermark is active"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php:435
+#: src/Admin/Pages/DashboardPage.php:438
 msgid "Plugin is inactive"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php:454
+#. translators: %s: image library name (GD or Imagick)
+#: src/Admin/Pages/DashboardPage.php:458
 #, php-format
 msgid "%s available"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php:456
+#: src/Admin/Pages/DashboardPage.php:460
 msgid "No image processing library available"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php:478
-#, php-format
-msgid "%s used of %s (%.1f%%)"
+#: src/Admin/Pages/DashboardPage.php:477
+msgid "unlimited"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php:496
+#. translators: 1: storage used, 2: storage limit, 3: percentage used
+#: src/Admin/Pages/DashboardPage.php:488
+#, php-format
+msgid "%1$s used of %2$s (%3$.1f%%)"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php:506
 msgid "Upload Directory"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php:498
+#: src/Admin/Pages/DashboardPage.php:508
 msgid "Writable"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php:498
+#: src/Admin/Pages/DashboardPage.php:508
 msgid "Not writable"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php:513
+#. translators: %s: backup storage size
+#: src/Admin/Pages/DashboardPage.php:523
 #, php-format
 msgid "%s used"
 msgstr ""
@@ -1674,43 +1917,39 @@ msgstr ""
 msgid "Backup full size + watermarked sizes"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php:61
-msgid "Backup Image Quality"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php:75
+#: src/Admin/Pages/SettingsPage.php:62
 msgid "Image Protection"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php:79
+#: src/Admin/Pages/SettingsPage.php:66
 msgid "Disable right click on images"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php:80
+#: src/Admin/Pages/SettingsPage.php:67
 msgid "Disable right mouse click on images."
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php:89
+#: src/Admin/Pages/SettingsPage.php:76
 msgid "Prevent drag and drop"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php:90
+#: src/Admin/Pages/SettingsPage.php:77
 msgid "Prevent drag and drop of images."
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php:99
+#: src/Admin/Pages/SettingsPage.php:86
 msgid "Enable protection for logged-in users"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php:100
+#: src/Admin/Pages/SettingsPage.php:87
 msgid "Enable image protection for logged-in users also."
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php:210
+#: src/Admin/Pages/SettingsPage.php:197
 msgid "Configure global plugin settings and advanced options"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php:337
+#: src/Admin/Pages/SettingsPage.php:324
 msgid "Save Settings"
 msgstr ""
 
@@ -1722,184 +1961,218 @@ msgstr ""
 msgid "Create and manage your watermark templates"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:55
-msgid "templates"
+#. translators: %d: number of watermark templates
+#: src/Admin/Pages/WatermarkPage.php:56
+#, php-format
+msgid "%d template"
+msgid_plural "%d templates"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/WatermarkPage.php:60
+msgid "Search watermarks"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:59
+#: src/Admin/Pages/WatermarkPage.php:60
 msgid "Search watermarks..."
+msgstr ""
+
+#: src/Admin/Pages/WatermarkPage.php:69
+#: src/Admin/Pages/WatermarkPage.php:111
+msgid "Select bulk action"
+msgstr ""
+
+#: src/Admin/Pages/WatermarkPage.php:71
+#: src/Admin/Pages/WatermarkPage.php:113
+msgid "Bulk actions"
 msgstr ""
 
 #: src/Admin/Pages/WatermarkPage.php:72
 #: src/Admin/Pages/WatermarkPage.php:114
-msgid "Select bulk action"
-msgstr ""
-
-#: src/Admin/Pages/WatermarkPage.php:74
-#: src/Admin/Pages/WatermarkPage.php:116
-msgid "Bulk actions"
-msgstr ""
-
-#: src/Admin/Pages/WatermarkPage.php:75
-#: src/Admin/Pages/WatermarkPage.php:117
-#: src/Admin/Pages/WatermarkPage.php:135
-#: src/Admin/Pages/WatermarkPage.php:252
+#: src/Admin/Pages/WatermarkPage.php:132
+#: src/Admin/Pages/WatermarkPage.php:249
+#: assets/js/watermarks.js:280
 msgid "Activate"
+msgstr ""
+
+#: src/Admin/Pages/WatermarkPage.php:73
+#: src/Admin/Pages/WatermarkPage.php:115
+#: src/Admin/Pages/WatermarkPage.php:136
+#: src/Admin/Pages/WatermarkPage.php:249
+#: assets/js/watermarks.js:280
+msgid "Deactivate"
 msgstr ""
 
 #: src/Admin/Pages/WatermarkPage.php:76
 #: src/Admin/Pages/WatermarkPage.php:118
-#: src/Admin/Pages/WatermarkPage.php:139
-#: src/Admin/Pages/WatermarkPage.php:252
-msgid "Deactivate"
-msgstr ""
-
-#: src/Admin/Pages/WatermarkPage.php:79
-#: src/Admin/Pages/WatermarkPage.php:121
+#: assets/js/media-grid.js:114
+#: assets/js/media-grid.js:158
+#: assets/js/media-grid.js:177
+#: assets/js/media-grid.js:207
 msgid "Apply"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:82
-#: src/Admin/Pages/WatermarkPage.php:124
-msgid "items"
-msgstr ""
+#. translators: %d: number of items
+#: src/Admin/Pages/WatermarkPage.php:79
+#: src/Admin/Pages/WatermarkPage.php:121
+#, php-format
+msgid "%d item"
+msgid_plural "%d items"
+msgstr[0] ""
+msgstr[1] ""
 
-#: src/Admin/Pages/WatermarkPage.php:95
+#: src/Admin/Pages/WatermarkPage.php:92
 msgid "Type & Preview"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:96
+#: src/Admin/Pages/WatermarkPage.php:93
 msgid "Behavior"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:100
+#: src/Admin/Pages/WatermarkPage.php:97
 msgid "Usage"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:131
+#: src/Admin/Pages/WatermarkPage.php:128
 msgid "selected"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:157
+#: src/Admin/Pages/WatermarkPage.php:154
 msgid "Create your first watermark template to get started protecting your images."
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:160
+#: src/Admin/Pages/WatermarkPage.php:157
 msgid "Create Your First Watermark"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:169
+#: src/Admin/Pages/WatermarkPage.php:166
+#: assets/js/watermarks.js:65
+#: assets/js/watermarks.js:319
 msgid "Delete Watermark"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:170
+#: src/Admin/Pages/WatermarkPage.php:167
+#: assets/js/watermarks.js:66
+#: assets/js/watermarks.js:320
 msgid "Are you sure you want to delete this watermark? This action cannot be undone."
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:178
+#: src/Admin/Pages/WatermarkPage.php:175
 msgid "Delete Watermarks"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:179
+#: src/Admin/Pages/WatermarkPage.php:176
 msgid "Are you sure you want to delete the selected watermarks? This action cannot be undone."
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:180
+#: src/Admin/Pages/WatermarkPage.php:177
+#: assets/js/backup-page.js:731
+#: assets/js/backup-page.js:942
+#: assets/js/watermarks.js:478
+#: assets/js/watermarks.js:557
 msgid "Delete All"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:247
+#: src/Admin/Pages/WatermarkPage.php:244
 msgid "Duplicate"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:339
+#: src/Admin/Pages/WatermarkPage.php:325
+msgid "On-the-fly display (files are not changed)"
+msgstr ""
+
+#: src/Admin/Pages/WatermarkPage.php:330
+msgid "Not used"
+msgstr ""
+
+#: src/Admin/Pages/WatermarkPage.php:354
 msgid "times used"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:343
+#: src/Admin/Pages/WatermarkPage.php:358
 msgid "images"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:595
-#: src/Admin/Pages/WatermarkPage.php:609
-#: src/Admin/Pages/WatermarkPage.php:651
+#: src/Admin/Pages/WatermarkPage.php:610
+#: src/Admin/Pages/WatermarkPage.php:624
+#: src/Admin/Pages/WatermarkPage.php:666
 msgid "No rules"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:635
+#: src/Admin/Pages/WatermarkPage.php:650
 msgid "Rule"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:666
+#: src/Admin/Pages/WatermarkPage.php:681
 msgid "Everywhere"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:699
-#: src/Admin/Pages/WatermarkPage.php:702
+#: src/Admin/Pages/WatermarkPage.php:714
+#: src/Admin/Pages/WatermarkPage.php:717
 msgid "All sizes"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:717
+#: src/Admin/Pages/WatermarkPage.php:732
 msgid "File Type"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:718
+#: src/Admin/Pages/WatermarkPage.php:733
 msgid "File Size"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:719
+#: src/Admin/Pages/WatermarkPage.php:734
 msgid "Image Width"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:720
+#: src/Admin/Pages/WatermarkPage.php:735
 msgid "Image Height"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:721
+#: src/Admin/Pages/WatermarkPage.php:736
 msgid "User Role"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:722
+#: src/Admin/Pages/WatermarkPage.php:737
 msgid "Post Category"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:723
+#: src/Admin/Pages/WatermarkPage.php:738
 msgid "Product Category"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:724
+#: src/Admin/Pages/WatermarkPage.php:739
 msgid "Product Tag"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:725
+#: src/Admin/Pages/WatermarkPage.php:740
 msgid "Image Orientation"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:726
+#: src/Admin/Pages/WatermarkPage.php:741
 msgid "Upload Date"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:727
+#: src/Admin/Pages/WatermarkPage.php:742
 msgid "Aspect Ratio"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:741
+#: src/Admin/Pages/WatermarkPage.php:756
 msgid ">"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:742
+#: src/Admin/Pages/WatermarkPage.php:757
 msgid "<"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:743
+#: src/Admin/Pages/WatermarkPage.php:758
 msgid "="
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:744
+#: src/Admin/Pages/WatermarkPage.php:759
 msgid "after"
 msgstr ""
 
-#: src/Admin/Pages/WatermarkPage.php:745
+#: src/Admin/Pages/WatermarkPage.php:760
 msgid "before"
 msgstr ""
 
@@ -2079,93 +2352,122 @@ msgstr ""
 msgid "Size:"
 msgstr ""
 
-#: src/Ajax/WatermarkActionsHandler.php:52
-#: src/Ajax/WatermarkActionsHandler.php:168
-#: src/Ajax/WatermarkActionsHandler.php:215
+#: src/Admin/Templates/WatermarkModal.php:290
+msgid "Save Draft"
+msgstr ""
+
+#: src/Ajax/WatermarkActionsHandler.php:53
+#: src/Ajax/WatermarkActionsHandler.php:165
+#: src/Ajax/WatermarkActionsHandler.php:214
 msgid "Invalid watermark ID."
 msgstr ""
 
-#: src/Ajax/WatermarkActionsHandler.php:59
-#: src/Ajax/WatermarkActionsHandler.php:175
-#: src/Ajax/WatermarkActionsHandler.php:230
+#: src/Ajax/WatermarkActionsHandler.php:60
+#: src/Ajax/WatermarkActionsHandler.php:171
+#: src/Ajax/WatermarkActionsHandler.php:227
+#: src/Ajax/WatermarkAjaxHandler.php:107
 msgid "Watermark not found."
 msgstr ""
 
-#: src/Ajax/WatermarkActionsHandler.php:73
+#: src/Ajax/WatermarkActionsHandler.php:74
 msgid "Upgrade to Pro to duplicate watermarks"
 msgstr ""
 
-#: src/Ajax/WatermarkActionsHandler.php:90
+#: src/Ajax/WatermarkActionsHandler.php:91
 msgid "Failed to create duplicate."
 msgstr ""
 
-#: src/Ajax/WatermarkActionsHandler.php:143
+#: src/Ajax/WatermarkActionsHandler.php:140
 msgid "Watermark duplicated successfully"
 msgstr ""
 
-#: src/Ajax/WatermarkActionsHandler.php:186
+#: src/Ajax/WatermarkActionsHandler.php:182
 msgid "Failed to delete watermark."
 msgstr ""
 
-#: src/Ajax/WatermarkActionsHandler.php:190
+#: src/Ajax/WatermarkActionsHandler.php:189
 msgid "Watermark deleted successfully."
 msgstr ""
 
-#: src/Ajax/WatermarkActionsHandler.php:220
+#: src/Ajax/WatermarkActionsHandler.php:219
 msgid "Invalid status parameter."
 msgstr ""
 
-#: src/Ajax/WatermarkActionsHandler.php:274
+#: src/Ajax/WatermarkActionsHandler.php:234
 msgid "Failed to update watermark status."
 msgstr ""
 
-#: src/Ajax/WatermarkActionsHandler.php:279
+#: src/Ajax/WatermarkActionsHandler.php:241
 msgid "Watermark status updated successfully."
 msgstr ""
 
-#: src/Ajax/WatermarkActionsHandler.php:303
-#: src/Ajax/WatermarkActionsHandler.php:359
+#: src/Ajax/WatermarkActionsHandler.php:265
+#: src/Ajax/WatermarkActionsHandler.php:323
 msgid "No watermarks selected."
 msgstr ""
 
-#: src/Ajax/WatermarkAjaxHandler.php:619
+#. translators: %d: number of watermarks
+#: src/Ajax/WatermarkActionsHandler.php:283
+#, php-format
+msgid "%d watermark deleted."
+msgid_plural "%d watermarks deleted."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of watermarks
+#: src/Ajax/WatermarkActionsHandler.php:341
+#, php-format
+msgid "%d watermark activated."
+msgid_plural "%d watermarks activated."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of watermarks
+#: src/Ajax/WatermarkActionsHandler.php:343
+#, php-format
+msgid "%d watermark deactivated."
+msgid_plural "%d watermarks deactivated."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Ajax/WatermarkAjaxHandler.php:638
 msgid "Watermark limit reached"
 msgstr ""
 
-#: src/Ajax/WatermarkAjaxHandler.php:621
+#: src/Ajax/WatermarkAjaxHandler.php:640
 msgid "You have reached the watermark limit for the free version. Upgrade to Pro to create unlimited watermarks with advanced features."
 msgstr ""
 
-#: src/Ajax/WatermarkAjaxHandler.php:637
+#: src/Ajax/WatermarkAjaxHandler.php:656
 msgid "Watermark updated successfully!"
 msgstr ""
 
-#: src/Ajax/WatermarkAjaxHandler.php:638
+#: src/Ajax/WatermarkAjaxHandler.php:657
 msgid "Watermark created successfully!"
 msgstr ""
 
-#: src/Ajax/WatermarkAjaxHandler.php:673
+#: src/Ajax/WatermarkAjaxHandler.php:692
 msgid "Security token missing."
 msgstr ""
 
-#: src/Ajax/WatermarkAjaxHandler.php:675
+#: src/Ajax/WatermarkAjaxHandler.php:694
 #: src/Ajax/WatermarkPreviewHandler.php:153
 msgid "You do not have permission to perform this action."
 msgstr ""
 
-#: src/Ajax/WatermarkAjaxHandler.php:676
+#: src/Ajax/WatermarkAjaxHandler.php:695
 msgid "Too many requests. Please try again later."
 msgstr ""
 
-#: src/Ajax/WatermarkAjaxHandler.php:677
+#: src/Ajax/WatermarkAjaxHandler.php:696
 msgid "Invalid request method."
 msgstr ""
 
-#: src/Ajax/WatermarkAjaxHandler.php:680
+#: src/Ajax/WatermarkAjaxHandler.php:699
 msgid "Security error occurred."
 msgstr ""
 
-#: src/Ajax/WatermarkAjaxHandler.php:697
+#: src/Ajax/WatermarkAjaxHandler.php:716
 msgid "An unexpected error occurred. Please try again."
 msgstr ""
 
@@ -2207,75 +2509,77 @@ msgstr ""
 msgid "Right-click is disabled"
 msgstr ""
 
-#: src/Assets/AssetManager.php:419
+#: src/Assets/AssetManager.php:433
 msgid "Are you sure you want to delete this item?"
 msgstr ""
 
-#: src/Assets/AssetManager.php:420
+#: src/Assets/AssetManager.php:434
 msgid "Are you sure you want to perform this bulk action?"
 msgstr ""
 
-#: src/Assets/AssetManager.php:422
+#: src/Assets/AssetManager.php:436
 msgid "Success!"
 msgstr ""
 
-#: src/Assets/AssetManager.php:423
+#: src/Assets/AssetManager.php:437
 msgid "Error occurred!"
 msgstr ""
 
-#: src/Assets/AssetManager.php:425
+#: src/Assets/AssetManager.php:439
 msgid "Please select at least one image"
 msgstr ""
 
-#: src/Assets/AssetManager.php:435
+#: src/Assets/AssetManager.php:449
 msgid "Saving watermark..."
 msgstr ""
 
-#: src/Assets/AssetManager.php:436
+#: src/Assets/AssetManager.php:450
+#: assets/js/add-watermark.js:753
 msgid "Watermark saved successfully!"
 msgstr ""
 
-#: src/Assets/AssetManager.php:437
+#: src/Assets/AssetManager.php:451
 msgid "Error saving watermark"
 msgstr ""
 
-#: src/Assets/AssetManager.php:438
+#: src/Assets/AssetManager.php:452
 msgid "Loading preview..."
 msgstr ""
 
-#: src/Assets/AssetManager.php:439
+#: src/Assets/AssetManager.php:453
 msgid "Error loading preview"
 msgstr ""
 
-#: src/Assets/AssetManager.php:450
+#: src/Assets/AssetManager.php:464
 msgid "Deleting watermark..."
 msgstr ""
 
-#: src/Assets/AssetManager.php:451
+#: src/Assets/AssetManager.php:465
 msgid "Watermark deleted successfully!"
 msgstr ""
 
-#: src/Assets/AssetManager.php:452
+#: src/Assets/AssetManager.php:466
 msgid "Error deleting watermark"
 msgstr ""
 
-#: src/Assets/AssetManager.php:453
+#: src/Assets/AssetManager.php:467
 msgid "Are you sure you want to delete this watermark?"
 msgstr ""
 
-#: src/Assets/AssetManager.php:465
+#: src/Assets/AssetManager.php:479
 msgid "Error loading data"
 msgstr ""
 
-#: src/Assets/AssetManager.php:476
+#: src/Assets/AssetManager.php:490
 msgid "Saving settings..."
 msgstr ""
 
-#: src/Assets/AssetManager.php:477
+#: src/Assets/AssetManager.php:491
+#: assets/js/settings.js:121
 msgid "Settings saved successfully!"
 msgstr ""
 
-#: src/Assets/AssetManager.php:478
+#: src/Assets/AssetManager.php:492
 msgid "Error saving settings"
 msgstr ""
 
@@ -2283,30 +2587,28 @@ msgstr ""
 msgid "Ultimate Watermark Migration Complete"
 msgstr ""
 
-#: src/Core/Migration.php:118
+#. translators: %d: number of migrated watermarks
+#: src/Core/Migration.php:119
 #, php-format
 msgid "Successfully migrated from v1.x to v2.x! %d watermark(s) migrated."
 msgstr ""
 
-#: src/Core/Migration.php:127
+#. translators: 1: number of migrated backup files, 2: number of failed backup files
+#: src/Core/Migration.php:129
 #, php-format
-msgid "Backup files migrated: %d successful, %d failed."
+msgid "Backup files migrated: %1$d successful, %2$d failed."
 msgstr ""
 
-#: src/Core/Migration.php:296
+#: src/Core/Migration.php:300
 msgid "Migrated Watermark (v1.x)"
 msgstr ""
 
-#: src/Core/Migration.php:299
+#: src/Core/Migration.php:303
 msgid "This watermark was automatically migrated from Ultimate Watermark v1.x settings."
 msgstr ""
 
 #: src/Core/Plugin.php:225
 msgid "Ultimate Watermark Error"
-msgstr ""
-
-#: src/Core/Plugin.php:312
-msgid "Ultimate Watermark: Translation files not found."
 msgstr ""
 
 #: src/PostTypes/WatermarkPostType.php:38
@@ -2361,60 +2663,513 @@ msgstr ""
 msgid "No watermarks found in Trash."
 msgstr ""
 
-#: src/Utils/ValidationHelper.php:33
+#. translators: 1: field name, 2: minimum value, 3: maximum value
+#: src/Utils/ValidationHelper.php:34
 #, php-format
-msgid "Invalid value for %s. Must be between %d and %d."
+msgid "Invalid value for %1$s. Must be between %2$d and %3$d."
 msgstr ""
 
-#: src/Utils/ValidationHelper.php:56
+#: src/Utils/ValidationHelper.php:57
 msgid "Invalid color format. Use hex format (#RRGGBB)."
 msgstr ""
 
-#: src/Utils/ValidationHelper.php:75
+#: src/Utils/ValidationHelper.php:76
 msgid "Invalid ID provided."
 msgstr ""
 
-#: src/Utils/ValidationHelper.php:130
+#: src/Utils/ValidationHelper.php:131
 msgid "Invalid position selected."
 msgstr ""
 
-#: src/Utils/ValidationHelper.php:150
+#: src/Utils/ValidationHelper.php:151
 msgid "Invalid watermark type."
 msgstr ""
 
-#: src/Utils/ValidationHelper.php:170
+#: src/Utils/ValidationHelper.php:171
 msgid "Invalid watermark image selected."
 msgstr ""
 
-#: src/Utils/ValidationHelper.php:176
+#: src/Utils/ValidationHelper.php:177
 msgid "Selected file is not an image."
 msgstr ""
 
-#: src/Utils/ValidationHelper.php:195
+#. translators: %s: file path
+#: src/Utils/ValidationHelper.php:197
 #, php-format
 msgid "File not found or not readable: %s"
 msgstr ""
 
-#: src/Utils/ValidationHelper.php:216
+#. translators: %s: directory path
+#: src/Utils/ValidationHelper.php:219
 #, php-format
 msgid "Directory is not writable: %s"
 msgstr ""
 
-#: ultimate-watermark.php:32
+#. translators: %s: current PHP version
+#: ultimate-watermark.php:38
 #, php-format
-msgid "Ultimate Watermark requires PHP 7.4 or higher. You are running %s"
+msgid "Ultimate Watermark requires PHP 7.4 or higher. You are running %s. Please ask your host to upgrade PHP."
 msgstr ""
 
-#: ultimate-watermark.php:50
-msgid "Ultimate Watermark: Composer autoloader not found. Please run \"composer install\""
+#: ultimate-watermark.php:55
+msgid "Ultimate Watermark is incomplete (the vendor folder is missing). Please reinstall the plugin."
 msgstr ""
 
-#: ultimate-watermark.php:70
+#. translators: %s: error message
+#: ultimate-watermark.php:89
 #, php-format
 msgid "Ultimate Watermark initialization failed: %s"
 msgstr ""
 
-#: ultimate-watermark.php:91
+#. translators: %s: error message
+#: ultimate-watermark.php:111
 #, php-format
 msgid "Ultimate Watermark activation failed: %s"
+msgstr ""
+
+#: assets/js/add-watermark.js:444
+msgid "WordPress media library is not available."
+msgstr ""
+
+#: assets/js/add-watermark.js:457
+msgid "Use this image"
+msgstr ""
+
+#: assets/js/add-watermark.js:753
+#: assets/js/backup-page.js:469
+#: assets/js/backup-page.js:558
+#: assets/js/backup-page.js:680
+#: assets/js/backup-page.js:761
+#: assets/js/media-edit.js:93
+#: assets/js/media-library.js:349
+#: assets/js/media-library.js:355
+#: assets/js/media-library.js:413
+#: assets/js/watermarks.js:371
+#: assets/js/watermarks.js:706
+msgid "Success"
+msgstr ""
+
+#: assets/js/add-watermark.js:763
+msgid "Failed to save watermark."
+msgstr ""
+
+#: assets/js/add-watermark.js:781
+msgid "An error occurred while saving the watermark."
+msgstr ""
+
+#: assets/js/add-watermark.js:804
+msgid "You have reached the watermark limit for the free version."
+msgstr ""
+
+#: assets/js/add-watermark.js:916
+#: assets/js/add-watermark.js:924
+#: assets/js/add-watermark.js:931
+msgid "Validation Error"
+msgstr ""
+
+#: assets/js/add-watermark.js:916
+msgid "Please enter a watermark name."
+msgstr ""
+
+#: assets/js/add-watermark.js:924
+msgid "Please enter watermark text."
+msgstr ""
+
+#: assets/js/add-watermark.js:931
+msgid "Please select a watermark image."
+msgstr ""
+
+#: assets/js/add-watermark.js:963
+msgid "Updating…"
+msgstr ""
+
+#: assets/js/add-watermark.js:963
+msgid "Creating…"
+msgstr ""
+
+#: assets/js/add-watermark.js:1046
+msgid "AJAX configuration not available"
+msgstr ""
+
+#: assets/js/add-watermark.js:1051
+msgid "AJAX configuration incomplete"
+msgstr ""
+
+#: assets/js/add-watermark.js:1214
+msgid "Preview could not be generated. Please try again."
+msgstr ""
+
+#: assets/js/add-watermark.js:1396
+msgid "tiled"
+msgstr ""
+
+#: assets/js/add-watermark.js:1436
+msgid "Preview Error"
+msgstr ""
+
+#: assets/js/analytics.js:143
+msgid "Analytics could not be loaded. Please try again."
+msgstr ""
+
+#: assets/js/analytics.js:228
+msgid "Watermarks Applied"
+msgstr ""
+
+#: assets/js/backup-page.js:406
+#: assets/js/backup-page.js:408
+#: assets/js/backup-page.js:499
+#: assets/js/backup-page.js:501
+msgid "Invalid backup item."
+msgstr ""
+
+#: assets/js/backup-page.js:415
+#: assets/js/backup-page.js:425
+#: assets/js/backup-page.js:436
+#: assets/js/backup-page.js:442
+msgid "Are you sure you want to delete this backup? This action cannot be undone."
+msgstr ""
+
+#: assets/js/backup-page.js:424
+#: assets/js/backup-page.js:916
+msgid "Delete Backup"
+msgstr ""
+
+#: assets/js/backup-page.js:486
+#: assets/js/backup-page.js:488
+msgid "An error occurred while deleting the backup."
+msgstr ""
+
+#: assets/js/backup-page.js:508
+msgid "Are you sure you want to restore this image from backup? This will replace the current watermarked image with the original backup."
+msgstr ""
+
+#: assets/js/backup-page.js:516
+msgid "Restore Image"
+msgstr ""
+
+#: assets/js/backup-page.js:517
+msgid "What would you like to do with this backup?"
+msgstr ""
+
+#: assets/js/backup-page.js:519
+msgid "Restore Only"
+msgstr ""
+
+#: assets/js/backup-page.js:522
+msgid "Restore & Delete"
+msgstr ""
+
+#: assets/js/backup-page.js:556
+msgid "Image restored successfully and backup deleted."
+msgstr ""
+
+#: assets/js/backup-page.js:557
+msgid "Image restored successfully from backup."
+msgstr ""
+
+#: assets/js/backup-page.js:568
+msgid "An error occurred while restoring the backup."
+msgstr ""
+
+#: assets/js/backup-page.js:630
+#: assets/js/backup-page.js:632
+msgid "Please select at least one backup to restore."
+msgstr ""
+
+#: assets/js/backup-page.js:647
+msgid "Restore Multiple Images"
+msgstr ""
+
+#: assets/js/backup-page.js:650
+#: assets/js/backup-page.js:953
+msgid "Restore All"
+msgstr ""
+
+#: assets/js/backup-page.js:687
+msgid "Failed to restore images from backup."
+msgstr ""
+
+#: assets/js/backup-page.js:696
+msgid "An error occurred while restoring the backups."
+msgstr ""
+
+#: assets/js/backup-page.js:711
+#: assets/js/backup-page.js:713
+msgid "Please select at least one backup to delete."
+msgstr ""
+
+#: assets/js/backup-page.js:728
+msgid "Delete Multiple Backups"
+msgstr ""
+
+#: assets/js/backup-page.js:768
+msgid "Failed to delete backups."
+msgstr ""
+
+#: assets/js/backup-page.js:777
+msgid "An error occurred while deleting the backups."
+msgstr ""
+
+#: assets/js/backup-page.js:888
+msgid "Dismiss this notice."
+msgstr ""
+
+#. translators: %s: image title
+#: assets/js/backup-page.js:918
+#, js-format
+msgid "Are you sure you want to delete the backup for \"%s\"? This action cannot be undone."
+msgstr ""
+
+#: assets/js/backup-page.js:928
+msgid "Restore from Backup"
+msgstr ""
+
+#. translators: %s: image title
+#: assets/js/backup-page.js:930
+#, js-format
+msgid "Are you sure you want to restore \"%s\" from backup? This will replace the current watermarked image with the original backup."
+msgstr ""
+
+#: assets/js/backup-page.js:931
+msgid "Restore"
+msgstr ""
+
+#: assets/js/backup-page.js:939
+msgid "Delete Selected Backups"
+msgstr ""
+
+#. translators: %d: number of backups
+#: assets/js/backup-page.js:941
+#, js-format
+msgid "Are you sure you want to delete %d backup? This action cannot be undone."
+msgid_plural "Are you sure you want to delete %d backups? This action cannot be undone."
+msgstr[0] ""
+msgstr[1] ""
+
+#: assets/js/backup-page.js:950
+msgid "Restore Selected Images"
+msgstr ""
+
+#. translators: %d: number of images
+#: assets/js/backup-page.js:952
+#, js-format
+msgid "Are you sure you want to restore %d image from backup? This will replace the current watermarked image with the original backup."
+msgid_plural "Are you sure you want to restore %d images from backup? This will replace the current watermarked images with the original backups."
+msgstr[0] ""
+msgstr[1] ""
+
+#: assets/js/media-edit.js:126
+msgid "Removing..."
+msgstr ""
+
+#: assets/js/media-grid.js:35
+msgid "Watermark…"
+msgstr ""
+
+#. translators: %s: watermark name
+#: assets/js/media-grid.js:38
+#, js-format
+msgid "Apply: %s"
+msgstr ""
+
+#: assets/js/media-grid.js:40
+msgid "Remove watermark"
+msgstr ""
+
+#: assets/js/media-grid.js:50
+msgid "Done"
+msgstr ""
+
+#: assets/js/media-grid.js:113
+#: assets/js/media-grid.js:176
+msgid "Watermark action"
+msgstr ""
+
+#: assets/js/media-grid.js:122
+msgid "Choose a watermark action first."
+msgstr ""
+
+#. translators: 1: chosen action, 2: number of images
+#: assets/js/media-grid.js:134
+#, js-format
+msgid "%1$s on %2$d selected image?"
+msgid_plural "%1$s on %2$d selected images?"
+msgstr[0] ""
+msgstr[1] ""
+
+#: assets/js/media-grid.js:143
+#: assets/js/media-grid.js:185
+msgid "Working…"
+msgstr ""
+
+#: assets/js/media-grid.js:147
+#: assets/js/media-grid.js:189
+msgid "Done."
+msgstr ""
+
+#: assets/js/media-grid.js:151
+#: assets/js/media-grid.js:155
+#: assets/js/media-grid.js:189
+#: assets/js/media-grid.js:204
+msgid "Something went wrong. Please try again."
+msgstr ""
+
+#: assets/js/media-library.js:351
+#: assets/js/media-library.js:357
+msgid "Partial Success"
+msgstr ""
+
+#: assets/js/media-library.js:359
+msgid "Watermark Not Applied"
+msgstr ""
+
+#: assets/js/notification-system.js:564
+msgid "Please take note of this information."
+msgstr ""
+
+#: assets/js/settings.js:116
+msgid "Your settings have been saved successfully!"
+msgstr ""
+
+#: assets/js/settings.js:119
+msgid "Settings Saved"
+msgstr ""
+
+#: assets/js/settings.js:129
+#: assets/js/settings.js:134
+msgid "Failed to save settings. Please try again."
+msgstr ""
+
+#: assets/js/settings.js:132
+#: assets/js/settings.js:142
+msgid "Save Failed"
+msgstr ""
+
+#: assets/js/settings.js:142
+#: assets/js/settings.js:144
+msgid "An error occurred while saving settings. Please try again."
+msgstr ""
+
+#: assets/js/watermarks.js:164
+msgid "Your Site"
+msgstr ""
+
+#: assets/js/watermarks.js:217
+msgid "Duplicating..."
+msgstr ""
+
+#: assets/js/watermarks.js:239
+msgid "Error duplicating watermark"
+msgstr ""
+
+#: assets/js/watermarks.js:245
+msgid "Error duplicating watermark. Please try again."
+msgstr ""
+
+#: assets/js/watermarks.js:263
+msgid "Updating..."
+msgstr ""
+
+#: assets/js/watermarks.js:295
+#: assets/js/watermarks.js:300
+msgid "Error updating watermark status: "
+msgstr ""
+
+#: assets/js/watermarks.js:295
+#: assets/js/watermarks.js:373
+#: assets/js/watermarks.js:413
+msgid "Unknown error"
+msgstr ""
+
+#: assets/js/watermarks.js:371
+msgid "Watermark deleted successfully"
+msgstr ""
+
+#: assets/js/watermarks.js:373
+msgid "Error deleting watermark: "
+msgstr ""
+
+#: assets/js/watermarks.js:378
+msgid "Error deleting watermark. Please try again."
+msgstr ""
+
+#: assets/js/watermarks.js:413
+msgid "Error deleting watermarks: "
+msgstr ""
+
+#: assets/js/watermarks.js:417
+msgid "Error deleting watermarks. Please try again."
+msgstr ""
+
+#: assets/js/watermarks.js:438
+msgid "Please select a bulk action."
+msgstr ""
+
+#: assets/js/watermarks.js:448
+msgid "Please select watermarks to perform the action on."
+msgstr ""
+
+#: assets/js/watermarks.js:464
+msgid "Unknown bulk action: "
+msgstr ""
+
+#: assets/js/watermarks.js:474
+#: assets/js/watermarks.js:553
+msgid "Delete Multiple Watermarks"
+msgstr ""
+
+#. translators: %d: number of watermarks
+#: assets/js/watermarks.js:476
+#: assets/js/watermarks.js:545
+#: assets/js/watermarks.js:555
+#, js-format
+msgid "Are you sure you want to delete %d watermark? This action cannot be undone."
+msgid_plural "Are you sure you want to delete %d watermarks? This action cannot be undone."
+msgstr[0] ""
+msgstr[1] ""
+
+#: assets/js/watermarks.js:499
+msgid "Please select watermarks to activate."
+msgstr ""
+
+#: assets/js/watermarks.js:516
+msgid "Please select watermarks to deactivate."
+msgstr ""
+
+#: assets/js/watermarks.js:535
+#: assets/js/watermarks.js:537
+msgid "Please select watermarks to delete."
+msgstr ""
+
+#: assets/js/watermarks.js:628
+msgid "Activating..."
+msgstr ""
+
+#: assets/js/watermarks.js:628
+msgid "Deactivating..."
+msgstr ""
+
+#: assets/js/watermarks.js:708
+msgid "Success: "
+msgstr ""
+
+#: assets/js/watermarks.js:715
+#: assets/js/watermarks.js:717
+msgid "Failed to delete watermarks"
+msgstr ""
+
+#: assets/js/watermarks.js:717
+msgid "Error: "
+msgstr ""
+
+#: assets/js/watermarks.js:725
+msgid "Failed to delete watermarks. Please try again."
+msgstr ""
+
+#: assets/js/watermarks.js:727
+msgid "Error: Failed to delete watermarks. Please try again."
+msgstr ""
+
+#: assets/js/watermarks.js:744
+msgid "Deleting..."
 msgstr ""

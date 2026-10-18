@@ -16,6 +16,171 @@ class BackupManager
     const BACKUP_OPTION_KEY = 'ultimate_watermark_options';
     
     /**
+     * Absolute path of the backup directory.
+     */
+    public static function getBackupDirectory(): string
+    {
+        return trailingslashit(wp_upload_dir(null, false)['basedir']) . 'ulwm-backup';
+    }
+
+    /**
+     * Total size in bytes of all backup files.
+     */
+    public static function getStorageSize(): int
+    {
+        $dir = self::getBackupDirectory();
+        if (!is_dir($dir)) {
+            return 0;
+        }
+
+        $size = 0;
+        try {
+            $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS));
+            foreach ($iterator as $file) {
+                if ($file->isFile() && !in_array($file->getFilename(), ['.htaccess', 'index.php', 'web.config'], true)) {
+                    $size += $file->getSize();
+                }
+            }
+        } catch (\Throwable $e) {
+            return $size;
+        }
+
+        return $size;
+    }
+
+    /**
+     * Random component for backup file names, so originals can't be guessed.
+     */
+    private static function randomToken(): string
+    {
+        return strtolower(wp_generate_password(12, false, false));
+    }
+
+    /**
+     * Block direct web access to the backup directory (Apache / LiteSpeed / IIS).
+     * Backups are previewed in wp-admin through an authenticated endpoint.
+     */
+    public static function protectBackupDirectory(string $backup_base_dir): void
+    {
+        if (!is_dir($backup_base_dir) || !is_writable($backup_base_dir)) {
+            return;
+        }
+
+        $files = [
+            '.htaccess'  => "# Ultimate Watermark: original images, no public access\n<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\n    Order deny,allow\n    Deny from all\n</IfModule>\n",
+            'index.php'  => "<?php\n// Silence is golden.\n",
+            'web.config' => "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration><system.webServer><authorization><deny users=\"*\" /></authorization></system.webServer></configuration>\n",
+        ];
+
+        foreach ($files as $name => $contents) {
+            $path = trailingslashit($backup_base_dir) . $name;
+            if (!file_exists($path)) {
+                @file_put_contents($path, $contents);
+            }
+        }
+    }
+
+    /**
+     * Admin-only URL that streams a backup file (direct access is blocked).
+     */
+    public static function getBackupPreviewUrl(string $backup_path): string
+    {
+        $upload_dir = wp_upload_dir();
+        $base = trailingslashit(wp_normalize_path($upload_dir['basedir'])) . 'ulwm-backup/';
+        $path = wp_normalize_path($backup_path);
+        if (strpos($path, $base) !== 0) {
+            return '';
+        }
+
+        return add_query_arg([
+            'action'   => 'ultimate_watermark_backup_preview',
+            'file'     => rawurlencode(substr($path, strlen($base))),
+            '_wpnonce' => wp_create_nonce('ultimate_watermark_backup_preview'),
+        ], admin_url('admin-ajax.php'));
+    }
+
+    /**
+     * AJAX: stream a backup image to an administrator.
+     */
+    public static function handleBackupPreview(): void
+    {
+        if (!current_user_can('manage_options') || !check_ajax_referer('ultimate_watermark_backup_preview', '_wpnonce', false)) {
+            status_header(403);
+            exit;
+        }
+
+        $relative = isset($_GET['file']) ? rawurldecode(wp_unslash((string) $_GET['file'])) : '';
+        $upload_dir = wp_upload_dir();
+        $base = realpath(trailingslashit($upload_dir['basedir']) . 'ulwm-backup');
+        $file = $base ? realpath($base . '/' . ltrim($relative, '/')) : false;
+
+        if (!$base || !$file || strpos(wp_normalize_path($file), trailingslashit(wp_normalize_path($base))) !== 0 || !is_file($file)) {
+            status_header(404);
+            exit;
+        }
+
+        $type = wp_check_filetype($file);
+        if (empty($type['type']) || strpos($type['type'], 'image/') !== 0) {
+            status_header(404);
+            exit;
+        }
+
+        // List thumbnails: a small cached copy instead of the full original
+        // (originals can be tens of megabytes).
+        if (isset($_GET['size']) && $_GET['size'] === 'thumb') {
+            $thumb = self::backupThumbnail($file);
+            if ($thumb !== '') {
+                $file = $thumb;
+                $type = wp_check_filetype($file);
+            }
+        }
+
+        nocache_headers();
+        header('Content-Type: ' . $type['type']);
+        header('Content-Length: ' . (string) filesize($file));
+        header('X-Content-Type-Options: nosniff');
+        readfile($file);
+        exit;
+    }
+
+    /**
+     * Path of the cached list thumbnail for a backup file.
+     */
+    private static function backupThumbnailPath(string $file): string
+    {
+        $base = trailingslashit(wp_normalize_path(wp_upload_dir()['basedir'])) . 'ulwm-backup/.thumbs/';
+        $extension = strtolower(pathinfo($file, PATHINFO_EXTENSION)) ?: 'jpg';
+
+        return $base . md5(wp_normalize_path($file)) . '.' . $extension;
+    }
+
+    /**
+     * Small cached copy of a backup for the Backups list (inside the protected folder).
+     *
+     * @return string Thumbnail path, or '' when it cannot be made.
+     */
+    private static function backupThumbnail(string $file): string
+    {
+        $thumb = self::backupThumbnailPath($file);
+        if (is_file($thumb) && filemtime($thumb) >= filemtime($file)) {
+            return $thumb;
+        }
+
+        if (!wp_mkdir_p(dirname($thumb))) {
+            return '';
+        }
+
+        $editor = wp_get_image_editor($file);
+        if (is_wp_error($editor)) {
+            return '';
+        }
+        $editor->resize(160, 160, false);
+        $saved = $editor->save($thumb);
+
+        return (!is_wp_error($saved) && is_file($thumb)) ? $thumb : '';
+    }
+
+    /**
      * Get backup settings
      * 
      * @return array
@@ -67,6 +232,19 @@ class BackupManager
             if (($existing_single && file_exists($existing_single)) || (!empty($existing_multi) && is_array($existing_multi))) {
                 return $existing_multi ?: $existing_single;
             }
+
+            // Backup migrated from v1 (stored under a different key).
+            $legacy = get_post_meta($attachment_id, '_ulwm_backup_path', true);
+            if (is_string($legacy) && $legacy !== '' && file_exists($legacy)) {
+                return $legacy;
+            }
+
+            // An original backup already on disk (meta lost): never replace it.
+            foreach (self::getAttachmentBackups($attachment_id) as $existing_backup) {
+                if ($existing_backup['type'] === 'original') {
+                    return $existing_backup['path'];
+                }
+            }
         }
         
         
@@ -89,6 +267,7 @@ class BackupManager
                 return false;
             }
         }
+        self::protectBackupDirectory($backup_base_dir);
         
         // Get watermark settings to determine which sizes to backup
         $watermarked_sizes = ['full']; // Default to full size only
@@ -132,7 +311,7 @@ class BackupManager
     private static function createSingleBackup(string $file_path, int $attachment_id, string $backup_dir, array $settings)
     {
         $file_info = pathinfo($file_path);
-        $backup_filename = $attachment_id . '_' . $file_info['filename'] . '_original.' . $file_info['extension'];
+        $backup_filename = $attachment_id . '_' . self::randomToken() . '_' . $file_info['filename'] . '_original.' . $file_info['extension'];
         $backup_path = $backup_dir . '/' . $backup_filename;
         
         // Create backup with quality settings
@@ -165,13 +344,17 @@ class BackupManager
     {
         $file_info = pathinfo($file_path);
         $backup_paths = [];
+        $token = self::randomToken();
         
         // Always backup full size
-        $full_backup_filename = $attachment_id . '_' . $file_info['filename'] . '_original.' . $file_info['extension'];
+        $full_backup_filename = $attachment_id . '_' . $token . '_' . $file_info['filename'] . '_original.' . $file_info['extension'];
         $full_backup_path = $backup_dir . '/' . $full_backup_filename;
         
         if (self::copyImageWithQuality($file_path, $full_backup_path, $settings['backup_quality'])) {
             $backup_paths['original'] = $full_backup_path;
+        } else {
+            // Without the original nothing can be restored: report failure.
+            return false;
         }
         
         // Backup original sizes that will be watermarked
@@ -188,7 +371,8 @@ class BackupManager
             }
             
             if ($size_file && file_exists($size_file)) {
-                $size_backup_filename = $attachment_id . '_' . $file_info['filename'] . '_' . $size_name . '.' . $file_info['extension'];
+                $size_info = pathinfo($size_file);
+                $size_backup_filename = $attachment_id . '_' . $token . '_' . $file_info['filename'] . '_' . $size_name . '.' . ($size_info['extension'] ?? $file_info['extension']);
                 $size_backup_path = $backup_dir . '/' . $size_backup_filename;
                 
                 if (self::copyImageWithQuality($size_file, $size_backup_path, $settings['backup_quality'])) {
@@ -312,6 +496,9 @@ class BackupManager
      */
     public static function restoreFromBackup(string $file_path, int $attachment_id): bool
     {
+        // Restored files may be watermarked again in this request (batch "Replace").
+        \MantraBrain\UltimateWatermark\Watermark\WatermarkService::forgetAttachment($attachment_id);
+
         
         // Get all backup files for this attachment (main + all additional sizes)
         $backups = self::getAttachmentBackups($attachment_id);
@@ -323,23 +510,23 @@ class BackupManager
         // Get applied watermarks BEFORE restoring (to clean up metadata)
         $applied_watermarks = \MantraBrain\UltimateWatermark\Utils\WatermarkUsageTracker::getAppliedWatermarks($attachment_id);
         
-        // Restore all backup files (main + all additional sizes)
-        // Ensure the original (full) is restored FIRST
-        usort($backups, function ($a, $b) {
-            $aIsOriginal = str_ends_with($a['filename'], '_original.' . (pathinfo($a['filename'], PATHINFO_EXTENSION)));
-            $bIsOriginal = str_ends_with($b['filename'], '_original.' . (pathinfo($b['filename'], PATHINFO_EXTENSION)));
-            if ($aIsOriginal === $bIsOriginal) {
-                return 0;
-            }
-            return $aIsOriginal ? -1 : 1;
+        // Restore the original first. If several "original" backups exist (e.g.
+        // a later backup taken of an already-watermarked file), only the oldest
+        // one is the true original.
+        $originals = array_values(array_filter($backups, static function ($backup) {
+            return $backup['type'] === 'original';
+        }));
+        usort($originals, static function ($a, $b) {
+            return $a['created'] <=> $b['created'];
         });
 
-        $restored_count = 0;
-        foreach ($backups as $backup) {
-            if (self::restoreBackupFile($backup, $attachment_id)) {
-                $restored_count++;
-            }
+        // Only the original matters: every sub-size is regenerated from it below
+        // (size backups would be overwritten anyway). Without a clean original the
+        // image cannot be restored, so leave files and metadata untouched.
+        if (empty($originals) || !self::restoreBackupFile($originals[0], $attachment_id)) {
+            return false;
         }
+        $restored_count = 1;
         
         // If restoration was successful, clean up watermark metadata (same as remove watermark)
         if ($restored_count > 0) {
@@ -358,7 +545,6 @@ class BackupManager
                 // was seeing during restore.
                 $metadata = wp_get_attachment_metadata($attachment_id);
                 $base_dir = dirname($original_path);
-                $original_filename = basename($original_path);
 
                 $size_files_to_delete = [];
 
@@ -371,10 +557,11 @@ class BackupManager
                     }
                 }
 
-                // Also queue the unscaled "original_image" if WP scaled this attachment.
-                // (Only set when the upload exceeded big_image_size_threshold.)
-                if (is_array($metadata) && !empty($metadata['original_image'])) {
-                    $size_files_to_delete[] = $base_dir . '/' . $metadata['original_image'];
+                // Big images: the restored backup is the unscaled original; the
+                // "-scaled" attached file is rebuilt from it below.
+                $source_path = function_exists('wp_get_original_image_path') ? (wp_get_original_image_path($attachment_id) ?: $original_path) : $original_path;
+                if ($source_path !== $original_path) {
+                    $size_files_to_delete[] = $original_path;
                 }
 
                 // De-dupe and remove the freshly restored original from the delete list.
@@ -384,7 +571,7 @@ class BackupManager
                     if (!is_file($size_file)) {
                         continue;
                     }
-                    if (basename($size_file) === $original_filename) {
+                    if (wp_normalize_path($size_file) === wp_normalize_path($source_path)) {
                         continue; // never delete the file we just restored
                     }
                     // Safety: only delete inside the uploads dir.
@@ -410,8 +597,26 @@ class BackupManager
                         }
                         $variant_path = $size_dir . '/' . $size_stem . '.' . $variant_ext;
                         if ($variant_path !== $size_file
-                            && basename($variant_path) !== $original_filename
+                            && wp_normalize_path($variant_path) !== wp_normalize_path($source_path)
                             && is_file($variant_path)
+                            && !\MantraBrain\UltimateWatermark\Utils\WatermarkHelper::isFileOfAnotherAttachment($variant_path, $attachment_id)
+                        ) {
+                            @unlink($variant_path);
+                        }
+                    }
+                }
+
+                // Watermarked next-gen copies of the full-size file (written by us or
+                // by an optimizer next to it). Sub-size siblings were removed above.
+                foreach (array_unique([$original_path, $source_path]) as $full_file) {
+                    $full_info = pathinfo($full_file);
+                    foreach (['webp', 'avif'] as $variant_ext) {
+                        if (strtolower($full_info['extension'] ?? '') === $variant_ext) {
+                            continue;
+                        }
+                        $variant_path = ($full_info['dirname'] ?? $base_dir) . '/' . ($full_info['filename'] ?? '') . '.' . $variant_ext;
+                        if (is_file($variant_path)
+                            && !\MantraBrain\UltimateWatermark\Utils\WatermarkHelper::isFileOfAnotherAttachment($variant_path, $attachment_id)
                         ) {
                             @unlink($variant_path);
                         }
@@ -427,10 +632,14 @@ class BackupManager
                 // metadata-driven now, but if a future change re-introduces a
                 // glob, this guard prevents the getimagesize/exif_imagetype/
                 // file_get_contents warnings the user previously hit.
-                if (file_exists($original_path)) {
-                    // Now regenerate all sizes from the restored full size image
-                    // This will create clean, unwatermarked versions of all sizes
-                    wp_generate_attachment_metadata($attachment_id, $original_path);
+                if (file_exists($source_path)) {
+                    // Rebuild the "-scaled" file and every sub-size from the
+                    // restored original exactly like an upload does, and save
+                    // the resulting metadata.
+                    if (!function_exists('wp_create_image_subsizes')) {
+                        require_once ABSPATH . 'wp-admin/includes/image.php';
+                    }
+                    wp_create_image_subsizes($source_path, $attachment_id);
                 }
 
                 // Remove the skip flag after regeneration
@@ -496,35 +705,26 @@ class BackupManager
             return false;
         }
         
-        // Remove existing target file if it exists (to ensure clean restore)
-        if (file_exists($target_path)) {
-            if (!is_writable($target_path)) {
-                @chmod($target_path, 0644);
-            }
-            if (!@unlink($target_path)) {
-                return false;
-            }
-        }
-        
-        // Copy backup file to target location (simple file copy - this is the core restore action)
-        // IMPORTANT: We are copying FROM backup_path (backup file) TO target_path (original location)
-        $copy_result = @copy($backup_path, $target_path);
-        
-        if (!$copy_result) {
+ 
+        // Copy next to the target first and swap it in only when the copy is
+        // complete, so a failed restore never loses the current file.
+        $temp_path = $target_dir . '/.ulwm-restore-' . wp_generate_password(8, false, false) . '-' . basename($target_path);
+        if (!@copy($backup_path, $temp_path)) {
+            @unlink($temp_path);
             return false;
         }
-        
-        // Verify the file was copied successfully and has content
-        if (!file_exists($target_path)) {
+
+        clearstatcache(true, $temp_path);
+        if (filesize($temp_path) !== filesize($backup_path)) {
+            @unlink($temp_path);
             return false;
         }
-        
-        // Verify file size matches (basic integrity check)
-        $backup_size = filesize($backup_path);
-        $target_size = filesize($target_path);
-        if ($backup_size !== $target_size && defined('WP_DEBUG') && WP_DEBUG) {
-            error_log("Ultimate Watermark Restore: File size mismatch - backup: {$backup_size}, target: {$target_size}");
+
+        if (!@rename($temp_path, $target_path)) {
+            @unlink($temp_path);
+            return false;
         }
+        clearstatcache(true, $target_path);
         
         // Ensure proper permissions
         @chmod($target_path, 0644);
@@ -546,9 +746,11 @@ class BackupManager
             return null;
         }
 
-        // Main original backup always maps to the original path
+        // The original backup holds the unscaled upload: restore it to that
+        // file (for big images WordPress' attached file is the "-scaled" copy).
         if ($backup['type'] === 'original') {
-            return $original_path;
+            $unscaled = function_exists('wp_get_original_image_path') ? wp_get_original_image_path($attachment_id) : false;
+            return ($unscaled && $unscaled !== $original_path) ? $unscaled : $original_path;
         }
 
         // For size files, use the backup type (which is the size name)
@@ -721,7 +923,7 @@ class BackupManager
             
             $backups[] = [
                 'path' => $backup_file,
-                'url' => str_replace($upload_dir['basedir'], $upload_dir['baseurl'], $backup_file),
+                'url' => self::getBackupPreviewUrl($backup_file),
                 'type' => $backup_type,
                 'size' => filesize($backup_file),
                 'created' => filemtime($backup_file),
@@ -803,6 +1005,10 @@ class BackupManager
                     if (unlink($normalized_path)) {
                         $deleted++;
                     }
+                    $thumb = self::backupThumbnailPath($normalized_path);
+                    if (is_file($thumb)) {
+                        @unlink($thumb);
+                    }
                 }
             }
         }
@@ -844,59 +1050,26 @@ class BackupManager
      */
     private static function copyImageWithQuality(string $source, string $destination, int $quality = 90): bool
     {
-        $image_info = getimagesize($source);
-        if (!$image_info) {
+        // A backup must be a byte-exact copy: re-encoding loses quality, PNG
+        // transparency, EXIF/ICC data and animation, and needs GD.
+        // Write under a temporary name and move into place only when complete,
+        // so an interrupted copy (full disk) never leaves a truncated "backup"
+        // that a later restore would trust.
+        $temp = dirname($destination) . '/.ulwm-part-' . self::randomToken() . '-' . basename($destination);
+        if (!@copy($source, $temp)) {
+            @unlink($temp);
             return false;
         }
-        
-        $mime_type = $image_info['mime'];
-        
-        // Create image resource based on type
-        switch ($mime_type) {
-            case 'image/jpeg':
-                $source_image = imagecreatefromjpeg($source);
-                break;
-            case 'image/png':
-                $source_image = imagecreatefrompng($source);
-                break;
-            case 'image/gif':
-                $source_image = imagecreatefromgif($source);
-                break;
-            case 'image/webp':
-                $source_image = imagecreatefromwebp($source);
-                break;
-            default:
-                // For unsupported formats, just copy the file
-                return copy($source, $destination);
-        }
-        
-        if (!$source_image) {
+
+        clearstatcache(true, $temp);
+        if (@filesize($temp) !== @filesize($source) || !@rename($temp, $destination)) {
+            @unlink($temp);
             return false;
         }
-        
-        // Save with quality settings
-        $result = false;
-        switch ($mime_type) {
-            case 'image/jpeg':
-                $result = imagejpeg($source_image, $destination, $quality);
-                break;
-            case 'image/png':
-                // PNG quality is compression level (0-9), convert from 0-100
-                $png_quality = round(9 - ($quality / 100) * 9);
-                $result = imagepng($source_image, $destination, $png_quality);
-                break;
-            case 'image/gif':
-                $result = imagegif($source_image, $destination);
-                break;
-            case 'image/webp':
-                $result = imagewebp($source_image, $destination, $quality);
-                break;
-        }
-        
-        imagedestroy($source_image);
-        return $result;
+
+        return true;
     }
-    
+
     /**
      * Get backup statistics
      * 
@@ -942,8 +1115,8 @@ class BackupManager
                     'id' => $attachment->ID,
                     'title' => $attachment->post_title,
                     'backup_path' => $attachment->backup_path,
-                    'url' => str_replace(wp_upload_dir()['basedir'], wp_upload_dir()['baseurl'], $attachment->backup_path),
-                    'backup_created' => $attachment->backup_created,
+                    'url' => self::getBackupPreviewUrl((string) $attachment->backup_path),
+                    'backup_created' => $attachment->backup_created ? get_gmt_from_date($attachment->backup_created, 'c') : '',
                     'size' => filesize($attachment->backup_path)
                 ];
             }
@@ -1052,8 +1225,9 @@ class BackupManager
                 'id' => $attachment ? $attachment->ID : $attachment_id,
                 'title' => $attachment ? $attachment->post_title : 'Unknown Image',
                 'backup_path' => $main_path,
-                'url' => str_replace(wp_upload_dir()['basedir'], wp_upload_dir()['baseurl'], $main_path),
-                'backup_created' => date('Y-m-d H:i:s', filemtime($main_path)),
+                'url' => self::getBackupPreviewUrl((string) $main_path),
+                // ISO 8601 with timezone, so browsers in any timezone show the right "x ago".
+                'backup_created' => gmdate('c', (int) filemtime($main_path)),
                 'size' => $main_size,
                 'additional_sizes' => $additional_count,
                 'total_size' => $main_size + $additional_total
@@ -1167,8 +1341,9 @@ class BackupManager
                 'id' => $attachment ? $attachment->ID : $attachment_id,
                 'title' => $attachment ? $attachment->post_title : 'Unknown Image',
                 'backup_path' => $main_path,
-                'url' => str_replace($upload_dir['basedir'], $upload_dir['baseurl'], $main_path),
-                'backup_created' => date('Y-m-d H:i:s', filemtime($main_path)),
+                'url' => self::getBackupPreviewUrl((string) $main_path),
+                // ISO 8601 with timezone, so browsers in any timezone show the right "x ago".
+                'backup_created' => gmdate('c', (int) filemtime($main_path)),
                 'size' => $main_size,
                 'additional_sizes' => $additional_count,
                 'total_size' => $main_size + $additional_total
@@ -1181,7 +1356,10 @@ class BackupManager
         });
         
         $total = count($backups);
-        $total_pages = ceil($total / $per_page);
+        $per_page = max(1, (int) $per_page);
+        $total_pages = (int) ceil($total / $per_page);
+        // Deleting the last row of the last page must not show an empty page.
+        $page = max(1, min((int) $page, max(1, $total_pages)));
         $offset = ($page - 1) * $per_page;
         
         // Get paginated slice
@@ -1228,6 +1406,10 @@ class BackupManager
                 if (file_exists($normalized_path) && is_file($normalized_path)) {
                     if (unlink($normalized_path)) {
                         $deleted_count++;
+                    }
+                    $thumb = self::backupThumbnailPath($normalized_path);
+                    if (is_file($thumb)) {
+                        @unlink($thumb);
                     }
                 }
             }

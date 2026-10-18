@@ -299,20 +299,12 @@ class Plugin implements PluginInterface
      */
     private function loadTextDomain(): void
     {
-        $loaded = load_plugin_textdomain(
+        // English sites legitimately have no translation file; no notice needed.
+        load_plugin_textdomain(
             'ultimate-watermark',
             false,
             dirname($this->plugin_basename) . '/languages'
         );
-
-        if (!$loaded && is_admin()) {
-            add_action('admin_notices', function() {
-                printf(
-                    '<div class="notice notice-warning"><p>%s</p></div>',
-                    esc_html__('Ultimate Watermark: Translation files not found.', 'ultimate-watermark')
-                );
-            });
-        }
     }
 
     /**

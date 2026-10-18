@@ -31,7 +31,7 @@ class NoticeManager
     private const OPTION_KEY        = 'ultimate_watermark_notices';
     private const NONCE_ACTION      = 'ultimate_watermark_notice_dismiss';
     private const AJAX_ACTION       = 'ultimate_watermark_dismiss_notice';
-    private const REVIEW_URL        = 'https://wordpress.org/support/plugin/ultimate-watermark/reviews/?filter=5#new-post';
+    private const REVIEW_URL        = 'https://wordpress.org/support/plugin/ultimate-watermark/reviews/#new-post';
     private const UPGRADE_URL       = 'https://mantrabrain.com/plugins/ultimate-watermark#pricing';
 
     private const REVIEW_INITIAL_DAYS = 7;
@@ -103,7 +103,7 @@ class NoticeManager
                         <?php esc_html_e('You\'ve been using Ultimate Watermark for over a week — we\'d love it if you took a moment to leave a quick review on WordPress.org. It really helps the plugin grow.', 'ultimate-watermark'); ?>
                     </p>
                     <div class="uw-onboarding-notice__actions">
-                        <a href="<?php echo $review_url; ?>"
+                        <a href="<?php echo esc_url($review_url); ?>"
                            target="_blank"
                            rel="noopener noreferrer"
                            class="button button-primary uw-notice-cta"
@@ -166,7 +166,7 @@ class NoticeManager
                         <li><span class="dashicons dashicons-yes"></span> <?php esc_html_e('Dynamic content & Google Fonts', 'ultimate-watermark'); ?></li>
                     </ul>
                     <div class="uw-onboarding-notice__actions">
-                        <a href="<?php echo $upgrade_url; ?>"
+                        <a href="<?php echo esc_url($upgrade_url); ?>"
                            target="_blank"
                            rel="noopener noreferrer"
                            class="button button-primary uw-notice-cta uw-notice-cta--upgrade"

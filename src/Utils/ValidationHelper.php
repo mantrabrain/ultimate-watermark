@@ -30,7 +30,8 @@ class ValidationHelper
         if ($value === false || $value < $min || $value > $max) {
             throw new \InvalidArgumentException(
                 sprintf(
-                    __('Invalid value for %s. Must be between %d and %d.', 'ultimate-watermark'),
+                    /* translators: 1: field name, 2: minimum value, 3: maximum value */
+                    __('Invalid value for %1$s. Must be between %2$d and %3$d.', 'ultimate-watermark'),
                     $field_name,
                     $min,
                     $max
@@ -192,6 +193,7 @@ class ValidationHelper
         if (!file_exists($file_path) || !is_readable($file_path)) {
             throw new \InvalidArgumentException(
                 sprintf(
+                    /* translators: %s: file path */
                     __('File not found or not readable: %s', 'ultimate-watermark'),
                     basename($file_path)
                 )
@@ -213,6 +215,7 @@ class ValidationHelper
         if (!is_dir($directory) || !is_writable($directory)) {
             throw new \InvalidArgumentException(
                 sprintf(
+                    /* translators: %s: directory path */
                     __('Directory is not writable: %s', 'ultimate-watermark'),
                     $directory
                 )

@@ -3,7 +3,7 @@
  * Plugin Name: Ultimate Watermark
  * Plugin URI: https://mantrabrain.com/ultimate-watermark
  * Description: Advanced WordPress Image Watermarking Plugin
- * Version: 2.1.5
+ * Version: 2.2.0
  * Author: MantraBrain
  * Author URI: https://mantrabrain.com
  * License: GPL v3 or later
@@ -13,11 +13,10 @@
  * Requires at least: 5.9
  * Tested up to: 7.1
  * Requires PHP: 7.4
- * Network: false
  *
  * @package UltimateWatermark
  * @author MantraBrain
- * @version 2.1.5
+ * @version 2.2.0
  */
 
 // Prevent direct access
@@ -27,15 +26,40 @@ if (!defined('ABSPATH')) {
 
 // Check PHP version compatibility
 if (version_compare(PHP_VERSION, '7.4.0', '<')) {
-    deactivate_plugins(plugin_basename(__FILE__));
-    wp_die(sprintf(
-        __('Ultimate Watermark requires PHP 7.4 or higher. You are running %s', 'ultimate-watermark'),
-        PHP_VERSION
-    ));
+    // Don't load on unsupported PHP; tell administrators why.
+    add_action('admin_notices', function () {
+        if (!current_user_can('activate_plugins')) {
+            return;
+        }
+        printf(
+            '<div class="notice notice-error"><p>%s</p></div>',
+            esc_html(sprintf(
+                /* translators: %s: current PHP version */
+                __('Ultimate Watermark requires PHP 7.4 or higher. You are running %s. Please ask your host to upgrade PHP.', 'ultimate-watermark'),
+                PHP_VERSION
+            ))
+        );
+    });
+    return;
+}
+
+// Missing Composer files (e.g. an incomplete upload): don't load, and don't
+// define the constants either, so add-ons (Pro) see the plugin as unavailable.
+if (!file_exists(__DIR__ . '/vendor/autoload.php')) {
+    add_action('admin_notices', function () {
+        if (!current_user_can('activate_plugins')) {
+            return;
+        }
+        printf(
+            '<div class="notice notice-error"><p>%s</p></div>',
+            esc_html__('Ultimate Watermark is incomplete (the vendor folder is missing). Please reinstall the plugin.', 'ultimate-watermark')
+        );
+    });
+    return;
 }
 
 // Define plugin constants
-define('ULTIMATE_WATERMARK_VERSION', '2.1.5');
+define('ULTIMATE_WATERMARK_VERSION', '2.2.0');
 define('ULTIMATE_WATERMARK_FILE', __FILE__);
 define('ULTIMATE_WATERMARK_DIR', plugin_dir_path(__FILE__));
 define('ULTIMATE_WATERMARK_URL', plugin_dir_url(__FILE__));
@@ -43,14 +67,8 @@ define('ULTIMATE_WATERMARK_BASENAME', plugin_basename(__FILE__));
 define('ULTIMATE_WATERMARK_MIN_PHP', '7.4.0');
 define('ULTIMATE_WATERMARK_MIN_WP', '5.9');
 
-// Load Composer autoloader with error handling
-$autoloader_path = ULTIMATE_WATERMARK_DIR . 'vendor/autoload.php';
-if (!file_exists($autoloader_path)) {
-    deactivate_plugins(plugin_basename(__FILE__));
-    wp_die(__('Ultimate Watermark: Composer autoloader not found. Please run "composer install"', 'ultimate-watermark'));
-}
-
-require_once $autoloader_path;
+// Load Composer autoloader
+require_once ULTIMATE_WATERMARK_DIR . 'vendor/autoload.php';
 
 // Initialize the plugin with proper error handling
 add_action('plugins_loaded', function () {
@@ -66,10 +84,11 @@ add_action('plugins_loaded', function () {
             add_action('admin_notices', function() use ($e) {
                 printf(
                     '<div class="error notice"><p>%s</p></div>',
-                    sprintf(
+                    esc_html(sprintf(
+                        /* translators: %s: error message */
                         __('Ultimate Watermark initialization failed: %s', 'ultimate-watermark'),
-                        esc_html($e->getMessage())
-                    )
+                        $e->getMessage()
+                    ))
                 );
             });
         }
@@ -87,10 +106,11 @@ register_activation_hook(__FILE__, function () {
     } catch (\Exception $e) {
         error_log('Ultimate Watermark activation failed: ' . $e->getMessage());
         deactivate_plugins(plugin_basename(__FILE__));
-        wp_die(sprintf(
+        wp_die(esc_html(sprintf(
+            /* translators: %s: error message */
             __('Ultimate Watermark activation failed: %s', 'ultimate-watermark'),
-            esc_html($e->getMessage())
-        ));
+            $e->getMessage()
+        )));
     }
 });
 

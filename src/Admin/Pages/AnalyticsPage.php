@@ -204,7 +204,7 @@ class AnalyticsPage
                 <div class="detail-card">
                     <div class="card-header">
                         <h3><?php esc_html_e('Recent Watermark Activity', 'ultimate-watermark'); ?></h3>
-                        <a href="#" class="card-action"><?php esc_html_e('View All', 'ultimate-watermark'); ?></a>
+                        <a href="<?php echo esc_url(admin_url('upload.php?mode=list')); ?>" class="card-action"><?php esc_html_e('View All', 'ultimate-watermark'); ?></a>
                     </div>
                     <div class="card-content">
                         <div class="activity-timeline">
@@ -227,13 +227,11 @@ class AnalyticsPage
             </div>
         </div>
 
-        <!-- Chart.js -->
-        <script src="<?php echo esc_url('https://cdn.jsdelivr.net/npm/chart.js'); ?>"></script>
         <script>
-        // Analytics data for JavaScript
+        // Analytics data for JavaScript (Chart.js is enqueued as a dependency of analytics.js)
         window.ultimateWatermarkAnalytics = {
-            ajaxUrl: '<?php echo admin_url('admin-ajax.php'); ?>',
-            nonce: '<?php echo wp_create_nonce('ultimate_watermark_analytics'); ?>'
+            ajaxUrl: '<?php echo esc_js(esc_url_raw(admin_url('admin-ajax.php'))); ?>',
+            nonce: '<?php echo esc_js(wp_create_nonce('ultimate_watermark_analytics')); ?>'
         };
         </script>
         <?php
@@ -520,7 +518,7 @@ class AnalyticsPage
                         <?php endif; ?>
                     </div>
                     <div class="watermark-type">
-                        <span class="dashicons <?php echo $watermark_type === 'image' ? 'dashicons-format-image' : 'dashicons-format-text'; ?>"></span>
+                        <span class="dashicons <?php echo $watermark_type === 'image' ? 'dashicons-format-image' : 'dashicons-editor-textcolor'; ?>"></span>
                         <?php echo $watermark_type === 'image' ? esc_html__('Image Watermark', 'ultimate-watermark') : esc_html__('Text Watermark', 'ultimate-watermark'); ?>
                     </div>
                 </div>
@@ -586,9 +584,6 @@ class AnalyticsPage
         
         <div class="performance-item">
             <div class="performance-label"><?php esc_html_e('Backup Storage', 'ultimate-watermark'); ?></div>
-            <div class="performance-bar">
-                <div class="performance-fill" style="width: 25%"></div>
-            </div>
             <div class="performance-value"><?php echo esc_html(size_format($backup_size)); ?></div>
         </div>
         
@@ -631,6 +626,7 @@ class AnalyticsPage
             
             $activities[] = [
                 'icon' => 'dashicons-plus-alt',
+                /* translators: %s: watermark type (text or image) */
                 'title' => sprintf(__('New %s created', 'ultimate-watermark'), $type_label),
                 'time' => human_time_diff(strtotime($watermark->post_date), current_time('timestamp')) . ' ' . __('ago', 'ultimate-watermark')
             ];
@@ -644,23 +640,7 @@ class AnalyticsPage
      */
     private function getBackupStorageSize(): int
     {
-        $upload_dir = wp_upload_dir();
-        $backup_dir = $upload_dir['basedir'] . '/ultimate-watermark-backups';
-        
-        if (!is_dir($backup_dir)) {
-            return 0;
-        }
-        
-        $size = 0;
-        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($backup_dir));
-        
-        foreach ($iterator as $file) {
-            if ($file->isFile()) {
-                $size += $file->getSize();
-            }
-        }
-        
-        return $size;
+        return \MantraBrain\UltimateWatermark\Utils\BackupManager::getStorageSize();
     }
 
     /**

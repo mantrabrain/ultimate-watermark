@@ -23,7 +23,7 @@ class BackupPage
      */
     public function render(): void
     {
-        $actions = '<a href="' . esc_url(admin_url('admin.php?page=ultimate-watermark-dashboard')) . '" class="btn btn-secondary">
+        $actions = '<a href="' . esc_url(admin_url('admin.php?page=ultimate-watermark')) . '" class="btn btn-secondary">
             <span class="dashicons dashicons-arrow-left-alt"></span>
             ' . esc_html__('Back to Dashboard', 'ultimate-watermark') . '
         </a>';
@@ -250,7 +250,7 @@ class BackupPage
         echo '<td class="uw-col-name">';
         echo '<div class="uw-file-info">';
         echo '<div class="uw-file-thumbnail">';
-        echo '<img src="' . esc_url($backup['url']) . '" alt="' . esc_attr($backup['title']) . '" loading="lazy" class="uw-thumbnail-image" data-image-url="' . esc_url($backup['url']) . '" data-image-title="' . esc_attr($backup['title']) . '">';
+        echo '<img src="' . esc_url(add_query_arg('size', 'thumb', $backup['url'])) . '" alt="' . esc_attr($backup['title']) . '" loading="lazy" class="uw-thumbnail-image" data-image-url="' . esc_url($backup['url']) . '" data-image-title="' . esc_attr($backup['title']) . '">';
         echo '</div>';
         echo '<div class="uw-file-details">';
         echo '<div class="uw-file-name">' . esc_html($backup['title']) . '</div>';
@@ -260,7 +260,7 @@ class BackupPage
         if (!empty($additional_sizes)) {
             $count = count($additional_sizes);
             echo '<div class="uw-additional-sizes">';
-            echo '<span class="uw-size-count">+' . $count . ' ' . esc_html(_n('additional size', 'additional sizes', $count, 'ultimate-watermark')) . '</span>';
+            echo '<span class="uw-size-count">+' . (int) $count . ' ' . esc_html(_n('additional size', 'additional sizes', $count, 'ultimate-watermark')) . '</span>';
             echo '<button type="button" class="uw-toggle-children" data-attachment-id="' . esc_attr($backup['id']) . '">';
             echo '<span class="dashicons dashicons-arrow-down-alt2"></span>';
             echo '</button>';
@@ -322,7 +322,7 @@ class BackupPage
                 echo '<td class="uw-col-name">';
                 echo '<div class="uw-file-info uw-child-file">';
                 echo '<div class="uw-file-thumbnail uw-child-thumbnail">';
-                echo '<img src="' . esc_url($size['url']) . '" alt="' . esc_attr($size['title']) . '" loading="lazy" class="uw-thumbnail-image" data-image-url="' . esc_url($size['url']) . '" data-image-title="' . esc_attr($size['title']) . '">';
+                echo '<img src="' . esc_url(add_query_arg('size', 'thumb', $size['url'])) . '" alt="' . esc_attr($size['title']) . '" loading="lazy" class="uw-thumbnail-image" data-image-url="' . esc_url($size['url']) . '" data-image-title="' . esc_attr($size['title']) . '">';
                 echo '</div>';
                 echo '<div class="uw-file-details">';
                 echo '<div class="uw-file-name">' . esc_html($size['title']) . '</div>';
@@ -371,7 +371,7 @@ class BackupPage
                         'type' => $size_name,
                         'path' => $backup_path,
                         'size' => filesize($backup_path),
-                        'url' => str_replace(wp_upload_dir()['basedir'], wp_upload_dir()['baseurl'], $backup_path),
+                        'url' => \MantraBrain\UltimateWatermark\Utils\BackupManager::getBackupPreviewUrl((string) $backup_path),
                         'created' => filemtime($backup_path)
                     ];
                 }

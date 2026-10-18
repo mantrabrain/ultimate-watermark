@@ -6,6 +6,5 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
-    'MantraBrain\\UltimateWatermark\\Tests\\' => array($baseDir . '/tests'),
     'MantraBrain\\UltimateWatermark\\' => array($baseDir . '/src'),
 );

@@ -84,6 +84,7 @@ rsync -av \
     --exclude='*-test-*' \
     --exclude='*_test_*' \
     --exclude='.wordpress-org' \
+    --exclude='.jshintrc' \
     --exclude='*.zip' \
     --exclude='*.tar.gz' \
     --exclude='.env' \

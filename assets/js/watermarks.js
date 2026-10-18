@@ -6,6 +6,18 @@
  * @package UltimateWatermark
  * @since 2.0.0
  */
+/* i18n: falls back to the original text when wp.i18n is unavailable. */
+window.wp = window.wp || {};
+window.wp.i18n = window.wp.i18n || {
+    __: function (text) { return text; },
+    _n: function (single, plural, number) { return number === 1 ? single : plural; },
+    sprintf: function (format) {
+        var args = Array.prototype.slice.call(arguments, 1), i = 0;
+        return String(format).replace(/%(\d+\$)?[sd]/g, function (match, position) {
+            return String(position ? args[parseInt(position, 10) - 1] : args[i++]);
+        });
+    }
+};
 
 (function($) {
     'use strict';
@@ -40,19 +52,21 @@
             $(document).on('click', '.watermark-duplicate', this.duplicateWatermark.bind(this));
             $(document).on('click', '.watermark-toggle', this.toggleWatermark.bind(this));
             $(document).on('click', '.watermark-delete', (e) => {
+                // It's an href="#" link: don't jump to the top of the page.
+                e.preventDefault();
                 // Get the watermark ID from the clicked element
-                const watermarkId = $(e.target).data('id') || $(e.target).attr('data-id');
+                const watermarkId = $(e.currentTarget).data('id') || $(e.currentTarget).attr('data-id');
                 
                 // Store watermark ID for confirmation
                 WatermarksPage.pendingDeleteId = watermarkId;
                 
                 // Show confirmation modal
                 UWNotifications.confirm({
-                    title: 'Delete Watermark',
-                    message: 'Are you sure you want to delete this watermark? This action cannot be undone.',
+                    title: wp.i18n.__('Delete Watermark', 'ultimate-watermark'),
+                    message: wp.i18n.__('Are you sure you want to delete this watermark? This action cannot be undone.', 'ultimate-watermark'),
                     type: 'error',
-                    confirmText: 'Delete',
-                    cancelText: 'Cancel',
+                    confirmText: wp.i18n.__('Delete', 'ultimate-watermark'),
+                    cancelText: wp.i18n.__('Cancel', 'ultimate-watermark'),
                     confirmButtonType: 'danger'
                 }).then(function(action) {
                     // confirm() resolves with the action string, not a boolean
@@ -66,9 +80,9 @@
             $(document).on('click', '#doaction, #doaction2', this.handleBulkAction.bind(this));
             
             // Legacy bulk actions (keep for backward compatibility)
-            $(document).on('click', '#bulk-activate', this.bulkActivate);
-            $(document).on('click', '#bulk-deactivate', this.bulkDeactivate);
-            $(document).on('click', '#bulk-delete', this.bulkDelete);
+            $(document).on('click', '#bulk-activate', this.bulkActivate.bind(this));
+            $(document).on('click', '#bulk-deactivate', this.bulkDeactivate.bind(this));
+            $(document).on('click', '#bulk-delete', this.bulkDelete.bind(this));
             
             // Search functionality
             $(document).on('input', '#watermark-search', this.searchWatermarks);
@@ -147,7 +161,7 @@
         resetForm: function() {
             $('#ultimate-watermark-form')[0].reset();
             $('input[name="watermark_type"][value="text"]').prop('checked', true);
-            $('#watermark_text').val('© ' + $('body').data('site-name') || 'Your Site');
+            $('#watermark_text').val('© ' + $('body').data('site-name') || wp.i18n.__('Your Site', 'ultimate-watermark'));
             $('#watermark_opacity').val(50);
             $('.range-value').text('50%');
             $('.form-tab').removeClass('active');
@@ -195,12 +209,12 @@
          */
         duplicateWatermark: function(e) {
             e.preventDefault();
-            const watermarkId = $(e.target).data('id') || $(e.target).attr('data-id');
+            const watermarkId = $(e.currentTarget).data('id') || $(e.currentTarget).attr('data-id');
             
             // Show loading state
             const $button = $(e.target);
             const originalText = $button.text();
-            $button.text('Duplicating...').prop('disabled', true);
+            $button.text(wp.i18n.__('Duplicating...', 'ultimate-watermark')).prop('disabled', true);
             
             // AJAX request to duplicate watermark
             
@@ -222,13 +236,13 @@
                             // Show upgrade modal with nice UI
                             WatermarksPage.showUpgradeModal(response.data.message, response.data.upgrade_url);
                         } else {
-                            UWNotifications.error('Error', response.data.message || 'Error duplicating watermark');
+                            UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), response.data.message || wp.i18n.__('Error duplicating watermark', 'ultimate-watermark'));
                         }
                         $button.text(originalText).prop('disabled', false);
                     }
                 },
                 error: function(xhr, status, error) {
-                    UWNotifications.error('Error', 'Error duplicating watermark. Please try again.');
+                    UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('Error duplicating watermark. Please try again.', 'ultimate-watermark'));
                     $button.text(originalText).prop('disabled', false);
                 }
             });
@@ -239,14 +253,14 @@
          */
         toggleWatermark: function(e) {
             e.preventDefault();
-            const watermarkId = $(e.target).data('id') || $(e.target).attr('data-id');
+            const watermarkId = $(e.currentTarget).data('id') || $(e.currentTarget).attr('data-id');
             const currentStatus = $(e.target).data('status') || $(e.target).attr('data-status');
             const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
             
             // Show loading state
             const $button = $(e.target);
             const originalText = $button.text();
-            $button.text('Updating...').prop('disabled', true);
+            $button.text(wp.i18n.__('Updating...', 'ultimate-watermark')).prop('disabled', true);
             
             // Toggle watermark status
             
@@ -263,7 +277,7 @@
                 success: function(response) {
                     if (response.success) {
                         // Update the button text and status
-                        const newButtonText = newStatus === 'active' ? 'Deactivate' : 'Activate';
+                        const newButtonText = newStatus === 'active' ? wp.i18n.__('Deactivate', 'ultimate-watermark') : wp.i18n.__('Activate', 'ultimate-watermark');
                         $button.text(newButtonText).data('status', newStatus).prop('disabled', false);
                         
                         // Update status badge
@@ -272,18 +286,18 @@
                         
                         if (newStatus === 'active') {
                             $statusBadge.removeClass('status-inactive').addClass('status-active');
-                            $statusBadge.html('<span class="status-dot"></span>Active');
+                            $statusBadge.html('<span class="status-dot"></span>').append(document.createTextNode(wp.i18n.__('Active', 'ultimate-watermark')));
                         } else {
                             $statusBadge.removeClass('status-active').addClass('status-inactive');
-                            $statusBadge.html('<span class="status-dot"></span>Inactive');
+                            $statusBadge.html('<span class="status-dot"></span>').append(document.createTextNode(wp.i18n.__('Inactive', 'ultimate-watermark')));
                         }
                     } else {
-                        UWNotifications.error('Error', 'Error updating watermark status: ' + (response.data || 'Unknown error'));
+                        UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('Error updating watermark status: ', 'ultimate-watermark') + ((response.data && response.data.message) || wp.i18n.__('Unknown error', 'ultimate-watermark')));
                         $button.text(originalText).prop('disabled', false);
                     }
                 },
                 error: function(xhr, status, error) {
-                    UWNotifications.error('Error', 'Error updating watermark status: ' + error);
+                    UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('Error updating watermark status: ', 'ultimate-watermark') + error);
                     $button.text(originalText).prop('disabled', false);
                 }
             });
@@ -302,11 +316,11 @@
             
             // Show confirmation modal
             UWNotifications.confirm({
-                title: 'Delete Watermark',
-                message: 'Are you sure you want to delete this watermark? This action cannot be undone.',
+                title: wp.i18n.__('Delete Watermark', 'ultimate-watermark'),
+                message: wp.i18n.__('Are you sure you want to delete this watermark? This action cannot be undone.', 'ultimate-watermark'),
                 type: 'error',
-                confirmText: 'Delete',
-                cancelText: 'Cancel',
+                confirmText: wp.i18n.__('Delete', 'ultimate-watermark'),
+                cancelText: wp.i18n.__('Cancel', 'ultimate-watermark'),
                 confirmButtonType: 'danger'
             }).then(function(action) {
                 // confirm() resolves with the action string, not a boolean
@@ -354,15 +368,14 @@
                             WatermarksPage.pendingDeleteId = null;
                             
                             // Show success message
-                            UWNotifications.success('Success', 'Watermark deleted successfully');
+                            UWNotifications.success(wp.i18n.__('Success', 'ultimate-watermark'), wp.i18n.__('Watermark deleted successfully', 'ultimate-watermark'));
                         } else {
-                            UWNotifications.error('Error', 'Error deleting watermark: ' + (response.data || 'Unknown error'));
-                            $confirmBtn.text(originalText).prop('disabled', false);
+                            UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('Error deleting watermark: ', 'ultimate-watermark') + ((response.data && response.data.message) || wp.i18n.__('Unknown error', 'ultimate-watermark')));
                             WatermarksPage.pendingDeleteId = null;
                         }
                     },
                     error: function(xhr, status, error) {
-                        UWNotifications.error('Error', 'Error deleting watermark. Please try again.');
+                        UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('Error deleting watermark. Please try again.', 'ultimate-watermark'));
                     }
                 });
                 
@@ -397,13 +410,11 @@
                                 WatermarksPage.refreshTable();
                             }, 1500);
                         } else {
-                            WatermarksPage.showErrorMessage('Error deleting watermarks: ' + (response.data || 'Unknown error'));
-                            $confirmBtn.text(originalText).prop('disabled', false);
+                            WatermarksPage.showErrorMessage(wp.i18n.__('Error deleting watermarks: ', 'ultimate-watermark') + ((response.data && response.data.message) || wp.i18n.__('Unknown error', 'ultimate-watermark')));
                         }
                     },
                     error: function() {
-                        WatermarksPage.showErrorMessage('Error deleting watermarks. Please try again.');
-                        $confirmBtn.text(originalText).prop('disabled', false);
+                        WatermarksPage.showErrorMessage(wp.i18n.__('Error deleting watermarks. Please try again.', 'ultimate-watermark'));
                     }
                 });
                 
@@ -424,7 +435,7 @@
             const action = $select.val();
             
             if (action === '-1' || !action) {
-                UWNotifications.error('Error', 'Please select a bulk action.');
+                UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('Please select a bulk action.', 'ultimate-watermark'));
                 return;
             }
             
@@ -434,7 +445,7 @@
             }).get();
             
             if (selectedIds.length === 0) {
-                UWNotifications.error('Error', 'Please select watermarks to perform the action on.');
+                UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('Please select watermarks to perform the action on.', 'ultimate-watermark'));
                 return;
             }
             
@@ -450,7 +461,7 @@
                     this.handleBulkDelete(selectedIds);
                     break;
                 default:
-                    UWNotifications.error('Error', 'Unknown bulk action: ' + action);
+                    UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('Unknown bulk action: ', 'ultimate-watermark') + action);
             }
         },
 
@@ -460,11 +471,12 @@
         handleBulkDelete: function(selectedIds) {
             // Show confirmation modal
             UWNotifications.confirm({
-                title: 'Delete Multiple Watermarks',
-                message: `Are you sure you want to delete ${selectedIds.length} watermark(s)? This action cannot be undone.`,
+                title: wp.i18n.__('Delete Multiple Watermarks', 'ultimate-watermark'),
+                /* translators: %d: number of watermarks */
+                message: wp.i18n.sprintf(wp.i18n._n('Are you sure you want to delete %d watermark? This action cannot be undone.', 'Are you sure you want to delete %d watermarks? This action cannot be undone.', selectedIds.length, 'ultimate-watermark'), selectedIds.length),
                 type: 'error',
-                confirmText: 'Delete All',
-                cancelText: 'Cancel',
+                confirmText: wp.i18n.__('Delete All', 'ultimate-watermark'),
+                cancelText: wp.i18n.__('Cancel', 'ultimate-watermark'),
                 confirmButtonType: 'danger'
             }).then(function(action) {
                 // confirm() resolves with the action string, not a boolean
@@ -484,7 +496,7 @@
             }).get();
             
             if (selectedIds.length === 0) {
-                UWNotifications.error('Error', 'Please select watermarks to activate.');
+                UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('Please select watermarks to activate.', 'ultimate-watermark'));
                 return;
             }
 
@@ -501,7 +513,7 @@
             }).get();
             
             if (selectedIds.length === 0) {
-                UWNotifications.error('Error', 'Please select watermarks to deactivate.');
+                UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('Please select watermarks to deactivate.', 'ultimate-watermark'));
                 return;
             }
 
@@ -520,16 +532,17 @@
             
             if (selectedIds.length === 0) {
                 if (typeof UWNotifications !== 'undefined') {
-                    UWNotifications.error('Error', 'Please select watermarks to delete.');
+                    UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('Please select watermarks to delete.', 'ultimate-watermark'));
                 } else {
-                    alert('Please select watermarks to delete.');
+                    alert(wp.i18n.__('Please select watermarks to delete.', 'ultimate-watermark'));
                 }
                 return;
             }
 
             // Check if UWNotifications is available
             if (typeof UWNotifications === 'undefined') {
-                if (confirm(`Are you sure you want to delete ${selectedIds.length} watermark(s)? This action cannot be undone.`)) {
+                /* translators: %d: number of watermarks */
+                if (confirm(wp.i18n.sprintf(wp.i18n._n('Are you sure you want to delete %d watermark? This action cannot be undone.', 'Are you sure you want to delete %d watermarks? This action cannot be undone.', selectedIds.length, 'ultimate-watermark'), selectedIds.length))) {
                     this.confirmBulkDelete(selectedIds);
                 }
                 return;
@@ -537,11 +550,12 @@
 
             // Show confirmation modal
             UWNotifications.confirm({
-                title: 'Delete Multiple Watermarks',
-                message: `Are you sure you want to delete ${selectedIds.length} watermark(s)? This action cannot be undone.`,
+                title: wp.i18n.__('Delete Multiple Watermarks', 'ultimate-watermark'),
+                /* translators: %d: number of watermarks */
+                message: wp.i18n.sprintf(wp.i18n._n('Are you sure you want to delete %d watermark? This action cannot be undone.', 'Are you sure you want to delete %d watermarks? This action cannot be undone.', selectedIds.length, 'ultimate-watermark'), selectedIds.length),
                 type: 'error',
-                confirmText: 'Delete All',
-                cancelText: 'Cancel',
+                confirmText: wp.i18n.__('Delete All', 'ultimate-watermark'),
+                cancelText: wp.i18n.__('Cancel', 'ultimate-watermark'),
                 confirmButtonType: 'danger'
             }).then(function(action) {
                 // confirm() resolves with the action string, not a boolean
@@ -590,7 +604,7 @@
                             this.refreshTable();
                         }, 1500);
                     } else {
-                        this.showErrorMessage(response.data || `Failed to ${actionText} watermarks.`);
+                        this.showErrorMessage((response.data && response.data.message) || `Failed to ${actionText} watermarks.`);
                     }
                 },
                 error: (xhr, status, error) => {
@@ -611,7 +625,7 @@
             // Update button text to show loading
             $(`#bulk-${action}`).html(`
                 <span class="dashicons dashicons-update" style="animation: spin 1s linear infinite;"></span>
-                ${action === 'activate' ? 'Activating...' : 'Deactivating...'}
+                ${action === 'activate' ? wp.i18n.__('Activating...', 'ultimate-watermark') : wp.i18n.__('Deactivating...', 'ultimate-watermark')}
             `);
         },
 
@@ -646,11 +660,11 @@
                 if (action === 'activate') {
                     $statusToggle.attr('data-status', 'active');
                     $statusToggle.find('.toggle-slider').addClass('active');
-                    $statusBadge.removeClass('status-inactive').addClass('status-active').text('Active');
+                    $statusBadge.removeClass('status-inactive').addClass('status-active').text(wp.i18n.__('Active', 'ultimate-watermark'));
                 } else {
                     $statusToggle.attr('data-status', 'inactive');
                     $statusToggle.find('.toggle-slider').removeClass('active');
-                    $statusBadge.removeClass('status-active').addClass('status-inactive').text('Inactive');
+                    $statusBadge.removeClass('status-active').addClass('status-inactive').text(wp.i18n.__('Inactive', 'ultimate-watermark'));
                 }
             });
         },
@@ -689,18 +703,18 @@
                         
                         // Show success message
                         if (typeof UWNotifications !== 'undefined') {
-                            UWNotifications.success('Success', response.data.message);
+                            UWNotifications.success(wp.i18n.__('Success', 'ultimate-watermark'), response.data.message);
                         } else {
-                            alert('Success: ' + response.data.message);
+                            alert(wp.i18n.__('Success: ', 'ultimate-watermark') + response.data.message);
                         }
                         
                         // Update table count if needed
                         this.updateTableCount();
                     } else {
                         if (typeof UWNotifications !== 'undefined') {
-                            UWNotifications.error('Error', response.data.message || 'Failed to delete watermarks');
+                            UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), response.data.message || wp.i18n.__('Failed to delete watermarks', 'ultimate-watermark'));
                         } else {
-                            alert('Error: ' + (response.data.message || 'Failed to delete watermarks'));
+                            alert(wp.i18n.__('Error: ', 'ultimate-watermark') + (response.data.message || wp.i18n.__('Failed to delete watermarks', 'ultimate-watermark')));
                         }
                     }
                 },
@@ -708,9 +722,9 @@
                     this.hideBulkDeleteLoading();
                     
                     if (typeof UWNotifications !== 'undefined') {
-                        UWNotifications.error('Error', 'Failed to delete watermarks. Please try again.');
+                        UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('Failed to delete watermarks. Please try again.', 'ultimate-watermark'));
                     } else {
-                        alert('Error: Failed to delete watermarks. Please try again.');
+                        alert(wp.i18n.__('Error: Failed to delete watermarks. Please try again.', 'ultimate-watermark'));
                     }
                 }
             });
@@ -727,8 +741,7 @@
             // Update delete button text to show loading
             $('#bulk-delete').html(`
                 <span class="dashicons dashicons-update" style="animation: spin 1s linear infinite;"></span>
-                Deleting...
-            `);
+            `).append(document.createTextNode(' ' + wp.i18n.__('Deleting...', 'ultimate-watermark')));
         },
 
         /**

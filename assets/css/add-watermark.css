@@ -140,8 +140,23 @@
 }
 
 @media (max-width: 768px) {
-    .form-columns {
+    .form-columns,
+    #position_settings .form-columns {
         grid-template-columns: 1fr;
+    }
+}
+
+/* Phones: every tab visible (wrapped) instead of a hidden sideways scroll. */
+@media (max-width: 600px) {
+    .form-tabs {
+        flex-wrap: wrap;
+        overflow-x: visible;
+    }
+
+    .form-tab {
+        flex: 1 1 auto;
+        justify-content: center;
+        padding: 12px 10px;
     }
 }
 

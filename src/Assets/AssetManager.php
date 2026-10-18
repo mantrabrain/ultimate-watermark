@@ -58,6 +58,7 @@ class AssetManager
         'ultimate-watermark-analytics' => [
             'styles' => ['analytics'],
             'scripts' => ['analytics'],
+            'dependencies' => ['ultimate-watermark-chartjs'],
         ],
         'ultimate-watermark-backups' => [
             'styles' => ['backup-page'],
@@ -206,7 +207,6 @@ class AssetManager
         
         wp_localize_script('ultimate-watermark-frontend', 'ultimateWatermark', [
             'ajaxUrl' => esc_url(admin_url('admin-ajax.php')),
-            'nonce' => wp_create_nonce('ultimate_watermark_ajax'),
             'settings' => $sanitized_settings,
             'isLoggedIn' => is_user_logged_in(),
             'strings' => [
@@ -308,6 +308,16 @@ class AssetManager
             $candidate = $hook_suffix;
         }
 
+        /**
+         * Let add-ons (e.g. Pro) register their own screens so they get the
+         * shared admin styles: [ 'menu-slug' => ['styles' => [], 'scripts' => []] ].
+         */
+        $pages = (array) apply_filters('ultimate_watermark_admin_page_assets', $this->admin_page_assets);
+
+        if (isset($pages[$candidate]) && !isset($this->admin_page_assets[$candidate])) {
+            $this->admin_page_assets[$candidate] = (array) $pages[$candidate];
+        }
+
         return isset($this->admin_page_assets[$candidate]) ? $candidate : null;
     }
 
@@ -374,6 +384,9 @@ class AssetManager
             }
         }
 
+        // Chart.js 4.4.1 (MIT), bundled: no third-party CDN request from wp-admin.
+        wp_register_script('ultimate-watermark-chartjs', $this->getAssetUrl('js/vendor/chart.umd.min.js'), [], '4.4.1', true);
+
         // Enqueue page-specific scripts
         if (!empty($page_assets['scripts'])) {
             foreach ($page_assets['scripts'] as $script) {
@@ -389,13 +402,14 @@ class AssetManager
                 wp_enqueue_script(
                     "ultimate-watermark-{$script}",
                     $this->getAssetUrl("js/{$script}.js"),
-                    $dependencies,
+                    array_values(array_unique(array_merge($dependencies, ['wp-i18n', 'ultimate-watermark-notification-system']))),
                     $this->getVersion(),
                     [
                         'strategy' => 'defer',
                         'in_footer' => true
                     ]
                 );
+                wp_set_script_translations("ultimate-watermark-{$script}", 'ultimate-watermark', ULTIMATE_WATERMARK_DIR . 'languages');
             }
         }
     }

@@ -119,31 +119,53 @@ class AddWatermarkPage
                     
                     <div class="preview-image-container">
                         <div class="preview-image">
-                            <img id="ultimate-watermark-preview-image" src="<?php echo esc_url(ULTIMATE_WATERMARK_URL . 'assets/images/preview-image.jpg'); ?>" alt="Preview">
+                            <img id="ultimate-watermark-preview-image" src="<?php echo esc_url(ULTIMATE_WATERMARK_URL . 'assets/images/preview-image.jpg'); ?>" alt="<?php esc_attr_e('Watermark preview', 'ultimate-watermark'); ?>">
                             <div id="ultimate-watermark-preview-watermark" class="preview-watermark-overlay"></div>
                             <div id="preview-loading" class="preview-loading" style="display: none;">
                                 <div class="loading-spinner"></div>
-                                <span>Generating preview...</span>
+                                <span><?php esc_html_e('Generating preview...', 'ultimate-watermark'); ?></span>
                             </div>
                         </div>
                     </div>
                     
+                    <?php
+                    // Show the saved values right away (JS keeps them in sync while editing).
+                    $stat = is_array($watermark_data) ? $watermark_data : [];
+                    $stat_positions = [
+                        'top-left' => __('Top Left', 'ultimate-watermark'), 'top-center' => __('Top Center', 'ultimate-watermark'), 'top-right' => __('Top Right', 'ultimate-watermark'),
+                        'center-left' => __('Center Left', 'ultimate-watermark'), 'center' => __('Center', 'ultimate-watermark'), 'center-right' => __('Center Right', 'ultimate-watermark'),
+                        'bottom-left' => __('Bottom Left', 'ultimate-watermark'), 'bottom-center' => __('Bottom Center', 'ultimate-watermark'), 'bottom-right' => __('Bottom Right', 'ultimate-watermark'),
+                    ];
+                    $stat_position = $stat_positions[$stat['watermark_position'] ?? 'bottom-right'] ?? $stat_positions['bottom-right'];
+                    if (($stat['watermark_type'] ?? 'text') === 'image') {
+                        $stat_size_type = $stat['watermark_size_type'] ?? 'scaled';
+                        if ($stat_size_type === 'custom') {
+                            $stat_size = (int) ($stat['watermark_custom_width'] ?? 100) . 'x' . (int) ($stat['watermark_custom_height'] ?? 100);
+                        } elseif ($stat_size_type === 'scaled') {
+                            $stat_size = (int) ($stat['watermark_scale_percentage'] ?? 80) . '%';
+                        } else {
+                            $stat_size = __('Original', 'ultimate-watermark');
+                        }
+                    } else {
+                        $stat_size = (int) ($stat['watermark_font_size'] ?? 24) . 'px';
+                    }
+                    ?>
                     <div class="preview-stats">
                         <div class="preview-stat">
                             <div class="preview-stat-label"><?php esc_html_e('Position', 'ultimate-watermark'); ?></div>
-                            <div class="preview-stat-value" id="preview-position"><?php esc_html_e('Bottom Right', 'ultimate-watermark'); ?></div>
+                            <div class="preview-stat-value" id="preview-position"><?php echo esc_html($stat_position); ?></div>
                         </div>
                         <div class="preview-stat">
                             <div class="preview-stat-label"><?php esc_html_e('Opacity', 'ultimate-watermark'); ?></div>
-                            <div class="preview-stat-value" id="preview-opacity">50%</div>
+                            <div class="preview-stat-value" id="preview-opacity"><?php echo esc_html((int) ($stat['watermark_opacity'] ?? 50) . '%'); ?></div>
                         </div>
                         <div class="preview-stat">
                             <div class="preview-stat-label"><?php esc_html_e('Size', 'ultimate-watermark'); ?></div>
-                            <div class="preview-stat-value" id="preview-size">24px</div>
+                            <div class="preview-stat-value" id="preview-size"><?php echo esc_html($stat_size); ?></div>
                         </div>
                         <div class="preview-stat">
                             <div class="preview-stat-label"><?php esc_html_e('Rotation', 'ultimate-watermark'); ?></div>
-                            <div class="preview-stat-value" id="preview-rotation">0°</div>
+                            <div class="preview-stat-value" id="preview-rotation"><?php echo esc_html((int) ($stat['watermark_rotation'] ?? 0) . '°'); ?></div>
                         </div>
                     </div>
                 </div>
@@ -158,10 +180,6 @@ class AddWatermarkPage
                     </a>
                 </div>
                 <div class="actions-right">
-                    <button type="button" class="btn btn-secondary" id="save-draft">
-                        <span class="dashicons dashicons-saved"></span>
-                        <?php esc_html_e('Save Draft', 'ultimate-watermark'); ?>
-                    </button>
                     <button type="submit" form="ultimate-watermark-form" class="btn btn-primary">
                         <span class="dashicons dashicons-saved"></span>
                         <?php echo $is_edit_mode ? esc_html__('Update Watermark', 'ultimate-watermark') : esc_html__('Create Watermark', 'ultimate-watermark'); ?>
@@ -183,13 +201,13 @@ class AddWatermarkPage
             $current_url = add_query_arg('ID', intval($_GET['ID']), $current_url);
         }
         ?>
-        <div class="form-tabs">
+        <div class="form-tabs" role="tablist">
             <?php foreach ($tabs_config as $tab_id => $tab_config): ?>
                 <?php 
                 $tab_url = add_query_arg('tab', $tab_id, $current_url);
                 $is_active = ($current_tab === $tab_id);
                 ?>
-                <a href="<?php echo esc_url($tab_url); ?>" class="form-tab <?php echo $is_active ? 'active' : ''; ?>" data-tab="<?php echo esc_attr($tab_id); ?>">
+                <a href="<?php echo esc_url($tab_url); ?>" class="form-tab <?php echo $is_active ? 'active' : ''; ?>" data-tab="<?php echo esc_attr($tab_id); ?>" role="tab" aria-controls="tab-<?php echo esc_attr($tab_id); ?>" aria-selected="<?php echo $is_active ? 'true' : 'false'; ?>">
                     <span class="dashicons <?php echo esc_attr($tab_config['icon']); ?>"></span>
                     <?php echo esc_html($tab_config['label']); ?>
                 </a>
@@ -207,7 +225,7 @@ class AddWatermarkPage
         ?>
         <?php foreach ($tabs_config as $tab_id => $tab_config): ?>
             <?php $is_active = ($current_tab === $tab_id); ?>
-            <div class="form-tab-content <?php echo $is_active ? 'active' : ''; ?>" id="tab-<?php echo esc_attr($tab_id); ?>">
+            <div class="form-tab-content <?php echo $is_active ? 'active' : ''; ?>" id="tab-<?php echo esc_attr($tab_id); ?>" role="tabpanel">
                 <?php foreach ($tab_config['sections'] as $section_id => $section_config): ?>
                     <?php 
                     ?>
@@ -594,7 +612,7 @@ class AddWatermarkPage
                         <?php 
                         $image_url = wp_get_attachment_url($value);
                         if ($image_url): ?>
-                            <img src="<?php echo esc_url($image_url); ?>" alt="Preview">
+                            <img src="<?php echo esc_url($image_url); ?>" alt="<?php esc_attr_e('Watermark preview', 'ultimate-watermark'); ?>">
                         <?php else: ?>
                             <p>Image not found (ID: <?php echo esc_html($value); ?>)</p>
                         <?php endif; ?>
@@ -646,7 +664,7 @@ class AddWatermarkPage
                                     'text' => [
                                         'label' => __('Text Watermark', 'ultimate-watermark'),
                                         'description' => __('Add text-based watermarks', 'ultimate-watermark'),
-                                        'icon' => 'dashicons-format-text'
+                                        'icon' => 'dashicons-editor-textcolor'
                                     ],
                                     'image' => [
                                         'label' => __('Image Watermark', 'ultimate-watermark'),
@@ -677,7 +695,8 @@ class AddWatermarkPage
                                 'label' => __('Font Size', 'ultimate-watermark'),
                                 'default' => 24,
                                 'min' => 8,
-                                'max' => 72,
+                                // Pixels on the full-size image (smaller sizes scale down): large photos need large text.
+                                'max' => 200,
                                 'unit' => 'px',
                                 'sanitize_callback' => [$this, 'sanitizeNumber'],
                                 'validate_callback' => [$this, 'validateRange']
@@ -862,7 +881,7 @@ class AddWatermarkPage
                             'automatic_watermarking' => [
                                 'type' => 'checkbox',
                                 'label' => __('Automatic watermarking', 'ultimate-watermark'),
-                                'description' => __('When there is no way to choose watermark, you can use this watermark as automatic watermark.', 'ultimate-watermark'),
+                                'description' => __('Apply this watermark automatically when an image is assigned to a post or product (featured, gallery or variation image) and the watermark\'s Rules match.', 'ultimate-watermark'),
                                 'default' => '1',
                                 'sanitize_callback' => [$this, 'sanitizeCheckbox'],
                                 'validate_callback' => [$this, 'validateCheckbox']
@@ -870,7 +889,7 @@ class AddWatermarkPage
                             'manual_watermarking' => [
                                 'type' => 'checkbox',
                                 'label' => __('Manual watermarking', 'ultimate-watermark'),
-                                'description' => __('If you want to apply manual watermark, it should show in the list on the media so that user can choose this watermark.', 'ultimate-watermark'),
+                                'description' => __('Offer this watermark in the Media Library bulk actions so it can be applied to selected images by hand.', 'ultimate-watermark'),
                                 'default' => '1',
                                 'sanitize_callback' => [$this, 'sanitizeCheckbox'],
                                 'validate_callback' => [$this, 'validateCheckbox']
@@ -878,7 +897,7 @@ class AddWatermarkPage
                             'frontend_watermarking' => [
                                 'type' => 'checkbox',
                                 'label' => __('Frontend watermarking', 'ultimate-watermark'),
-                                'description' => __('When images are uploaded from frontend, this watermark (checked) should be applied there.', 'ultimate-watermark'),
+                                'description' => __('Apply this watermark to images uploaded from the front end of your site (for example a Dokan vendor dashboard or a submission form), following this watermark\'s Rules, even when Automatic watermarking is off.', 'ultimate-watermark'),
                                 'default' => '0',
                                 'sanitize_callback' => [$this, 'sanitizeCheckbox'],
                                 'validate_callback' => [$this, 'validateCheckbox']
@@ -966,6 +985,30 @@ class AddWatermarkPage
                                 'column' => 'right',
                                 'sanitize_callback' => [$this, 'sanitizeSelect'],
                                 'validate_callback' => [$this, 'validateSelect']
+                            ]
+                        ]
+                    ],
+                    'tile_settings' => [
+                        'label' => __('Repeat Pattern', 'ultimate-watermark'),
+                        'fields' => [
+                            'watermark_tile' => [
+                                'type' => 'checkbox',
+                                'label' => __('Repeat the watermark across the entire image', 'ultimate-watermark'),
+                                'description' => __('Tiles the watermark in a grid that covers the whole image, whatever its size or orientation (landscape, portrait or square). Position and offsets are ignored while this is on. Tip: combine with "Scaled" size (e.g. 20%) and a rotation for a classic stock-photo pattern.', 'ultimate-watermark'),
+                                'default' => '0',
+                                'sanitize_callback' => [$this, 'sanitizeCheckbox'],
+                                'validate_callback' => [$this, 'validateCheckbox']
+                            ],
+                            'watermark_tile_spacing' => [
+                                'type' => 'range',
+                                'label' => __('Spacing between tiles (%)', 'ultimate-watermark'),
+                                'default' => 50,
+                                'min' => 0,
+                                'max' => 300,
+                                'condition' => 'watermark_tile === "1"',
+                                'description' => __('Gap between repeated watermarks, as a percentage of the watermark size. 0 places them edge to edge.', 'ultimate-watermark'),
+                                'sanitize_callback' => [$this, 'sanitizeNumber'],
+                                'validate_callback' => [$this, 'validateRange']
                             ]
                         ]
                     ]
@@ -1984,11 +2027,14 @@ class AddWatermarkPage
                     
                     $meta_value = get_post_meta($watermark_id, $field_name, true);
                     
-                    // Handle checkbox fields specially - '0' is a valid value
-                    if ($field_config['type'] === 'checkbox') {
-                        $data[$field_name] = $meta_value !== '' ? $meta_value : ($field_config['default'] ?? '0');
+                    // A saved value always wins, including '0', 0 and an empty list
+                    // (e.g. no bypass roles); defaults apply only to unsaved fields.
+                    if (metadata_exists('post', $watermark_id, $field_name)) {
+                        $data[$field_name] = $meta_value;
+                    } elseif ($field_config['type'] === 'checkbox') {
+                        $data[$field_name] = $field_config['default'] ?? '0';
                     } else {
-                        $data[$field_name] = $meta_value ?: ($field_config['default'] ?? '');
+                        $data[$field_name] = $field_config['default'] ?? '';
                     }
                 }
             }
@@ -2005,9 +2051,10 @@ class AddWatermarkPage
         ?>
         <label for="<?php echo esc_attr($field_name); ?>"><?php echo esc_html($field_config['label']); ?></label>
         <div class="position-selector-container">
-            <div class="position-selector-grid" id="<?php echo esc_attr($field_name); ?>-grid">
+            <div class="position-selector-grid" id="<?php echo esc_attr($field_name); ?>-grid" role="radiogroup" aria-label="<?php echo esc_attr($field_config['label']); ?>">
                 <?php foreach ($field_config['options'] as $option_value => $option_label): ?>
                     <div class="position-option <?php echo $value === $option_value ? 'selected' : ''; ?>" 
+                         role="radio" tabindex="0" aria-checked="<?php echo $value === $option_value ? 'true' : 'false'; ?>" aria-label="<?php echo esc_attr($option_label); ?>"
                          data-value="<?php echo esc_attr($option_value); ?>"
                          data-label="<?php echo esc_attr($option_label); ?>">
                         <div class="position-indicator"></div>

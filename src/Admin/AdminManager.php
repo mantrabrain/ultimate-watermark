@@ -21,6 +21,13 @@ use MantraBrain\UltimateWatermark\Admin\MediaEditIntegration;
  */
 class AdminManager
 {
+    /**
+     * Per-request cache: date (Y-m-d) => number of images watermarked that day.
+     *
+     * @var array<string, int>|null
+     */
+    private $watermarkCountsByDate = null;
+
 
     /**
      * Admin pages
@@ -62,7 +69,6 @@ class AdminManager
         add_action('admin_menu', [$this, 'addAdminMenu']);
         add_action('admin_init', [$this, 'init']);
         add_action('admin_enqueue_scripts', [$this, 'enqueueAdminAssets']);
-        add_action('admin_post_ultimate_watermark_save_settings', [$this, 'handleSettingsSave']);
         // Removed updateBackupSettings hook - now handled by proper settings system
         add_action('wp_ajax_ultimate_watermark_delete_backup', [$this, 'handleDeleteBackup']);
         add_action('wp_ajax_ultimate_watermark_restore_backup', [$this, 'handleRestoreBackup']);
@@ -72,6 +78,7 @@ class AdminManager
         add_action('wp_ajax_ultimate_watermark_update_toggle_state', [$this, 'handleUpdateToggleState']);
         add_action('wp_ajax_ultimate_watermark_get_analytics_data', [$this, 'handleGetAnalyticsData']);
         add_action('wp_ajax_ultimate_watermark_get_paginated_backups', [$this, 'handleGetPaginatedBackups']);
+        add_action('wp_ajax_ultimate_watermark_backup_preview', [\MantraBrain\UltimateWatermark\Utils\BackupManager::class, 'handleBackupPreview']);
         
         // Add plugin action links
         add_filter('plugin_action_links_' . plugin_basename(ULTIMATE_WATERMARK_FILE), [$this, 'addPluginActionLinks']);
@@ -122,6 +129,12 @@ class AdminManager
     {
         // Register settings
         $this->registerSettings();
+
+        // Make sure existing backup folders are not publicly readable.
+        $backup_dir = trailingslashit(wp_upload_dir(null, false)['basedir']) . 'ulwm-backup';
+        if (is_dir($backup_dir) && !file_exists($backup_dir . '/.htaccess')) {
+            \MantraBrain\UltimateWatermark\Utils\BackupManager::protectBackupDirectory($backup_dir);
+        }
         
         // Fire admin init action
         do_action('ultimate_watermark_admin_init');
@@ -528,19 +541,23 @@ class AdminManager
      */
     public function enqueueAdminAssets(string $hook): void
     {
-        // Enqueue notification system globally for all admin pages
-        wp_enqueue_script(
+        // Shared notification/dialog system: registered everywhere, loaded only
+        // on screens whose scripts depend on it (plugin pages, media screens).
+        wp_register_script(
             'ultimate-watermark-notification-system',
             ULTIMATE_WATERMARK_URL . 'assets/js/notification-system.js',
-            [],
-            '1.0.0',
+            ['wp-i18n'],
+            ULTIMATE_WATERMARK_VERSION,
             true
         );
+        wp_set_script_translations('ultimate-watermark-notification-system', 'ultimate-watermark', ULTIMATE_WATERMARK_DIR . 'languages');
 
         // Only load other assets on our plugin pages
         if (strpos($hook, 'ultimate-watermark') === false) {
             return;
         }
+
+        wp_enqueue_script('ultimate-watermark-notification-system');
 
         // Enqueue backup page styles and scripts
         if (strpos($hook, 'ultimate-watermark-backups') !== false) {
@@ -554,10 +571,11 @@ class AdminManager
             wp_enqueue_script(
                 'ultimate-watermark-backup-page',
                 ULTIMATE_WATERMARK_URL . 'assets/js/backup-page.js',
-                ['jquery', 'ultimate-watermark-notification-system'],
-                '1.0.0',
+                ['jquery', 'wp-i18n', 'ultimate-watermark-notification-system'],
+                ULTIMATE_WATERMARK_VERSION,
                 true
             );
+            wp_set_script_translations('ultimate-watermark-backup-page', 'ultimate-watermark', ULTIMATE_WATERMARK_DIR . 'languages');
             
             // Localize script for AJAX
             wp_localize_script('ultimate-watermark-backup-page', 'ultimateWatermarkBackup', [
@@ -585,17 +603,14 @@ class AdminManager
     public function handleSaveSettings(): void
     {
         try {
-            // A nonce only proves the request came from our form, not that the
-            // sender is allowed to change settings. Every settings screen is
-            // gated on manage_options, so this endpoint must be too.
-            if (!current_user_can('manage_options')) {
-                wp_send_json_error(['message' => __('You do not have permission to change these settings.', 'ultimate-watermark')], 403);
+            // Verify nonce and capability
+            if (!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'] ?? '')), 'ultimate_watermark_settings')) {
+                wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')], 403);
                 return;
             }
 
-            // Verify nonce
-            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'ultimate_watermark_settings')) {
-                wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')]);
+            if (!current_user_can('manage_options')) {
+                wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')], 403);
                 return;
             }
 
@@ -617,11 +632,6 @@ class AdminManager
             $settings_page = \MantraBrain\UltimateWatermark\Admin\Pages\SettingsPage::getInstance();
             $all_field_keys = $settings_page->getAllFieldKeys();
             
-            // Temporarily disable any hooks that might interfere with our option
-            remove_all_filters('pre_option_ultimate_watermark_options');
-            remove_all_filters('option_ultimate_watermark_options');
-            remove_all_filters('update_option_ultimate_watermark_options');
-            
             // Process each field using the configuration
             $settings = [];
             foreach ($all_field_keys as $field_key) {
@@ -640,10 +650,6 @@ class AdminManager
                 $settings[$field_key] = $sanitized_value;
             }
             
-            // Clear all caches before updating
-            wp_cache_delete('ultimate_watermark_options', 'options');
-            wp_cache_flush();
-            
             // Use WordPress update_option for better compatibility and hook support
             // This properly handles serialization, caching, and database operations
             $update_result = update_option('ultimate_watermark_options', $settings, 'yes');
@@ -657,9 +663,9 @@ class AdminManager
                 }
             }
             
-            // Clear caches to ensure fresh data
+            // Only drop this plugin's option from the cache (never flush the whole site cache).
             wp_cache_delete('ultimate_watermark_options', 'options');
-            wp_cache_flush();
+            wp_cache_delete('alloptions', 'options');
             
             wp_send_json_success(['message' => __('Settings saved successfully.', 'ultimate-watermark')]);
             
@@ -677,13 +683,13 @@ class AdminManager
     public function handleUpdateToggleState(): void
     {
         // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_toggle')) {
-            wp_die('Security check failed');
+        if (!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'] ?? '')), 'ultimate_watermark_toggle')) {
+            wp_send_json_error(['message' => __('Security check failed.', 'ultimate-watermark')], 403);
         }
 
         // Check permissions
         if (!current_user_can('upload_files')) {
-            wp_die('Insufficient permissions');
+            wp_send_json_error(['message' => __('Insufficient permissions.', 'ultimate-watermark')], 403);
         }
 
         // Get enabled state
@@ -694,7 +700,8 @@ class AdminManager
         }
 
         // Store in WordPress option
-        update_option('ultimate_watermark_auto_apply_toggle', $enabled);
+        // Per user: one person's upload toggle must not change anyone else's uploads.
+        update_user_meta(get_current_user_id(), 'ultimate_watermark_auto_apply_toggle', $enabled);
 
         // Send success response
         wp_send_json_success([
@@ -708,19 +715,19 @@ class AdminManager
     public function handleGetAnalyticsData(): void
     {
         // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'ultimate_watermark_analytics')) {
-            wp_die('Security check failed');
+        if (!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'] ?? '')), 'ultimate_watermark_analytics')) {
+            wp_send_json_error(['message' => __('Your session has expired. Please reload the page.', 'ultimate-watermark')], 403);
         }
 
         // Check permissions
         if (!current_user_can('manage_options')) {
-            wp_die('Insufficient permissions');
+            wp_send_json_error(['message' => __('You do not have permission to view analytics.', 'ultimate-watermark')], 403);
         }
 
-        // Sanitize and validate timeframe
-        $timeframe = sanitize_text_field($_POST['timeframe'] ?? '30');
+        // Only the timeframes offered in the UI (each day in the range costs work).
+        $timeframe = sanitize_text_field(wp_unslash($_POST['timeframe'] ?? '30'));
         $valid_timeframes = ['today', 'yesterday', '7', '30', '90', '365'];
-        if (!in_array($timeframe, $valid_timeframes, true) && !is_numeric($timeframe)) {
+        if (!in_array($timeframe, $valid_timeframes, true)) {
             $timeframe = '30';
         }
         $offsetStart = ($timeframe === 'yesterday') ? 1 : 0;
@@ -803,7 +810,10 @@ class AdminManager
     {
         $total = $this->getTotalImagesForTimeframe($days, $offsetStart);
         $watermarked = $this->getWatermarkedImagesForTimeframe($days, $offsetStart);
-        $unprotected = $total - $watermarked;
+        // Images uploaded earlier but watermarked in this window must not push
+        // the protection rate above 100%.
+        $watermarked = min($watermarked, $total);
+        $unprotected = max(0, $total - $watermarked);
         
         return [
             'protected' => $watermarked,
@@ -901,25 +911,33 @@ class AdminManager
      */
     private function getWatermarkCountForDate(string $date): int
     {
-        global $wpdb;
-        // Fetch candidate attachments then verify in PHP to avoid timezone/serialization edge cases
-        $rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT p.ID, pm.meta_value
-             FROM {$wpdb->posts} p
-             INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID
-             WHERE p.post_type = 'attachment'
-               AND p.post_mime_type LIKE 'image/%'
-               AND pm.meta_key = 'watermark_application_dates'",
-        ));
-        if (empty($rows)) { return 0; }
-        $seen = [];
-        foreach ($rows as $row) {
-            $dates = maybe_unserialize($row->meta_value);
-            if (is_array($dates) && in_array($date, $dates, true)) {
-                $seen[$row->ID] = true;
+        // Load every application date once per request, then count per day:
+        // the analytics range calls this once for each day (up to 365 times).
+        if ($this->watermarkCountsByDate === null) {
+            global $wpdb;
+            $rows = $wpdb->get_results(
+                "SELECT p.ID, pm.meta_value
+                 FROM {$wpdb->posts} p
+                 INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID
+                 WHERE p.post_type = 'attachment'
+                   AND p.post_mime_type LIKE 'image/%'
+                   AND pm.meta_key = 'watermark_application_dates'"
+            );
+
+            $this->watermarkCountsByDate = [];
+            foreach ((array) $rows as $row) {
+                $dates = maybe_unserialize($row->meta_value);
+                if (!is_array($dates)) {
+                    continue;
+                }
+                // Count each image once per day.
+                foreach (array_unique(array_filter($dates, 'is_string')) as $day) {
+                    $this->watermarkCountsByDate[$day] = ($this->watermarkCountsByDate[$day] ?? 0) + 1;
+                }
             }
         }
-        return count($seen);
+
+        return (int) ($this->watermarkCountsByDate[$date] ?? 0);
     }
 
     /**
@@ -930,7 +948,7 @@ class AdminManager
         global $wpdb;
         
         // Get all images with watermarks_by_size meta
-        $results = $wpdb->get_results($wpdb->prepare("
+        $results = (array) $wpdb->get_results("
             SELECT p.ID, pm.meta_value
             FROM {$wpdb->postmeta} pm
             INNER JOIN {$wpdb->posts} p ON pm.post_id = p.ID
@@ -938,7 +956,7 @@ class AdminManager
             AND pm.meta_value != ''
             AND p.post_type = 'attachment'
             AND p.post_mime_type LIKE 'image/%'
-        "));
+        ");
         
         $count = 0;
         foreach ($results as $result) {
@@ -1080,7 +1098,7 @@ class AdminManager
     public function addPluginActionLinks($links)
     {
         // Add Settings link
-        $settings_link = '<a href="' . esc_url(admin_url('admin.php?page=ultimate-watermark')) . '">' . __('Settings', 'ultimate-watermark') . '</a>';
+        $settings_link = '<a href="' . esc_url(admin_url('admin.php?page=ultimate-watermark-settings')) . '">' . esc_html__('Settings', 'ultimate-watermark') . '</a>';
         array_unshift($links, $settings_link);
         
         // Add Get Pro link only if Pro is not active

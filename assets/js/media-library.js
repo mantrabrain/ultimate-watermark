@@ -1,3 +1,16 @@
+/* i18n: falls back to the original text when wp.i18n is unavailable. */
+window.wp = window.wp || {};
+window.wp.i18n = window.wp.i18n || {
+    __: function (text) { return text; },
+    _n: function (single, plural, number) { return number === 1 ? single : plural; },
+    sprintf: function (format) {
+        var args = Array.prototype.slice.call(arguments, 1), i = 0;
+        return String(format).replace(/%(\d+\$)?[sd]/g, function (match, position) {
+            return String(position ? args[parseInt(position, 10) - 1] : args[i++]);
+        });
+    }
+};
+
 /**
  * Ultimate Watermark - Media Library Integration
  * 
@@ -23,68 +36,84 @@
             // Handle bulk action form submission
             $(document).on('submit', '#posts-filter', this.handleBulkActionSubmit.bind(this));
             
-            // Handle button clicks directly (as backup)
+            // Handle the top and bottom "Apply" buttons
             $(document).on('click', '#doaction, #doaction2', this.handleButtonClick.bind(this));
-            
-            // Handle confirmation modal events
-            $(document).on('click', '.modal-cancel, .modal-close, .modal-overlay', this.closeConfirmationModal.bind(this));
-            $(document).on('click', '.modal-confirm', this.confirmWatermarkAction.bind(this));
+        },
+
+        /**
+         * Watermark action chosen in the bulk dropdown next to the given element
+         * (top or bottom), or in whichever dropdown has a value.
+         */
+        getSelectedAction: function($context) {
+            let action = '';
+            if ($context && $context.length) {
+                action = $context.closest('.bulkactions').find('select').val() || '';
+            }
+            if (!action || action === '-1') {
+                const top = $('#bulk-action-selector-top').val();
+                const bottom = $('#bulk-action-selector-bottom').val();
+                action = (top && top !== '-1') ? top : (bottom || '');
+            }
+            return action;
+        },
+
+        /**
+         * Label of the selected watermark action (the watermark's name).
+         */
+        getActionLabel: function(action) {
+            const $option = $('#bulk-action-selector-top option, #bulk-action-selector-bottom option').filter(function() {
+                return $(this).val() === action;
+            }).first();
+            if (!$option.length) {
+                return '';
+            }
+            // Option text is "Apply Watermark: <name>": show just the name.
+            const text = $.trim($option.text());
+            const colon = text.indexOf(':');
+            return colon > -1 ? $.trim(text.slice(colon + 1)) : text;
+        },
+
+        /**
+         * Intercept a watermark bulk action and run it through the confirm + AJAX flow.
+         */
+        interceptAction: function(e, action) {
+            if (!action || action.indexOf('ultimate_watermark_') !== 0) {
+                return true;
+            }
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const selectedItems = $('#posts-filter').find('input[name="media[]"]:checked');
+            if (selectedItems.length === 0) {
+                UWNotifications.error(this.t('error', 'Error'), this.t('select_items', 'Please select at least one media item.'));
+                return false;
+            }
+
+            this.showConfirmationModal(action, selectedItems);
+            return false;
         },
 
         /**
          * Handle bulk action form submission
          */
         handleBulkActionSubmit: function(e) {
-            const $form = $(this);
-            const action = $form.find('#bulk-action-selector-top, #bulk-action-selector-bottom').val();
-            
-            
-            // Check if it's a watermark action
-            if (action && action.indexOf('ultimate_watermark_') === 0) {
-                const selectedItems = $form.find('input[name="media[]"]:checked');
-                
-                
-                if (selectedItems.length === 0) {
-                    UWNotifications.error('Error', 'Please select at least one media item to watermark.');
-                    e.preventDefault();
-                    return false;
-                }
-                
-                // Prevent default form submission
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Show custom confirmation modal
-                this.showConfirmationModal(action, selectedItems);
-                
-                return false;
-            }
+            return this.interceptAction(e, this.getSelectedAction($(document.activeElement)));
         },
 
         /**
-         * Handle button click (backup method)
+         * Handle top/bottom "Apply" button clicks
          */
         handleButtonClick: function(e) {
-            const $form = $('#posts-filter');
-            const action = $form.find('#bulk-action-selector-top, #bulk-action-selector-bottom').val();
-            
-            // Check if it's a watermark action
-            if (action && action.indexOf('ultimate_watermark_') === 0) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const selectedItems = $form.find('input[name="media[]"]:checked');
-                
-                if (selectedItems.length === 0) {
-                    UWNotifications.error('Error', 'Please select at least one media item to watermark.');
-                    return false;
-                }
-                
-                // Show custom confirmation modal
-                this.showConfirmationModal(action, selectedItems);
-                
-                return false;
-            }
+            return this.interceptAction(e, this.getSelectedAction($(e.currentTarget)));
+        },
+
+        /**
+         * Localized string helper
+         */
+        t: function(key, fallback) {
+            const strings = (window.ultimate_watermark_media && ultimate_watermark_media.strings) || {};
+            return strings[key] || fallback;
         },
 
         /**
@@ -227,52 +256,19 @@
             const isRemoveAction = action === 'ultimate_watermark_remove';
             const itemCount = selectedItems.length;
             
-            let title, message, confirmText, confirmClass;
+            let title, message, confirmText;
             
             if (isRemoveAction) {
-                title = 'Remove Watermark';
-                message = `Are you sure you want to remove watermarks from ${itemCount} selected image(s)? This will restore the original images from backup.`;
-                confirmText = 'Remove Watermark';
-                confirmClass = 'btn-warning';
+                title = this.t('remove_title', 'Remove Watermark');
+                message = this.t('remove_message', 'Remove watermarks from %d selected image(s)? The original images will be restored from backup.').replace('%d', itemCount);
+                confirmText = this.t('remove_confirm', 'Remove Watermark');
             } else {
-                const watermarkName = action.replace('ultimate_watermark_', '').replace(/_/g, ' ');
-                title = 'Apply Watermark';
-                message = `Are you sure you want to apply the watermark "${watermarkName}" to ${itemCount} selected image(s)? This will modify the original images.`;
-                confirmText = 'Apply Watermark';
-                confirmClass = 'btn-primary';
-            }
-            
-            // Create modal if it doesn't exist
-            if (!$('#watermark-confirmation-modal').length) {
-                $('body').append(`
-                    <div id="watermark-confirmation-modal" class="confirmation-modal" style="display: none;">
-                        <div class="modal-overlay"></div>
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h3>${title}</h3>
-                                <button type="button" class="modal-close">
-                                    <span class="dashicons dashicons-no-alt"></span>
-                                </button>
-                            </div>
-                            <div class="modal-body">
-                                <p>${message}</p>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary modal-cancel">
-                                    Cancel
-                                </button>
-                                <button type="button" class="btn ${confirmClass} modal-confirm">
-                                    ${confirmText}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `);
-            } else {
-                // Update existing modal content
-                $('#watermark-confirmation-modal .modal-header h3').text(title);
-                $('#watermark-confirmation-modal .modal-body p').text(message);
-                $('#watermark-confirmation-modal .modal-confirm').text(confirmText).removeClass('btn-primary btn-warning').addClass(confirmClass);
+                const watermarkName = this.getActionLabel(action) || this.t('watermark', 'watermark');
+                title = this.t('apply_title', 'Apply Watermark');
+                message = this.t('apply_message', 'Apply "%1$s" to %2$d selected image(s)? This modifies the image files (a backup is kept when backups are enabled).')
+                    .replace(/%(?:1\$)?s/, watermarkName)
+                    .replace(/%(?:2\$)?d/, itemCount);
+                confirmText = this.t('apply_confirm', 'Apply Watermark');
             }
             
             UWNotifications.confirm({
@@ -280,8 +276,8 @@
                 message: message,
                 type: isRemoveAction ? 'warning' : 'info',
                 confirmText: confirmText,
-                cancelText: 'Cancel',
-                confirmButtonType: confirmClass
+                cancelText: this.t('cancel', 'Cancel'),
+                confirmButtonType: isRemoveAction ? 'danger' : 'primary'
             }).then(action_result => {
                 // confirm() resolves with the action string, not a boolean
                 if (action_result === 'confirm') {
@@ -291,18 +287,9 @@
         },
 
         /**
-         * Close confirmation modal
-         */
-        closeConfirmationModal: function() {
-            $('#watermark-confirmation-modal').hide();
-        },
-
-        /**
          * Confirm watermark action
          */
         confirmWatermarkAction: function(action, selectedItems) {
-            this.closeConfirmationModal();
-            
             // Show processing indicator
             this.showProcessingIndicator();
             
@@ -359,17 +346,17 @@
                         
                         if (isRemoveAction) {
                             if (errorCount === 0) {
-                                UWNotifications.success('Success', `Successfully removed watermark from ${successCount} image(s).`);
+                                UWNotifications.success(wp.i18n.__('Success', 'ultimate-watermark'), `Successfully removed watermark from ${successCount} image(s).`);
                             } else {
-                                UWNotifications.error('Partial Success', `Removed watermark from ${successCount} image(s), but ${errorCount} failed.`);
+                                UWNotifications.error(wp.i18n.__('Partial Success', 'ultimate-watermark'), `Removed watermark from ${successCount} image(s), but ${errorCount} failed.`);
                             }
                         } else {
                             if (errorCount === 0 && successCount > 0) {
-                                UWNotifications.success('Success', detailHtml);
+                                UWNotifications.success(wp.i18n.__('Success', 'ultimate-watermark'), detailHtml);
                             } else if (successCount > 0) {
-                                UWNotifications.error('Partial Success', detailHtml);
+                                UWNotifications.error(wp.i18n.__('Partial Success', 'ultimate-watermark'), detailHtml);
                             } else {
-                                UWNotifications.error('Watermark Not Applied', detailHtml);
+                                UWNotifications.error(wp.i18n.__('Watermark Not Applied', 'ultimate-watermark'), detailHtml);
                             }
                         }
                         
@@ -380,13 +367,13 @@
                     } else {
                         const actionText = isRemoveAction ? 'remove watermark' : 'apply watermark';
                         const errMsg = (response.data && response.data.message) ? response.data.message : `Failed to ${actionText}. Please try again.`;
-                        UWNotifications.error('Error', errMsg);
+                        UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), errMsg);
                     }
                 },
                 error: (xhr, status, error) => {
                     this.hideProcessingIndicator();
                     const actionText = isRemoveAction ? 'remove watermark' : 'apply watermark';
-                    UWNotifications.error('Error', `Failed to ${actionText}. Please try again.`);
+                    UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), `Failed to ${actionText}. Please try again.`);
                 }
             });
         },
@@ -423,9 +410,9 @@
                 if (errorCount > 0) {
                     message += ` ${errorCount} image(s) could not be processed.`;
                 }
-                UWNotifications.success('Success', message);
+                UWNotifications.success(wp.i18n.__('Success', 'ultimate-watermark'), message);
             } else {
-                UWNotifications.error('Error', `Failed to apply "${watermark}" to any images. Please check your image files and try again.`);
+                UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), `Failed to apply "${watermark}" to any images. Please check your image files and try again.`);
             }
             
             // Clean up URL parameters

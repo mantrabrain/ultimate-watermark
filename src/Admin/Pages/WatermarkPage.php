@@ -52,17 +52,14 @@ class WatermarkPage
                 <div class="table-header">
                     <div class="table-title">
                         <h2><?php esc_html_e('Watermark Templates', 'ultimate-watermark'); ?></h2>
-                        <span class="table-count"><?php echo esc_html(count($this->getWatermarks())); ?> <?php esc_html_e('templates', 'ultimate-watermark'); ?></span>
+                        <?php $uw_count = count($this->getWatermarks()); ?>
+                        <span class="table-count"><?php /* translators: %d: number of watermark templates */ echo esc_html(sprintf(_n('%d template', '%d templates', $uw_count, 'ultimate-watermark'), $uw_count)); ?></span>
                     </div>
                     <div class="table-actions">
                         <div class="search-box">
-                            <input type="text" id="watermark-search" placeholder="<?php esc_attr_e('Search watermarks...', 'ultimate-watermark'); ?>">
+                            <input type="search" id="watermark-search" aria-label="<?php esc_attr_e('Search watermarks', 'ultimate-watermark'); ?>" placeholder="<?php esc_attr_e('Search watermarks...', 'ultimate-watermark'); ?>">
                             <span class="dashicons dashicons-search"></span>
                         </div>
-                                <a href="<?php echo esc_url(admin_url('admin.php?page=ultimate-watermark-add-watermark')); ?>" class="btn btn-primary">
-                                    <span class="dashicons dashicons-plus-alt"></span>
-                                    <?php esc_html_e('Add New Watermark', 'ultimate-watermark'); ?>
-                                </a>
                     </div>
                 </div>
 
@@ -79,7 +76,7 @@ class WatermarkPage
                         <input type="submit" id="doaction" class="button action" value="<?php esc_attr_e('Apply', 'ultimate-watermark'); ?>">
                     </div>
                     <div class="tablenav-pages">
-                        <span class="displaying-num"><?php echo esc_html(count($this->getWatermarks())); ?> <?php esc_html_e('items', 'ultimate-watermark'); ?></span>
+                        <span class="displaying-num"><?php /* translators: %d: number of items */ echo esc_html(sprintf(_n('%d item', '%d items', $uw_count, 'ultimate-watermark'), $uw_count)); ?></span>
                     </div>
                 </div>
 
@@ -121,7 +118,7 @@ class WatermarkPage
                         <input type="submit" id="doaction2" class="button action" value="<?php esc_attr_e('Apply', 'ultimate-watermark'); ?>">
                     </div>
                     <div class="tablenav-pages">
-                        <span class="displaying-num"><?php echo esc_html(count($this->getWatermarks())); ?> <?php esc_html_e('items', 'ultimate-watermark'); ?></span>
+                        <span class="displaying-num"><?php /* translators: %d: number of items */ echo esc_html(sprintf(_n('%d item', '%d items', $uw_count, 'ultimate-watermark'), $uw_count)); ?></span>
                     </div>
                 </div>
 
@@ -217,7 +214,7 @@ class WatermarkPage
     {
         $status_class = $watermark['active'] ? 'status-active' : 'status-inactive';
         $status_text = $watermark['active'] ? __('Active', 'ultimate-watermark') : __('Inactive', 'ultimate-watermark');
-        $type_icon = $watermark['type'] === 'text' ? 'dashicons-format-text' : 'dashicons-format-image';
+        $type_icon = $watermark['type'] === 'text' ? 'dashicons-editor-textcolor' : 'dashicons-format-image';
         $position_text = ucfirst(str_replace('-', ' ', $watermark['position']));
         
         ?>
@@ -264,12 +261,22 @@ class WatermarkPage
                         <span class="dashicons <?php echo esc_attr($type_icon); ?>"></span>
                         <span><?php echo esc_html(ucfirst($watermark['type'])); ?></span>
                     </div>
-                    <div class="watermark-preview">
+                    <?php
+                    // Light text (e.g. white) needs a dark strip to be readable.
+                    $uw_hex = ltrim((string) ($watermark['watermark_color'] ?? '#000000'), '#');
+                    if (strlen($uw_hex) === 3) {
+                        $uw_hex = $uw_hex[0] . $uw_hex[0] . $uw_hex[1] . $uw_hex[1] . $uw_hex[2] . $uw_hex[2];
+                    }
+                    $uw_light = ctype_xdigit($uw_hex) && strlen($uw_hex) === 6
+                        && (0.299 * hexdec(substr($uw_hex, 0, 2)) + 0.587 * hexdec(substr($uw_hex, 2, 2)) + 0.114 * hexdec(substr($uw_hex, 4, 2))) > 160;
+                    ?>
+                    <div class="watermark-preview<?php echo ($watermark['type'] === 'text' && $uw_light) ? ' is-dark' : ''; ?>">
                         <?php if ($watermark['type'] === 'text'): ?>
                             <div class="text-watermark-preview">
                                 <span class="watermark-text" style="
                                     color: <?php echo esc_attr($watermark['watermark_color']); ?>;
-                                    font-size: <?php echo esc_attr($watermark['watermark_font_size']); ?>px;
+                                    font-size: min(<?php echo esc_attr((string) (int) $watermark['watermark_font_size']); ?>px, 18px);
+                                    line-height: 1.3;
                                     font-family: <?php echo esc_attr($watermark['watermark_font_family']); ?>;
                                     font-weight: <?php echo esc_attr($watermark['watermark_font_weight']); ?>;
                                     font-style: <?php echo esc_attr($watermark['watermark_font_style']); ?>;
@@ -300,25 +307,33 @@ class WatermarkPage
             <td class="behavior-column">
                 <div class="watermark-behaviors">
                     <?php if ($watermark['automatic_watermarking'] === '1'): ?>
-                        <span class="behavior-icon automatic" title="<?php esc_attr_e('Automatic watermarking', 'ultimate-watermark'); ?>">
+                        <span class="behavior-icon automatic" role="img" title="<?php esc_attr_e('Automatic watermarking', 'ultimate-watermark'); ?>" aria-label="<?php esc_attr_e('Automatic watermarking', 'ultimate-watermark'); ?>">
                             <span class="dashicons dashicons-yes-alt"></span>
                         </span>
                     <?php endif; ?>
                     <?php if ($watermark['manual_watermarking'] === '1'): ?>
-                        <span class="behavior-icon manual" title="<?php esc_attr_e('Manual watermarking', 'ultimate-watermark'); ?>">
+                        <span class="behavior-icon manual" role="img" title="<?php esc_attr_e('Manual watermarking', 'ultimate-watermark'); ?>" aria-label="<?php esc_attr_e('Manual watermarking', 'ultimate-watermark'); ?>">
                             <span class="dashicons dashicons-admin-tools"></span>
                         </span>
                     <?php endif; ?>
                     <?php if ($watermark['frontend_watermarking'] === '1'): ?>
-                        <span class="behavior-icon frontend" title="<?php esc_attr_e('Frontend watermarking', 'ultimate-watermark'); ?>">
+                        <span class="behavior-icon frontend" role="img" title="<?php esc_attr_e('Frontend watermarking', 'ultimate-watermark'); ?>" aria-label="<?php esc_attr_e('Frontend watermarking', 'ultimate-watermark'); ?>">
                             <span class="dashicons dashicons-upload"></span>
                         </span>
+                    <?php endif; ?>
+                    <?php if (get_post_meta((int) $watermark['id'], 'otf_display_enabled', true) === '1'): ?>
+                        <span class="behavior-icon display" role="img" title="<?php esc_attr_e('On-the-fly display (files are not changed)', 'ultimate-watermark'); ?>" aria-label="<?php esc_attr_e('On-the-fly display (files are not changed)', 'ultimate-watermark'); ?>">
+                            <span class="dashicons dashicons-visibility"></span>
+                        </span>
+                    <?php endif; ?>
+                    <?php if ($watermark['automatic_watermarking'] !== '1' && $watermark['manual_watermarking'] !== '1' && $watermark['frontend_watermarking'] !== '1' && get_post_meta((int) $watermark['id'], 'otf_display_enabled', true) !== '1'): ?>
+                        <span class="behavior-none"><?php esc_html_e('Not used', 'ultimate-watermark'); ?></span>
                     <?php endif; ?>
                 </div>
             </td>
             <td class="rules-column">
                 <div class="watermark-rules">
-                    <?php echo $this->formatWatermarkRules($watermark); ?>
+                    <?php echo wp_kses_post($this->formatWatermarkRules($watermark)); ?>
                 </div>
             </td>
             <td class="position-column">
@@ -491,7 +506,7 @@ class WatermarkPage
             // Pre-generate image URL for image watermarks to avoid additional queries
             $image_url = '';
             if ($watermark_type === 'image' && $watermark_image_id > 0) {
-                $image_url = wp_get_attachment_image_url($watermark_image_id, 'thumbnail');
+                $image_url = wp_get_attachment_image_url($watermark_image_id, 'medium');
             }
             
             // Get usage count from pre-fetched data
@@ -592,7 +607,7 @@ class WatermarkPage
         
         // If no unified rules, show "No rules"
         if (empty($watermark_rules) || !is_array($watermark_rules)) {
-            return '<span class="rule-item no-rules">' . __('No rules', 'ultimate-watermark') . '</span>';
+            return '<span class="rule-item no-rules">' . esc_html__('No rules', 'ultimate-watermark') . '</span>';
         }
         
         // Check if any rule has conditions
@@ -606,7 +621,7 @@ class WatermarkPage
         
         // If no conditions defined, show as "No rules"
         if (!$has_conditions) {
-            return '<span class="rule-item no-rules">' . __('No rules', 'ultimate-watermark') . '</span>';
+            return '<span class="rule-item no-rules">' . esc_html__('No rules', 'ultimate-watermark') . '</span>';
         }
         
         $rule_summaries = [];
@@ -628,7 +643,7 @@ class WatermarkPage
                 $operator_label = $this->getOperatorLabel($operator);
                 $value_label = $this->getConditionValueLabel($type, $value);
                 
-                $condition_parts[] = sprintf('%s %s <strong>%s</strong>', $type_label, $operator_label, $value_label);
+                $condition_parts[] = sprintf('%s %s <strong>%s</strong>', esc_html($type_label), esc_html($operator_label), esc_html($value_label));
             }
             
             if (!empty($condition_parts)) {
@@ -648,7 +663,7 @@ class WatermarkPage
         }
         
         if (empty($rule_summaries)) {
-            return '<span class="rule-item no-rules">' . __('No rules', 'ultimate-watermark') . '</span>';
+            return '<span class="rule-item no-rules">' . esc_html__('No rules', 'ultimate-watermark') . '</span>';
         }
         
         return implode('', $rule_summaries);
@@ -767,11 +782,11 @@ class WatermarkPage
                 return strtoupper($value);
                 
             case 'file_size':
-                return sprintf('%s KB', number_format($value));
+                return sprintf('%s KB', number_format((float) $value));
                 
             case 'image_width':
             case 'image_height':
-                return sprintf('%s px', number_format($value));
+                return sprintf('%s px', number_format((float) $value));
                 
             case 'user_role':
                 $role_names = wp_roles()->get_names();
@@ -779,15 +794,15 @@ class WatermarkPage
                 
             case 'post_category':
                 $category = get_term_by('slug', $value, 'category');
-                return $category ? $category->name : ucfirst($value);
+                return $category ? wp_specialchars_decode($category->name, ENT_QUOTES) : ucfirst($value);
                 
             case 'product_cat':
                 $term = get_term_by('slug', $value, 'product_cat');
-                return $term ? $term->name : ucfirst($value);
+                return $term ? wp_specialchars_decode($term->name, ENT_QUOTES) : ucfirst($value);
                 
             case 'product_tag':
                 $term = get_term_by('slug', $value, 'product_tag');
-                return $term ? $term->name : ucfirst($value);
+                return $term ? wp_specialchars_decode($term->name, ENT_QUOTES) : ucfirst($value);
                 
             case 'image_orientation':
                 return ucfirst($value);

@@ -6,6 +6,18 @@
  * @package UltimateWatermark
  * @since 2.0.0
  */
+/* i18n: falls back to the original text when wp.i18n is unavailable. */
+window.wp = window.wp || {};
+window.wp.i18n = window.wp.i18n || {
+    __: function (text) { return text; },
+    _n: function (single, plural, number) { return number === 1 ? single : plural; },
+    sprintf: function (format) {
+        var args = Array.prototype.slice.call(arguments, 1), i = 0;
+        return String(format).replace(/%(\d+\$)?[sd]/g, function (match, position) {
+            return String(position ? args[parseInt(position, 10) - 1] : args[i++]);
+        });
+    }
+};
 
 (function($) {
     'use strict';
@@ -101,12 +113,12 @@
                     SettingsPage.hideLoadingState();
                     
                     if (response.success) {
-                        const message = response.data?.message || 'Your settings have been saved successfully!';
+                        const message = response.data?.message || wp.i18n.__('Your settings have been saved successfully!', 'ultimate-watermark');
                         
                         if (typeof UWNotifications !== 'undefined') {
-                            UWNotifications.success('Settings Saved', message, 3000);
+                            UWNotifications.success(wp.i18n.__('Settings Saved', 'ultimate-watermark'), message, 3000);
                         } else {
-                            alert('Settings saved successfully!');
+                            alert(wp.i18n.__('Settings saved successfully!', 'ultimate-watermark'));
                         }
                         
                         // Refresh the page after a short delay to ensure settings are reflected
@@ -114,12 +126,12 @@
                             window.location.reload();
                         }, 1500);
                     } else {
-                        const message = response.data?.message || 'Failed to save settings. Please try again.';
+                        const message = response.data?.message || wp.i18n.__('Failed to save settings. Please try again.', 'ultimate-watermark');
                         
                         if (typeof UWNotifications !== 'undefined') {
-                            UWNotifications.error('Save Failed', message, 5000);
+                            UWNotifications.error(wp.i18n.__('Save Failed', 'ultimate-watermark'), message, 5000);
                         } else {
-                            alert('Failed to save settings. Please try again.');
+                            alert(wp.i18n.__('Failed to save settings. Please try again.', 'ultimate-watermark'));
                         }
                     }
                 },
@@ -127,9 +139,9 @@
                     SettingsPage.hideLoadingState();
                     
                     if (typeof UWNotifications !== 'undefined') {
-                        UWNotifications.error('Save Failed', 'An error occurred while saving settings. Please try again.', 5000);
+                        UWNotifications.error(wp.i18n.__('Save Failed', 'ultimate-watermark'), wp.i18n.__('An error occurred while saving settings. Please try again.', 'ultimate-watermark'), 5000);
                     } else {
-                        alert('An error occurred while saving settings. Please try again.');
+                        alert(wp.i18n.__('An error occurred while saving settings. Please try again.', 'ultimate-watermark'));
                     }
                 }
             });

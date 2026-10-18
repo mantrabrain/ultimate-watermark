@@ -58,7 +58,7 @@ class WatermarkModal
                                             <label class="type-option">
                                                 <input type="radio" name="watermark_type" value="text" checked>
                                                 <div class="type-card">
-                                                    <span class="dashicons dashicons-format-text"></span>
+                                                    <span class="dashicons dashicons-editor-textcolor"></span>
                                                     <span><?php esc_html_e('Text Watermark', 'ultimate-watermark'); ?></span>
                                                     <p><?php esc_html_e('Add text-based watermarks', 'ultimate-watermark'); ?></p>
                                                 </div>

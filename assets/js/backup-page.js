@@ -4,6 +4,18 @@
  * @package UltimateWatermark
  * @since 2.0.0
  */
+/* i18n: falls back to the original text when wp.i18n is unavailable. */
+window.wp = window.wp || {};
+window.wp.i18n = window.wp.i18n || {
+    __: function (text) { return text; },
+    _n: function (single, plural, number) { return number === 1 ? single : plural; },
+    sprintf: function (format) {
+        var args = Array.prototype.slice.call(arguments, 1), i = 0;
+        return String(format).replace(/%(\d+\$)?[sd]/g, function (match, position) {
+            return String(position ? args[parseInt(position, 10) - 1] : args[i++]);
+        });
+    }
+};
 
 class BackupPageManager {
     constructor() {
@@ -69,12 +81,12 @@ class BackupPageManager {
                 this.handleSelectAll(e.target.checked);
             }
             
-            if (e.target.id === 'bulk-restore-btn') {
+            if (e.target.closest && e.target.closest('#bulk-restore-btn')) {
                 e.preventDefault();
                 this.handleBulkRestore();
             }
             
-            if (e.target.id === 'bulk-delete-btn') {
+            if (e.target.closest && e.target.closest('#bulk-delete-btn')) {
                 e.preventDefault();
                 this.handleBulkDelete();
             }
@@ -214,7 +226,7 @@ class BackupPageManager {
         html += '<td class="uw-col-name">';
         html += '<div class="uw-file-info">';
         html += '<div class="uw-file-thumbnail">';
-        html += '<img src="' + backup.url + '" alt="' + this.escapeHtml(backup.title) + '" loading="lazy" class="uw-thumbnail-image" data-image-url="' + backup.url + '" data-image-title="' + this.escapeHtml(backup.title) + '">';
+        html += '<img src="' + this.escapeHtml(backup.url + (backup.url.indexOf('?') === -1 ? '?' : '&') + 'size=thumb') + '" alt="' + this.escapeHtml(backup.title) + '" loading="lazy" class="uw-thumbnail-image" data-image-url="' + this.escapeHtml(backup.url) + '" data-image-title="' + this.escapeHtml(backup.title) + '">';
         html += '</div>';
         html += '<div class="uw-file-details">';
         html += '<div class="uw-file-name">' + this.escapeHtml(backup.title) + '</div>';
@@ -255,7 +267,7 @@ class BackupPageManager {
         // Actions column
         html += '<td class="uw-col-actions">';
         html += '<div class="uw-row-actions">';
-        html += '<a href="' + backup.url + '" class="uw-action-btn uw-action-view" target="_blank" title="View backup">';
+        html += '<a href="' + this.escapeHtml(backup.url) + '" class="uw-action-btn uw-action-view" target="_blank" title="View backup">';
         html += '<span class="dashicons dashicons-visibility"></span>';
         html += '</a>';
         html += '<button type="button" class="uw-action-btn uw-action-restore restore-backup-btn" data-attachment-id="' + backup.id + '" title="Restore from backup">';
@@ -391,16 +403,16 @@ class BackupPageManager {
         
         if (!attachmentId) {
             if (typeof UWNotifications !== 'undefined') {
-                UWNotifications.error('Error', 'Invalid backup item.');
+                UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('Invalid backup item.', 'ultimate-watermark'));
             } else {
-                alert('Invalid backup item.');
+                alert(wp.i18n.__('Invalid backup item.', 'ultimate-watermark'));
             }
             return;
         }
 
         // Check if UWNotifications is available
         if (typeof UWNotifications === 'undefined') {
-            if (confirm('Are you sure you want to delete this backup? This action cannot be undone.')) {
+            if (confirm(wp.i18n.__('Are you sure you want to delete this backup? This action cannot be undone.', 'ultimate-watermark'))) {
                 this.confirmDeleteBackup(attachmentId, backupRow);
             }
             return;
@@ -409,11 +421,11 @@ class BackupPageManager {
         // Show custom confirmation
         try {
             UWNotifications.confirm({
-                title: 'Delete Backup',
-                message: 'Are you sure you want to delete this backup? This action cannot be undone.',
+                title: wp.i18n.__('Delete Backup', 'ultimate-watermark'),
+                message: wp.i18n.__('Are you sure you want to delete this backup? This action cannot be undone.', 'ultimate-watermark'),
                 type: 'error',
-                confirmText: 'Delete',
-                cancelText: 'Cancel',
+                confirmText: wp.i18n.__('Delete', 'ultimate-watermark'),
+                cancelText: wp.i18n.__('Cancel', 'ultimate-watermark'),
                 confirmButtonType: 'danger'
             }).then(action => {
                 if (action === 'confirm') {
@@ -421,13 +433,13 @@ class BackupPageManager {
                 }
             }).catch(() => {
                 // Fallback to native confirm
-                if (confirm('Are you sure you want to delete this backup? This action cannot be undone.')) {
+                if (confirm(wp.i18n.__('Are you sure you want to delete this backup? This action cannot be undone.', 'ultimate-watermark'))) {
                     this.confirmDeleteBackup(attachmentId, backupRow);
                 }
             });
         } catch {
             // Fallback to native confirm
-            if (confirm('Are you sure you want to delete this backup? This action cannot be undone.')) {
+            if (confirm(wp.i18n.__('Are you sure you want to delete this backup? This action cannot be undone.', 'ultimate-watermark'))) {
                 this.confirmDeleteBackup(attachmentId, backupRow);
             }
         }
@@ -454,26 +466,26 @@ class BackupPageManager {
             
             if (data.success) {
                 if (typeof UWNotifications !== 'undefined') {
-                    UWNotifications.success('Success', data.data.message || 'Backup deleted successfully.');
+                    UWNotifications.success(wp.i18n.__('Success', 'ultimate-watermark'), data.data.message || wp.i18n.__('Backup deleted successfully.', 'ultimate-watermark'));
                 } else {
-                    alert(data.data.message || 'Backup deleted successfully.');
+                    alert(data.data.message || wp.i18n.__('Backup deleted successfully.', 'ultimate-watermark'));
                 }
                 // Remove the backup row with animation
                 this.removeBackupRow(backupRow);
             } else {
                 if (typeof UWNotifications !== 'undefined') {
-                    UWNotifications.error('Error', data.data.message || 'Failed to delete backup.');
+                    UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), data.data.message || wp.i18n.__('Failed to delete backup.', 'ultimate-watermark'));
                 } else {
-                    alert(data.data.message || 'Failed to delete backup.');
+                    alert(data.data.message || wp.i18n.__('Failed to delete backup.', 'ultimate-watermark'));
                 }
             }
         })
         .catch(() => {
             this.hideLoadingState(backupRow);
             if (typeof UWNotifications !== 'undefined') {
-                UWNotifications.error('Error', 'An error occurred while deleting the backup.');
+                UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('An error occurred while deleting the backup.', 'ultimate-watermark'));
             } else {
-                alert('An error occurred while deleting the backup.');
+                alert(wp.i18n.__('An error occurred while deleting the backup.', 'ultimate-watermark'));
             }
         });
     }
@@ -484,16 +496,16 @@ class BackupPageManager {
         
         if (!attachmentId) {
             if (typeof UWNotifications !== 'undefined') {
-                UWNotifications.error('Error', 'Invalid backup item.');
+                UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('Invalid backup item.', 'ultimate-watermark'));
             } else {
-                alert('Invalid backup item.');
+                alert(wp.i18n.__('Invalid backup item.', 'ultimate-watermark'));
             }
             return;
         }
 
         // Check if UWNotifications is available
         if (typeof UWNotifications === 'undefined') {
-            if (confirm('Are you sure you want to restore this image from backup? This will replace the current watermarked image with the original backup.')) {
+            if (confirm(wp.i18n.__('Are you sure you want to restore this image from backup? This will replace the current watermarked image with the original backup.', 'ultimate-watermark'))) {
                 this.confirmRestoreBackup(attachmentId, backupRow, false);
             }
             return;
@@ -501,13 +513,13 @@ class BackupPageManager {
 
         // Show custom confirmation with 3 buttons using UWNotifications
         UWNotifications.confirm({
-            title: 'Restore Image',
-            message: 'What would you like to do with this backup?',
+            title: wp.i18n.__('Restore Image', 'ultimate-watermark'),
+            message: wp.i18n.__('What would you like to do with this backup?', 'ultimate-watermark'),
             type: 'warning',
-            confirmText: 'Restore Only',
-            cancelText: 'Cancel',
+            confirmText: wp.i18n.__('Restore Only', 'ultimate-watermark'),
+            cancelText: wp.i18n.__('Cancel', 'ultimate-watermark'),
             confirmButtonType: 'primary',
-            thirdButtonText: 'Restore & Delete',
+            thirdButtonText: wp.i18n.__('Restore & Delete', 'ultimate-watermark'),
             thirdButtonType: 'danger',
             thirdButtonAction: 'restore_and_delete'
         }).then(action => {
@@ -541,19 +553,19 @@ class BackupPageManager {
             
             if (data.success) {
                 const message = deleteAfterRestore 
-                    ? 'Image restored successfully and backup deleted.' 
-                    : 'Image restored successfully from backup.';
-                UWNotifications.success('Success', data.data.message || message);
+                    ? wp.i18n.__('Image restored successfully and backup deleted.', 'ultimate-watermark') 
+                    : wp.i18n.__('Image restored successfully from backup.', 'ultimate-watermark');
+                UWNotifications.success(wp.i18n.__('Success', 'ultimate-watermark'), data.data.message || message);
                 
                 // Remove the backup row since it's no longer needed
                 this.removeBackupRow(backupRow);
             } else {
-                UWNotifications.error('Error', data.data.message || 'Failed to restore image from backup.');
+                UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), data.data.message || wp.i18n.__('Failed to restore image from backup.', 'ultimate-watermark'));
             }
         })
         .catch(() => {
             this.hideLoadingState(backupRow);
-            UWNotifications.error('Error', 'An error occurred while restoring the backup.');
+            UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('An error occurred while restoring the backup.', 'ultimate-watermark'));
         });
     }
 
@@ -615,9 +627,9 @@ class BackupPageManager {
         
         if (attachmentIds.length === 0) {
             if (typeof UWNotifications !== 'undefined') {
-                UWNotifications.error('Error', 'Please select at least one backup to restore.');
+                UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('Please select at least one backup to restore.', 'ultimate-watermark'));
             } else {
-                alert('Please select at least one backup to restore.');
+                alert(wp.i18n.__('Please select at least one backup to restore.', 'ultimate-watermark'));
             }
             return;
         }
@@ -632,11 +644,11 @@ class BackupPageManager {
 
         // Show custom confirmation
         UWNotifications.confirm({
-            title: 'Restore Multiple Images',
+            title: wp.i18n.__('Restore Multiple Images', 'ultimate-watermark'),
             message: `Are you sure you want to restore ${attachmentIds.length} image(s) from backup? This will replace the current watermarked images with the original backups.`,
             type: 'warning',
-            confirmText: 'Restore All',
-            cancelText: 'Cancel',
+            confirmText: wp.i18n.__('Restore All', 'ultimate-watermark'),
+            cancelText: wp.i18n.__('Cancel', 'ultimate-watermark'),
             confirmButtonType: 'primary'
         }).then(action => {
             if (action === 'confirm') {
@@ -665,14 +677,14 @@ class BackupPageManager {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                UWNotifications.success('Success', data.data.message || `${attachmentIds.length} image(s) restored successfully from backup.`);
+                UWNotifications.success(wp.i18n.__('Success', 'ultimate-watermark'), data.data.message || `${attachmentIds.length} image(s) restored successfully from backup.`);
                 // Remove all restored backup rows
                 checkedBoxes.forEach(checkbox => {
                     const row = checkbox.closest('.uw-backup-row');
                     this.removeBackupRow(row);
                 });
             } else {
-                UWNotifications.error('Error', data.data.message || 'Failed to restore images from backup.');
+                UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), data.data.message || wp.i18n.__('Failed to restore images from backup.', 'ultimate-watermark'));
                 // Hide loading state for all rows
                 checkedBoxes.forEach(checkbox => {
                     const row = checkbox.closest('.uw-backup-row');
@@ -681,7 +693,7 @@ class BackupPageManager {
             }
         })
         .catch(() => {
-            UWNotifications.error('Error', 'An error occurred while restoring the backups.');
+            UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('An error occurred while restoring the backups.', 'ultimate-watermark'));
             // Hide loading state for all rows
             checkedBoxes.forEach(checkbox => {
                 const row = checkbox.closest('.uw-backup-row');
@@ -696,9 +708,9 @@ class BackupPageManager {
         
         if (attachmentIds.length === 0) {
             if (typeof UWNotifications !== 'undefined') {
-                UWNotifications.error('Error', 'Please select at least one backup to delete.');
+                UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('Please select at least one backup to delete.', 'ultimate-watermark'));
             } else {
-                alert('Please select at least one backup to delete.');
+                alert(wp.i18n.__('Please select at least one backup to delete.', 'ultimate-watermark'));
             }
             return;
         }
@@ -713,11 +725,11 @@ class BackupPageManager {
 
         // Show custom confirmation
         UWNotifications.confirm({
-            title: 'Delete Multiple Backups',
+            title: wp.i18n.__('Delete Multiple Backups', 'ultimate-watermark'),
             message: `Are you sure you want to delete ${attachmentIds.length} backup(s)? This action cannot be undone.`,
             type: 'error',
-            confirmText: 'Delete All',
-            cancelText: 'Cancel',
+            confirmText: wp.i18n.__('Delete All', 'ultimate-watermark'),
+            cancelText: wp.i18n.__('Cancel', 'ultimate-watermark'),
             confirmButtonType: 'danger'
         }).then(action => {
             if (action === 'confirm') {
@@ -746,14 +758,14 @@ class BackupPageManager {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                UWNotifications.success('Success', data.data.message || `${attachmentIds.length} backup(s) deleted successfully.`);
+                UWNotifications.success(wp.i18n.__('Success', 'ultimate-watermark'), data.data.message || `${attachmentIds.length} backup(s) deleted successfully.`);
                 // Remove all deleted backup rows
                 checkedBoxes.forEach(checkbox => {
                     const row = checkbox.closest('.uw-backup-row');
                     this.removeBackupRow(row);
                 });
             } else {
-                UWNotifications.error('Error', data.data.message || 'Failed to delete backups.');
+                UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), data.data.message || wp.i18n.__('Failed to delete backups.', 'ultimate-watermark'));
                 // Hide loading state for all rows
                 checkedBoxes.forEach(checkbox => {
                     const row = checkbox.closest('.uw-backup-row');
@@ -762,7 +774,7 @@ class BackupPageManager {
             }
         })
         .catch(() => {
-            UWNotifications.error('Error', 'An error occurred while deleting the backups.');
+            UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), wp.i18n.__('An error occurred while deleting the backups.', 'ultimate-watermark'));
             // Hide loading state for all rows
             checkedBoxes.forEach(checkbox => {
                 const row = checkbox.closest('.uw-backup-row');
@@ -866,11 +878,14 @@ class BackupPageManager {
         notice.className = `notice notice-${type} is-dismissible ultimate-watermark-notice`;
         notice.style.margin = '20px 0';
         notice.innerHTML = `
-            <p>${message}</p>
+            <p></p>
             <button type="button" class="notice-dismiss">
-                <span class="screen-reader-text">Dismiss this notice.</span>
+                <span class="screen-reader-text"></span>
             </button>
         `;
+        // Text only: messages may contain image titles.
+        notice.querySelector('p').textContent = message;
+        notice.querySelector('.screen-reader-text').textContent = wp.i18n.__('Dismiss this notice.', 'ultimate-watermark');
 
         // Insert notice at the top of the page
         const content = document.querySelector('.ultimate-watermark-content');
@@ -898,10 +913,11 @@ class BackupPageManager {
     showDeleteConfirmation(attachmentId, backupRow) {
         const fileName = backupRow.querySelector('.uw-file-name').textContent;
         this.showConfirmationModal(
-            'Delete Backup',
-            `Are you sure you want to delete the backup for "${fileName}"? This action cannot be undone.`,
-            'Delete',
-            'Cancel',
+            wp.i18n.__('Delete Backup', 'ultimate-watermark'),
+            /* translators: %s: image title */
+            wp.i18n.sprintf(wp.i18n.__('Are you sure you want to delete the backup for "%s"? This action cannot be undone.', 'ultimate-watermark'), fileName),
+            wp.i18n.__('Delete', 'ultimate-watermark'),
+            wp.i18n.__('Cancel', 'ultimate-watermark'),
             () => this.confirmDeleteBackup(attachmentId, backupRow)
         );
     }
@@ -909,30 +925,33 @@ class BackupPageManager {
     showRestoreConfirmation(attachmentId, backupRow) {
         const fileName = backupRow.querySelector('.uw-file-name').textContent;
         this.showConfirmationModal(
-            'Restore from Backup',
-            `Are you sure you want to restore "${fileName}" from backup? This will replace the current watermarked image with the original backup.`,
-            'Restore',
-            'Cancel',
+            wp.i18n.__('Restore from Backup', 'ultimate-watermark'),
+            /* translators: %s: image title */
+            wp.i18n.sprintf(wp.i18n.__('Are you sure you want to restore "%s" from backup? This will replace the current watermarked image with the original backup.', 'ultimate-watermark'), fileName),
+            wp.i18n.__('Restore', 'ultimate-watermark'),
+            wp.i18n.__('Cancel', 'ultimate-watermark'),
             () => this.confirmRestoreBackup(attachmentId, backupRow)
         );
     }
 
     showBulkDeleteConfirmation(attachmentIds, checkedBoxes) {
         this.showConfirmationModal(
-            'Delete Selected Backups',
-            `Are you sure you want to delete ${attachmentIds.length} backup(s)? This action cannot be undone.`,
-            'Delete All',
-            'Cancel',
+            wp.i18n.__('Delete Selected Backups', 'ultimate-watermark'),
+            /* translators: %d: number of backups */
+            wp.i18n.sprintf(wp.i18n._n('Are you sure you want to delete %d backup? This action cannot be undone.', 'Are you sure you want to delete %d backups? This action cannot be undone.', attachmentIds.length, 'ultimate-watermark'), attachmentIds.length),
+            wp.i18n.__('Delete All', 'ultimate-watermark'),
+            wp.i18n.__('Cancel', 'ultimate-watermark'),
             () => this.confirmBulkDelete(attachmentIds, checkedBoxes)
         );
     }
 
     showBulkRestoreConfirmation(attachmentIds, checkedBoxes) {
         this.showConfirmationModal(
-            'Restore Selected Images',
-            `Are you sure you want to restore ${attachmentIds.length} image(s) from backup? This will replace the current watermarked images with the original backups.`,
-            'Restore All',
-            'Cancel',
+            wp.i18n.__('Restore Selected Images', 'ultimate-watermark'),
+            /* translators: %d: number of images */
+            wp.i18n.sprintf(wp.i18n._n('Are you sure you want to restore %d image from backup? This will replace the current watermarked image with the original backup.', 'Are you sure you want to restore %d images from backup? This will replace the current watermarked images with the original backups.', attachmentIds.length, 'ultimate-watermark'), attachmentIds.length),
+            wp.i18n.__('Restore All', 'ultimate-watermark'),
+            wp.i18n.__('Cancel', 'ultimate-watermark'),
             () => this.confirmBulkRestore(attachmentIds, checkedBoxes)
         );
     }
@@ -951,18 +970,23 @@ class BackupPageManager {
             <div class="uw-modal-overlay"></div>
             <div class="uw-modal-content">
                 <div class="uw-modal-header">
-                    <h3 class="uw-modal-title">${title}</h3>
+                    <h3 class="uw-modal-title"></h3>
                     <button type="button" class="uw-modal-close">&times;</button>
                 </div>
                 <div class="uw-modal-body">
-                    <p class="uw-modal-message">${message}</p>
+                    <p class="uw-modal-message"></p>
                 </div>
                 <div class="uw-modal-footer">
-                    <button type="button" class="uw-btn uw-btn-secondary uw-modal-cancel">${cancelText}</button>
-                    <button type="button" class="uw-btn uw-btn-danger uw-modal-confirm">${confirmText}</button>
+                    <button type="button" class="uw-btn uw-btn-secondary uw-modal-cancel"></button>
+                    <button type="button" class="uw-btn uw-btn-danger uw-modal-confirm"></button>
                 </div>
             </div>
         `;
+        // Text only: the message contains the image title.
+        modal.querySelector('.uw-modal-title').textContent = title;
+        modal.querySelector('.uw-modal-message').textContent = message;
+        modal.querySelector('.uw-modal-cancel').textContent = cancelText;
+        modal.querySelector('.uw-modal-confirm').textContent = confirmText;
 
         // Add to page
         document.body.appendChild(modal);

@@ -20,10 +20,6 @@ class WatermarkUsageTracker
     public static function incrementUsage(int $watermark_id, int $attachment_id, string $image_size = 'full'): bool
     {
         try {
-            // Increment watermark usage count
-            $current_count = get_post_meta($watermark_id, 'watermark_usage_count', true) ?: 0;
-            update_post_meta($watermark_id, 'watermark_usage_count', $current_count + 1);
-            
             // Log this image as using this watermark
             $used_images = get_post_meta($watermark_id, 'watermark_used_images', true) ?: [];
             if (!in_array($attachment_id, $used_images)) {
@@ -31,11 +27,19 @@ class WatermarkUsageTracker
                 update_post_meta($watermark_id, 'watermark_used_images', $used_images);
             }
             
-            // Log this watermark as applied to this image
+            // Log this watermark as applied to this image. Counters are bumped once
+            // per image (not once per generated size), so decrementUsage() balances them.
             $applied_watermarks = get_post_meta($attachment_id, 'applied_watermarks', true) ?: [];
-            if (!in_array($watermark_id, $applied_watermarks)) {
+            $first_for_image = !in_array($watermark_id, $applied_watermarks);
+            if ($first_for_image) {
                 $applied_watermarks[] = $watermark_id;
                 update_post_meta($attachment_id, 'applied_watermarks', $applied_watermarks);
+
+                $current_count = (int) (get_post_meta($watermark_id, 'watermark_usage_count', true) ?: 0);
+                update_post_meta($watermark_id, 'watermark_usage_count', $current_count + 1);
+
+                $image_watermark_count = (int) (get_post_meta($attachment_id, 'watermark_count', true) ?: 0);
+                update_post_meta($attachment_id, 'watermark_count', $image_watermark_count + 1);
             }
             
             // Track watermarks per size
@@ -47,10 +51,6 @@ class WatermarkUsageTracker
                 $size_watermarks[$image_size][] = $watermark_id;
                 update_post_meta($attachment_id, 'watermarks_by_size', $size_watermarks);
             }
-            
-            // Update image watermark count
-            $image_watermark_count = get_post_meta($attachment_id, 'watermark_count', true) ?: 0;
-            update_post_meta($attachment_id, 'watermark_count', $image_watermark_count + 1);
             
             // Track watermark application date
             $current_date = current_time('Y-m-d');

@@ -93,7 +93,7 @@ class DashboardPage
                 <div class="dashboard-card">
                     <div class="card-header">
                         <h3><?php esc_html_e('Recent Activity', 'ultimate-watermark'); ?></h3>
-                        <a href="#" class="card-action"><?php esc_html_e('View All', 'ultimate-watermark'); ?></a>
+                        <a href="<?php echo esc_url(admin_url('upload.php?mode=list')); ?>" class="card-action"><?php esc_html_e('View All', 'ultimate-watermark'); ?></a>
                     </div>
                     <div class="card-content">
                         <div class="activity-list">
@@ -139,7 +139,7 @@ class DashboardPage
                                 </div>
                             </a>
                             
-                            <a href="#" class="action-item">
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=ultimate-watermark-analytics')); ?>" class="action-item">
                                 <div class="action-icon">
                                     <span class="dashicons dashicons-analytics"></span>
                                 </div>
@@ -321,6 +321,7 @@ class DashboardPage
             
             $activities[] = [
                 'icon' => 'dashicons-plus-alt',
+                /* translators: %s: watermark type (text or image) */
                 'title' => sprintf(__('New %s created', 'ultimate-watermark'), $type_label),
                 'time' => human_time_diff(strtotime($watermark->post_date), current_time('timestamp')) . ' ' . __('ago', 'ultimate-watermark')
             ];
@@ -345,6 +346,7 @@ class DashboardPage
         if (!empty($recent_images)) {
             $activities[] = [
                 'icon' => 'dashicons-format-image',
+                /* translators: %d: number of images */
                 'title' => sprintf(__('%d images watermarked', 'ultimate-watermark'), count($recent_images)),
                 'time' => human_time_diff(strtotime($recent_images[0]->post_date), current_time('timestamp')) . ' ' . __('ago', 'ultimate-watermark')
             ];
@@ -389,7 +391,7 @@ class DashboardPage
             $usage_count = get_post_meta($watermark->ID, 'watermark_usage_count', true) ?: 0;
             $active = get_post_meta($watermark->ID, 'active', true) === '1';
             
-            $icon = $watermark_type === 'image' ? 'dashicons-format-image' : 'dashicons-format-text';
+            $icon = $watermark_type === 'image' ? 'dashicons-format-image' : 'dashicons-editor-textcolor';
             $status_class = $active ? 'template-active' : 'template-inactive';
             
             ?>
@@ -407,7 +409,8 @@ class DashboardPage
                     <div class="template-usage">
                         <?php 
                         if ($usage_count > 0) {
-                            printf(_n('Used %d time', 'Used %d times', $usage_count, 'ultimate-watermark'), $usage_count);
+                            /* translators: %d: number of times the watermark was used */
+                            echo esc_html(sprintf(_n('Used %d time', 'Used %d times', $usage_count, 'ultimate-watermark'), $usage_count));
                         } else {
                             esc_html_e('Not used yet', 'ultimate-watermark');
                         }
@@ -451,7 +454,8 @@ class DashboardPage
                 <div class="status-description">
                     <?php 
                     if ($image_lib_status) {
-                        printf(esc_html__('%s available', 'ultimate-watermark'), $image_lib_name);
+                        /* translators: %s: image library name (GD or Imagick) */
+                        printf(esc_html__('%s available', 'ultimate-watermark'), esc_html($image_lib_name));
                     } else {
                         esc_html_e('No image processing library available', 'ultimate-watermark');
                     }
@@ -465,20 +469,26 @@ class DashboardPage
         $memory_limit = ini_get('memory_limit');
         $memory_limit_bytes = wp_convert_hr_to_bytes($memory_limit);
         $memory_usage = memory_get_usage(true);
-        $memory_percentage = ($memory_usage / $memory_limit_bytes) * 100;
+        // memory_limit = -1 means unlimited (common on managed hosts).
+        $memory_unlimited = $memory_limit_bytes <= 0;
+        $memory_percentage = $memory_unlimited ? 0 : ($memory_usage / $memory_limit_bytes) * 100;
         $memory_status = $memory_percentage > 80 ? 'status-warning' : 'status-success';
+        if ($memory_unlimited) {
+            $memory_limit = __('unlimited', 'ultimate-watermark');
+        }
         ?>
         <div class="status-item">
-            <div class="status-indicator <?php echo $memory_status; ?>"></div>
+            <div class="status-indicator <?php echo esc_attr($memory_status); ?>"></div>
             <div class="status-content">
                 <div class="status-title"><?php esc_html_e('Memory Usage', 'ultimate-watermark'); ?></div>
                 <div class="status-description">
                     <?php 
                     printf(
-                        esc_html__('%s used of %s (%.1f%%)', 'ultimate-watermark'),
-                        size_format($memory_usage),
-                        $memory_limit,
-                        $memory_percentage
+                        /* translators: 1: storage used, 2: storage limit, 3: percentage used */
+                        esc_html__('%1$s used of %2$s (%3$.1f%%)', 'ultimate-watermark'),
+                        esc_html(size_format($memory_usage)),
+                        esc_html($memory_limit),
+                        (float) $memory_percentage
                     );
                     ?>
                 </div>
@@ -506,11 +516,11 @@ class DashboardPage
         $backup_status = $backup_size > 100 * 1024 * 1024 ? 'status-warning' : 'status-success'; // 100MB warning
         ?>
         <div class="status-item">
-            <div class="status-indicator <?php echo $backup_status; ?>"></div>
+            <div class="status-indicator <?php echo esc_attr($backup_status); ?>"></div>
             <div class="status-content">
                 <div class="status-title"><?php esc_html_e('Backup Storage', 'ultimate-watermark'); ?></div>
                 <div class="status-description">
-                    <?php printf(esc_html__('%s used', 'ultimate-watermark'), size_format($backup_size)); ?>
+                    <?php /* translators: %s: backup storage size */ printf(esc_html__('%s used', 'ultimate-watermark'), esc_html(size_format($backup_size))); ?>
                 </div>
             </div>
         </div>
@@ -524,22 +534,6 @@ class DashboardPage
      */
     private function getBackupStorageSize(): int
     {
-        $upload_dir = wp_upload_dir();
-        $backup_dir = $upload_dir['basedir'] . '/ultimate-watermark-backups';
-        
-        if (!is_dir($backup_dir)) {
-            return 0;
-        }
-        
-        $size = 0;
-        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($backup_dir));
-        
-        foreach ($iterator as $file) {
-            if ($file->isFile()) {
-                $size += $file->getSize();
-            }
-        }
-        
-        return $size;
+        return \MantraBrain\UltimateWatermark\Utils\BackupManager::getStorageSize();
     }
 }

@@ -1,6 +1,18 @@
 /**
  * Ultimate Watermark - Analytics Page JavaScript
  */
+/* i18n: falls back to the original text when wp.i18n is unavailable. */
+window.wp = window.wp || {};
+window.wp.i18n = window.wp.i18n || {
+    __: function (text) { return text; },
+    _n: function (single, plural, number) { return number === 1 ? single : plural; },
+    sprintf: function (format) {
+        var args = Array.prototype.slice.call(arguments, 1), i = 0;
+        return String(format).replace(/%(\d+\$)?[sd]/g, function (match, position) {
+            return String(position ? args[parseInt(position, 10) - 1] : args[i++]);
+        });
+    }
+};
 
 (function($) {
     'use strict';
@@ -112,16 +124,28 @@
                         UltimateWatermarkAnalytics.updateMetricCards(response.data);
                         UltimateWatermarkAnalytics.renderCharts(response.data, chartId);
                     } else {
-                        // no-op
+                        UltimateWatermarkAnalytics.showLoadError(response && response.data && response.data.message);
                     }
                 },
-                error: function(xhr, status, error) {},
+                error: function(xhr) {
+                    var message = xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message;
+                    UltimateWatermarkAnalytics.showLoadError(message);
+                },
                 complete: function() {
                     // Hide loading indicators
                     $('.chart-loading-overlay').remove();
                     UltimateWatermarkAnalytics.forceRefresh = false;
                 }
             });
+        },
+
+        showLoadError: function(message) {
+            var text = message || wp.i18n.__('Analytics could not be loaded. Please try again.', 'ultimate-watermark');
+            if (window.UWNotifications && typeof window.UWNotifications.error === 'function') {
+                window.UWNotifications.error(wp.i18n.__('Error', 'ultimate-watermark'), text);
+            } else {
+                window.alert(text);
+            }
         },
 
         updateMetricCards: function(data) {
@@ -201,7 +225,7 @@
                 data: {
                     labels: chartData.labels,
                     datasets: [{
-                        label: 'Watermarks Applied',
+                        label: wp.i18n.__('Watermarks Applied', 'ultimate-watermark'),
                         data: chartData.data,
                         ...colors
                     }]
@@ -292,7 +316,7 @@
                 data: {
                     labels: chartData.labels,
                     datasets: [{
-                        label: 'Usage Count',
+                        label: wp.i18n.__('Usage Count', 'ultimate-watermark'),
                         data: chartData.data,
                         backgroundColor: 'rgba(255, 99, 132, 0.8)',
                         borderColor: 'rgba(255, 99, 132, 1)',
@@ -340,7 +364,7 @@
                 data: {
                     labels: chartData.labels,
                     datasets: [{
-                        label: 'Watermarked Images',
+                        label: wp.i18n.__('Watermarked Images', 'ultimate-watermark'),
                         data: chartData.data,
                         backgroundColor: 'rgba(54, 162, 235, 0.8)',
                         borderColor: 'rgba(54, 162, 235, 1)',
