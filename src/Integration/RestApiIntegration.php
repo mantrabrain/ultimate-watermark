@@ -1164,9 +1164,13 @@ class RestApiIntegration
         $referer = wp_get_raw_referer();
         // Compare host + path only: http/https or mapped-domain differences
         // must not turn an admin upload into a "front-end" one.
-        $strip = static function ($url) {
+        // A relative referer (core forms post `_wp_http_referer` as the bare
+        // REQUEST_URI, e.g. media-new.php's browser uploader) is on this site.
+        $site_host = (string) wp_parse_url(admin_url(), PHP_URL_HOST);
+        $strip = static function ($url) use ($site_host) {
             $parts = wp_parse_url((string) $url);
-            return strtolower(($parts['host'] ?? '') . ($parts['path'] ?? ''));
+            $host = $parts['host'] ?? (strpos((string) $url, '/') === 0 ? $site_host : '');
+            return strtolower($host . ($parts['path'] ?? ''));
         };
         $referer_key = $referer ? $strip($referer) : '';
         $is_frontend = $referer_key !== ''

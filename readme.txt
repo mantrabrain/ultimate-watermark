@@ -3,8 +3,8 @@ Contributors: mantrabrain
 Donate link: https://mantrabrain.com/plugins/ultimate-watermark
 Tags: watermark, image watermark, image protection, woocommerce, photography
 Requires at least: 5.9
-Tested up to: 7.1
-Stable tag: 2.2.0
+Tested up to: 7.2
+Stable tag: 2.2.1
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Requires PHP: 7.4
@@ -76,7 +76,7 @@ Limit a watermark to the images it belongs on, by **image size** (thumbnail, med
 * JPEG, PNG (transparency kept), WebP, AVIF (with Imagick) and GIF. Animated GIFs are skipped so they keep their animation.
 * Large uploads (WordPress' "-scaled" images), cropped copies and sizes that share one file are each watermarked exactly once. Re-applying never stacks a watermark twice.
 * Works with every page builder (Gutenberg, Elementor, Divi, Beaver Builder, Bricks): watermarks are part of the image file itself.
-* Tested on PHP 7.4 to 8.4 with both GD and Imagick, on WordPress 7.1 with WooCommerce and Dokan. Requires WordPress 5.9 or later.
+* Tested on PHP 7.4 to 8.4 with both GD and Imagick, on WordPress 7.1 and 7.2 with WooCommerce and Dokan. Requires WordPress 5.9 or later.
 * Translation-ready, with developer filters and actions throughout.
 * 1.x settings and watermarks are migrated automatically.
 
@@ -202,6 +202,10 @@ Watermarked images stay watermarked. To get the originals back, restore them fro
 7. Upload screen: switch automatic watermarking on or off and choose the watermarks for this upload.
 
 == Changelog ==
+
+= 2.2.1 - 2026/11/26 =
+* **Compatibility** - Tested with WordPress 7.2. Every WordPress function and hook the plugin uses was checked against 7.2: none are deprecated or removed (7.2 drops script/style concatenation and sitemap stylesheets, which the plugin does not use). Watermarking on upload, the repeat pattern, Media Library grid bulk actions, backups and restore, and WooCommerce product images were re-tested on WordPress 7.2 with PHP 7.4 (GD) and PHP 8.4 (Imagick), WooCommerce 11.3 and Dokan Lite 5.3.
+* **Fix** - Images uploaded with the classic browser uploader (Media > Add Media File > "browser uploader") or other wp-admin forms were treated as front-end uploads, so a watermark with "Frontend watermarking" switched on could be applied to them. They are now correctly recognised as admin uploads.
 
 = 2.2.0 - 2026/10/13 =
 * **Fixed** - Images assigned as featured, gallery or variation images of a NEW product (Dokan frontend dashboard, WooCommerce REST/CRUD, block editor) were never watermarked; only re-saving an existing product worked. Images are now evaluated once the product and its categories are fully saved, so rules such as "Product Category is X" work on first publish.
@@ -337,6 +341,9 @@ Watermarked images stay watermarked. To get the originals back, restore them fro
 * Pro version adds unlimited templates, dynamic placeholders, on-the-fly display, batch operations, WooCommerce per-product / per-category overrides.
 
 == Upgrade Notice ==
+
+= 2.2.1 =
+Compatibility release for WordPress 7.2, plus a fix for admin uploads being treated as front-end uploads. Safe to update.
 
 = 2.2.0 =
 Fixes WooCommerce/Dokan product images not being watermarked on first publish, never touches downloadable product files, adds a repeat (tiled) pattern, and makes watermarking, backups and restores failure-safe. Text watermarks on GD hosts now match the editor size (they were about a third larger).

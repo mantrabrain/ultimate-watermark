@@ -3,7 +3,7 @@
  * Plugin Name: Ultimate Watermark
  * Plugin URI: https://mantrabrain.com/ultimate-watermark
  * Description: Advanced WordPress Image Watermarking Plugin
- * Version: 2.2.0
+ * Version: 2.2.1
  * Author: MantraBrain
  * Author URI: https://mantrabrain.com
  * License: GPL v3 or later
@@ -11,12 +11,12 @@
  * Text Domain: ultimate-watermark
  * Domain Path: /languages
  * Requires at least: 5.9
- * Tested up to: 7.1
+ * Tested up to: 7.2
  * Requires PHP: 7.4
  *
  * @package UltimateWatermark
  * @author MantraBrain
- * @version 2.2.0
+ * @version 2.2.1
  */
 
 // Prevent direct access
@@ -59,7 +59,7 @@ if (!file_exists(__DIR__ . '/vendor/autoload.php')) {
 }
 
 // Define plugin constants
-define('ULTIMATE_WATERMARK_VERSION', '2.2.0');
+define('ULTIMATE_WATERMARK_VERSION', '2.2.1');
 define('ULTIMATE_WATERMARK_FILE', __FILE__);
 define('ULTIMATE_WATERMARK_DIR', plugin_dir_path(__FILE__));
 define('ULTIMATE_WATERMARK_URL', plugin_dir_url(__FILE__));
